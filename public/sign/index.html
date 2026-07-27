@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course syllabus · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="site"><div>
+  <div class="brand">ini<span class="sh">SH</span>ial</div>
+  <p class="tagline">No backpack required.</p>
+</div></header>
+
+<div class="progress" id="progress" hidden><div>
+  <span id="progressWho"></span>
+  <span id="progressCount"></span>
+</div><div class="bar" style="max-width:44rem;margin:.45rem auto 0"><i id="progressBar"></i></div></div>
+
+<main>
+  <!-- login -->
+  <section id="loginView">
+    <h1>Read and sign the syllabus</h1>
+    <p class="muted">Use the student ID and access code from your teacher's email.</p>
+
+    <form id="loginForm" class="card" novalidate>
+      <label for="sid">Student ID number</label>
+      <input id="sid" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+
+      <label for="code">Access code</label>
+      <input id="code" name="code" type="text" autocomplete="off" spellcheck="false" required
+             style="text-transform:uppercase;letter-spacing:.15em;font-weight:700">
+
+      <fieldset>
+        <legend>I am</legend>
+        <label class="choice"><input type="radio" name="role" value="parent" checked> the parent or guardian</label>
+        <label class="choice"><input type="radio" name="role" value="student"> the student</label>
+      </fieldset>
+
+      <div id="loginMsg" hidden></div>
+      <p><button id="loginBtn" type="submit">Open the syllabus</button></p>
+    </form>
+  </section>
+
+  <!-- syllabus -->
+  <section id="docView" hidden>
+    <h1 id="docTitle"></h1>
+    <p class="muted small" id="docMeta"></p>
+    <div id="blocks"></div>
+    <div id="doneBanner" class="done-banner" hidden>
+      <h2 style="margin:.2rem 0">All sections initialed</h2>
+      <p class="muted" style="margin:.3rem 0 1rem">Your teacher can see this is complete. Nothing else to do.</p>
+      <button class="secondary no-print" onclick="window.print()">Print a copy</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let state = null;
+
+function notice(el, text, kind) {
+  el.hidden = false;
+  el.className = 'notice ' + kind;
+  el.textContent = text;
+}
+
+// ---- login ----
+
+$('loginForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const msg = $('loginMsg');
+  const btn = $('loginBtn');
+  msg.hidden = true;
+  btn.disabled = true;
+  btn.textContent = 'Checking…';
+
+  try {
+    const res = await fetch('/api/sign/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData($('loginForm')).entries())),
+    });
+    const body = await res.json();
+    if (!res.ok) { notice(msg, body.error || 'Could not sign in.', 'error'); return; }
+    await loadSyllabus();
+  } catch {
+    notice(msg, 'Could not reach the server. Check your connection and try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Open the syllabus';
+  }
+});
+
+// ---- rendering ----
+
+async function loadSyllabus() {
+  const res = await fetch('/api/sign/syllabus');
+  if (res.status === 401) return;          // not signed in; stay on the form
+  const body = await res.json();
+  if (!res.ok) { notice($('loginMsg'), body.error || 'Nothing to show yet.', 'error'); return; }
+
+  state = body;
+  $('loginView').hidden = true;
+  $('docView').hidden = false;
+  $('progress').hidden = false;
+
+  $('docTitle').textContent = body.title;
+  $('docMeta').textContent =
+    [body.course, body.period && ('Period ' + body.period), 'Version ' + body.version].filter(Boolean).join(' · ');
+  $('progressWho').textContent =
+    body.student + (body.role === 'parent' ? ' — parent or guardian' : ' — student');
+
+  render();
+}
+
+function render() {
+  const host = $('blocks');
+  host.textContent = '';
+  for (const block of state.blocks) {
+    host.appendChild(block.needs_initials ? initialBox(block) : contentBlock(block));
+  }
+  updateProgress();
+}
+
+function contentBlock(block) {
+  const div = document.createElement('div');
+  div.className = 'block';
+  // Teacher-authored HTML from the editor. Not user input.
+  div.innerHTML = block.html;
+  return div;
+}
+
+function initialBox(block) {
+  const box = document.createElement('div');
+  box.className = 'initial-box' + (block.signed ? ' done' : '');
+
+  const prompt = document.createElement('p');
+  prompt.className = 'prompt';
+  // The prompt is plain text, so set it as text rather than markup.
+  prompt.textContent = block.html;
+  box.appendChild(prompt);
+
+  if (block.signed) {
+    const stamp = document.createElement('p');
+    stamp.className = 'stamp';
+    stamp.innerHTML = 'Initialed <b></b> on <span></span>';
+    stamp.querySelector('b').textContent = block.signed.initials;
+    stamp.querySelector('span').textContent = new Date(block.signed.signed_at * 1000).toLocaleString();
+    box.appendChild(stamp);
+    return box;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'row';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = 6;
+  input.placeholder = 'ABC';
+  input.setAttribute('aria-label', 'Your initials for this section');
+
+  const button = document.createElement('button');
+  button.textContent = 'Initial';
+
+  const error = document.createElement('div');
+  error.hidden = true;
+
+  button.addEventListener('click', async () => {
+    error.hidden = true;
+    button.disabled = true;
+    try {
+      const res = await fetch('/api/sign/initial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ block_id: block.id, initials: input.value }),
+      });
+      const body = await res.json();
+      if (!res.ok) { notice(error, body.error || 'Could not save.', 'error'); return; }
+
+      block.signed = { initials: body.initials, signed_at: body.signed_at };
+      render();
+    } catch {
+      notice(error, 'Could not reach the server. Try again.', 'error');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); button.click(); } });
+
+  row.append(input, button);
+  box.append(row, error);
+  return box;
+}
+
+function updateProgress() {
+  const required = state.blocks.filter((b) => b.needs_initials);
+  const signed = required.filter((b) => b.signed).length;
+  $('progressCount').textContent = signed + ' of ' + required.length + ' sections';
+  $('progressBar').style.width = required.length ? (signed / required.length * 100) + '%' : '0%';
+  $('doneBanner').hidden = !(required.length && signed === required.length);
+}
+
+// An existing session skips the form.
+loadSyllabus();
+</script>
+</body>
+</html>

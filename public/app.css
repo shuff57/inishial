@@ -1,0 +1,380 @@
+/* iniSHial — notebook theme.
+ *
+ * Token set adapted from bookSHelf's `notebook` theme
+ * (scripts/workflows/templates/themes/notebook/tokens.json), itself derived
+ * from the "Notebook Tabs" preset in zarazhangrui/frontend-slides via Open
+ * Design's fs-notebook-tabs example. MIT. See ATTRIBUTION.md.
+ *
+ * Palette is used UNCHANGED from bookSHelf's sheet, which has a recorded
+ * accessibility audit: --ink-stone #6b6358 on cream #f8f6f1 is ~4.9:1, and
+ * --ink-near-black is ~15:1. Do not lighten either, and do not put body text
+ * on anything but the cream ground.
+ *
+ * Handwriting is an ACCENT, never the body. This document is one a parent has
+ * to read and legally initial -- a script face for policy text would hurt
+ * comprehension and, on a small phone, exclude readers outright. Caveat is
+ * used for initials, margin notes, and the masthead only.
+ */
+
+@font-face {
+  font-family: 'Caveat';
+  /* Variable font, 400-700. Self-hosted: no CDN, per the open-source rule.
+     Declared as plain truetype -- some Safari versions reject the
+     -variations form and drop the face entirely. */
+  src: url('/fonts/Caveat.ttf') format('truetype');
+  font-weight: 400 700;
+  font-display: swap;
+}
+
+:root {
+  /* Brand — berry-rose "red pen", deepened from the deck's pink margin rule
+     so it clears AA on cream. */
+  --rose: #a8455f;
+  --rose-light: #c76f86;
+  --rose-deep: #7f3348;
+  --focus: #4a90c4;
+
+  /* Surfaces */
+  --paper: #f8f6f1;
+  --ivory: #fdfcf9;
+  --sand: #efece3;
+  --desk: #2d2d2d;
+  --desk-deep: #1e1e1e;
+
+  /* Ink, warm ramp */
+  --ink: #1a1a1a;
+  --ink-charcoal: #3a3833;
+  --ink-olive: #4d4a43;
+  --ink-stone: #6b6358;
+  --ink-silver: #a8a297;
+
+  /* Lines */
+  --border-cream: #efece3;
+  --border-warm: #e4e0d5;
+  --ring: #d8d2c4;
+
+  /* Index-tab hues — the notebook's wayfinding spine, order preserved */
+  --tab-1: #98d4bb;
+  --tab-2: #c7b8ea;
+  --tab-3: #f4b8c5;
+  --tab-4: #a8d8ea;
+  --tab-5: #ffe6a7;
+
+  --shadow-paper: 0 1px 2px rgba(0,0,0,.05), 0 12px 40px rgba(0,0,0,.28);
+  --shadow-soft: 0 4px 24px rgba(0,0,0,.05);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --font-display: "Bodoni Moda", "Bodoni MT", "Didot", "Playfair Display",
+                  "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans", "Helvetica Neue", "Segoe UI", Helvetica, Arial, system-ui, sans-serif;
+  --font-hand: "Caveat", "Segoe Script", "Bradley Hand", cursive;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Ruled-line pitch. Body line-height matches it so prose sits ON the rules. */
+  --rule: 30px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --rose: #d98aa0;
+    --rose-light: #e6a7ba;
+    --rose-deep: #b8657c;
+    --paper: #1e1e1e;
+    --ivory: #232320;
+    --sand: #33322e;
+    --desk: #141413;
+    --desk-deep: #0e0e0d;
+    --ink: #ede8dc;
+    --ink-charcoal: #cfcabd;
+    --ink-olive: #b3ada0;
+    --ink-stone: #8a8578;
+    --ink-silver: #6f6a5f;
+    --border-cream: rgba(255,255,255,.06);
+    --border-warm: rgba(255,255,255,.10);
+    --ring: rgba(255,255,255,.12);
+    --shadow-paper: 0 1px 2px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.5);
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* The desk the notebook sits on. */
+body {
+  margin: 0;
+  background: var(--desk);
+  background-image: radial-gradient(ellipse at 50% 0%, #3a3a38 0%, var(--desk) 55%, var(--desk-deep) 100%);
+  color: var(--ink);
+  font: 16px/var(--rule) var(--font-body);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ---- masthead ---- */
+
+header.site {
+  padding: 1.4rem 1.1rem .9rem;
+  color: var(--paper);
+}
+header.site > div { max-width: 48rem; margin: 0 auto; }
+
+.brand {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+  color: var(--paper);
+}
+.brand .sh { color: var(--rose-light); }
+
+.tagline {
+  font-family: var(--font-hand);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: var(--tab-5);
+  margin: .15rem 0 0;
+  transform: rotate(-1.2deg);
+  transform-origin: left center;
+}
+
+/* ---- the page ---- */
+
+main {
+  position: relative;
+  max-width: 48rem;
+  margin: 0 auto 4rem;
+  padding: 2rem 1.6rem 3.5rem 3.2rem;
+  background-color: var(--paper);
+  /* Faint ruled lines, pitched to --rule so body copy rides them. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--rule) - 1px),
+    color-mix(in srgb, var(--ring) 55%, transparent) calc(var(--rule) - 1px),
+    color-mix(in srgb, var(--ring) 55%, transparent) var(--rule)
+  );
+  background-position: 0 2rem;
+  border-radius: 2px 6px 6px 2px;
+  box-shadow: var(--shadow-paper);
+}
+
+/* Binder holes down the left edge. */
+main::before {
+  content: "";
+  position: absolute;
+  left: .82rem; top: 0; bottom: 0; width: 14px;
+  background-image: radial-gradient(circle at 7px 7px, var(--desk) 6.5px, transparent 7px);
+  background-size: 14px 96px;
+  background-repeat: repeat-y;
+  background-position: 0 3.2rem;
+  opacity: .5;
+  pointer-events: none;
+}
+
+/* The red-pen margin rule. */
+main::after {
+  content: "";
+  position: absolute;
+  left: 2.5rem; top: 0; bottom: 0; width: 1px;
+  background: color-mix(in srgb, var(--rose) 42%, transparent);
+  pointer-events: none;
+}
+
+/* ---- type ---- */
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 1.85rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -.015em;
+  margin: 1.6rem 0 .5rem;
+}
+h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 2rem 0 .4rem;
+}
+p { margin: 0 0 var(--rule); }
+a { color: var(--rose); text-underline-offset: 2px; }
+.muted { color: var(--ink-stone); }
+.small { font-size: .875rem; line-height: 1.55; }
+code { font: 13px var(--font-mono); background: var(--sand); padding: .1rem .3rem; border-radius: var(--radius-sm); }
+
+/* A pencilled aside in the margin. Decorative only. */
+.note-hand {
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  line-height: 1.3;
+  color: var(--rose);
+  transform: rotate(-.8deg);
+}
+
+/* ---- cards ---- */
+
+.card {
+  background: var(--ivory);
+  border: 1px solid var(--border-warm);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.2rem 1.3rem;
+  box-shadow: var(--shadow-soft);
+  margin: 1.2rem 0;
+}
+
+/* ---- forms ---- */
+
+label { display: block; font-weight: 600; font-size: .9rem; line-height: 1.4; margin: 1.1rem 0 .35rem; }
+.hint { display: block; font-weight: 400; color: var(--ink-stone); font-size: .85rem; line-height: 1.45; }
+
+input[type=text], input[type=email], input[type=password], textarea, input[type=file] {
+  width: 100%;
+  padding: .65rem .75rem;
+  font: inherit;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--ring);
+  border-radius: var(--radius-sm);
+}
+input:focus-visible, button:focus-visible, textarea:focus-visible, a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: .65rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rose-deep);
+  background: var(--rose);
+  color: #fff;
+  cursor: pointer;
+}
+button:hover:not([disabled]) { background: var(--rose-deep); }
+button[disabled] { opacity: .5; cursor: not-allowed; }
+button.secondary { background: transparent; color: var(--ink); border-color: var(--ring); }
+button.secondary:hover:not([disabled]) { background: var(--sand); }
+
+.row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+
+fieldset { border: 1px solid var(--border-warm); border-radius: var(--radius-sm); padding: .5rem .9rem .9rem; margin: 1.1rem 0 0; }
+legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; }
+.choice { display: flex; align-items: center; gap: .5rem; margin: .35rem 0; font-weight: 400; line-height: 1.4; }
+.choice input { width: 1.1rem; height: 1.1rem; accent-color: var(--rose); }
+
+.notice { border-radius: var(--radius-sm); padding: .7rem .9rem; margin: 1rem 0; font-size: .92rem; line-height: 1.5; }
+.notice.error { background: #f6e0e4; color: var(--rose-deep); border-left: 3px solid var(--rose); }
+.notice.ok { background: color-mix(in srgb, var(--tab-1) 40%, var(--paper)); color: #1f5544; border-left: 3px solid var(--tab-1); }
+@media (prefers-color-scheme: dark) {
+  .notice.error { background: #3a2b30; color: var(--rose-light); }
+  .notice.ok { background: #23332e; color: var(--tab-1); }
+}
+
+/* ---- progress spine ---- */
+
+.progress {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--desk);
+  color: var(--paper);
+  padding: .6rem 1.1rem .5rem;
+  font-size: .88rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.progress > div { max-width: 48rem; margin: 0 auto; display: flex; justify-content: space-between; gap: 1rem; }
+.bar { height: 3px; background: rgba(255,255,255,.16); border-radius: 2px; margin-top: .4rem; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--tab-1); width: 0; transition: width .3s; }
+
+/* ---- syllabus blocks ---- */
+
+.block { margin: 0 0 var(--rule); }
+.block :is(h1, h2, h3) { margin: calc(var(--rule) * 1.2) 0 .4rem; }
+.block ul, .block ol { padding-left: 1.3rem; margin: 0 0 var(--rule); }
+.block li { margin: 0; }
+
+/* The section that asks for initials: a taped-in card, tab-flagged. */
+.initial-box {
+  position: relative;
+  background: var(--ivory);
+  border: 1px solid var(--ring);
+  border-left: 4px solid var(--tab-3);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.1rem;
+  margin: calc(var(--rule) * .8) 0 var(--rule);
+  box-shadow: var(--shadow-soft);
+}
+.initial-box .prompt { font-weight: 600; line-height: 1.45; margin: 0 0 .7rem; }
+.initial-box .row { align-items: center; }
+
+/* Initials are handwriting -- the one place a script face belongs. */
+.initial-box input {
+  width: 6.5rem;
+  font-family: var(--font-hand);
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: .04em;
+  text-align: center;
+  text-transform: uppercase;
+  padding: .25rem .4rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--ink-silver);
+  border-radius: 0;
+}
+.initial-box input::placeholder { color: var(--ink-silver); font-size: 1.3rem; }
+
+.initial-box.done { border-left-color: var(--tab-1); background: var(--paper); }
+.stamp { font-size: .85rem; line-height: 1.5; color: var(--ink-stone); margin: 0; }
+.stamp b {
+  font-family: var(--font-hand);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--rose);
+  letter-spacing: .04em;
+  display: inline-block;
+  transform: rotate(-2deg);
+  margin: 0 .15rem;
+}
+
+.done-banner {
+  border: 1px solid var(--ring);
+  border-left: 4px solid var(--tab-1);
+  background: var(--ivory);
+  border-radius: var(--radius-sm);
+  padding: 1.2rem;
+  text-align: center;
+  box-shadow: var(--shadow-soft);
+}
+.done-banner h2 { margin-top: .2rem; }
+
+/* ---- narrow screens ---- */
+
+@media (max-width: 34rem) {
+  main { padding: 1.5rem 1.1rem 3rem 2.4rem; border-radius: 0; }
+  main::before { left: .45rem; }
+  main::after { left: 1.75rem; }
+  h1 { font-size: 1.55rem; }
+  .brand { font-size: 1.4rem; }
+}
+
+/* ---- print: the signed copy ---- */
+
+@media print {
+  header.site, .progress, button, .no-print { display: none !important; }
+  body { background: #fff; }
+  main {
+    max-width: none; margin: 0; padding: 0 .5in;
+    background-image: none; box-shadow: none; border-radius: 0;
+  }
+  main::before, main::after { display: none; }
+  .initial-box { break-inside: avoid; border-color: #999; background: #fff; box-shadow: none; }
+  .stamp b { color: #000; }
+  a { color: inherit; text-decoration: none; }
+}

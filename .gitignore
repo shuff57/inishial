@@ -1,0 +1,12 @@
+node_modules/
+.wrangler/
+.dev.vars
+.dev.sqlite
+*.log
+
+# Roster exports and credential CSVs contain student PII and plaintext access
+# codes. Never commit one.
+*.csv
+!tests/fixtures/*.csv
+
+.secrets.local

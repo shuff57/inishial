@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="site"><div>
+  <div class="brand">ini<span class="sh">SH</span>ial</div>
+  <p class="tagline">No backpack required.</p>
+</div></header>
+
+<main>
+  <h1>Teacher sign-in</h1>
+  <p class="muted small">This is the admin side — rosters, the syllabus editor, and signing records.
+    Parents and students don't sign in here.</p>
+
+  <form id="form" class="card" novalidate>
+    <label for="password">Admin password</label>
+    <input id="password" type="password" autocomplete="current-password" required autofocus>
+    <div id="msg" hidden></div>
+    <p><button id="submit" type="submit">Sign in</button></p>
+  </form>
+
+  <p class="small muted">Sessions last two hours. Five wrong attempts locks sign-in for thirty minutes.</p>
+</main>
+
+<script>
+const form = document.getElementById('form');
+const msg = document.getElementById('msg');
+const submit = document.getElementById('submit');
+
+// Where to land after signing in. Only same-origin paths are honoured, so a
+// crafted ?next= cannot bounce a signed-in teacher to another site.
+function nextPath() {
+  const raw = new URLSearchParams(location.search).get('next') || '/admin/';
+  return /^\/(?!\/)/.test(raw) ? raw : '/admin/';
+}
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  msg.hidden = true;
+  submit.disabled = true;
+  submit.textContent = 'Checking…';
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: document.getElementById('password').value }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      msg.hidden = false;
+      msg.className = 'notice error';
+      msg.textContent = body.error || 'Could not sign in.';
+      return;
+    }
+    location.href = nextPath();
+  } catch {
+    msg.hidden = false;
+    msg.className = 'notice error';
+    msg.textContent = 'Could not reach the server.';
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Sign in';
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up your account · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="site"><div>
+  <div class="brand">ini<span class="sh">SH</span>ial</div>
+  <p class="tagline">No backpack required.</p>
+</div></header>
+
+<main>
+  <h1>Set up your account</h1>
+  <p class="muted">Your teacher will email your parent or guardian a link to the class syllabus.</p>
+
+  <form id="form" class="card" novalidate>
+    <label for="sid">Student ID number
+      <span class="hint">The number on your school ID card.</span></label>
+    <input id="sid" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+
+    <label for="last">Last name</label>
+    <input id="last" name="last" type="text" autocomplete="family-name" required>
+
+    <label for="username">Pick a username
+      <span class="hint">3–32 characters. Letters, numbers, dot, dash, underscore.</span></label>
+    <input id="username" name="username" type="text" autocomplete="off" required>
+
+    <label for="email">Parent or guardian's email <span class="hint">— optional</span>
+      <span class="hint">Your school already has a contact email for most families. Only fill this in if
+        your parent or guardian should get the syllabus at a different address.</span></label>
+    <input id="email" name="parent_email" type="email" autocomplete="off">
+
+    <div id="msg" hidden></div>
+    <p><button id="submit" type="submit">Create my account</button></p>
+  </form>
+
+  <div id="done" class="card" hidden>
+    <h2 style="margin-top:.2rem">You're registered</h2>
+    <p id="doneWho" class="muted"></p>
+    <p id="doneMsg"></p>
+  </div>
+</main>
+
+<script>
+const form = document.getElementById('form');
+const msg = document.getElementById('msg');
+const submit = document.getElementById('submit');
+
+function show(text, kind) {
+  msg.hidden = false;
+  msg.className = 'notice ' + kind;
+  msg.textContent = text;
+}
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  msg.hidden = true;
+  submit.disabled = true;
+  submit.textContent = 'Creating…';
+
+  const payload = Object.fromEntries(new FormData(form).entries());
+
+  try {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+
+    if (!res.ok) {
+      show(body.error || 'Something went wrong. Try again.', 'error');
+      return;
+    }
+
+    document.getElementById('doneWho').textContent =
+      [body.student, body.course, body.period && ('Period ' + body.period)].filter(Boolean).join(' · ');
+    document.getElementById('doneMsg').textContent = body.message;
+    form.hidden = true;
+    document.getElementById('done').hidden = false;
+  } catch {
+    show('Could not reach the server. Check your connection and try again.', 'error');
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Create my account';
+  }
+});
+</script>
+</body>
+</html>

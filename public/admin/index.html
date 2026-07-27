@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+<style>
+  main { max-width: 56rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--border-warm); }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-stone); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tabs { display: flex; gap: .3rem; margin: 1rem 0 0; }
+  .tabs button { background: transparent; color: var(--ink-stone); border: 1px solid transparent; border-radius: 8px 8px 0 0; }
+  .tabs button[aria-selected=true] { color: var(--ink); border-color: var(--border-warm); border-bottom-color: var(--ivory); background: var(--ivory); }
+  textarea {
+    width: 100%; min-height: 11rem; padding: .7rem .8rem; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--ink); background: var(--paper); border: 1px solid var(--border-warm); border-radius: 8px; resize: vertical;
+  }
+  .drop { border: 2px dashed var(--border-warm); border-radius: var(--radius-md); padding: 2rem 1rem; text-align: center; color: var(--ink-stone); }
+  .drop.over { border-color: var(--rose); background: var(--sand); color: var(--rose); }
+  .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: .8rem; margin: 1rem 0; }
+  .stat { border: 1px solid var(--border-warm); border-radius: 8px; padding: .7rem .8rem; }
+  .stat b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat span { font-size: .78rem; color: var(--ink-stone); text-transform: uppercase; letter-spacing: .04em; }
+  .stat.danger b { color: var(--rose-deep); }
+  code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--paper); padding: .1rem .3rem; border-radius: 4px; }
+</style>
+</head>
+<body>
+<header class="site"><div>
+  <div class="brand">ini<span class="sh">SH</span>ial</div>
+  <p class="tagline">No backpack required.</p>
+</div></header>
+
+<main>
+  <div class="row" style="justify-content:space-between">
+    <h1 style="margin-bottom:0">Classes</h1>
+    <button class="secondary" id="signout">Sign out</button>
+  </div>
+  <div id="coursesMsg" hidden></div>
+  <div class="card" id="coursesCard">
+    <table id="coursesTable">
+      <thead><tr>
+        <th>Course</th><th class="num">Active</th><th class="num">Dropped</th>
+        <th class="num">Registered</th><th class="num">Codes issued</th><th></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    <p id="coursesEmpty" class="muted small" hidden>No classes yet. Import a roster below.</p>
+  </div>
+
+  <h1>Import a roster</h1>
+  <p class="muted small">
+    Export from Aeries with columns for student ID, name, period, and parent email
+    (<code>PEM</code>). Re-importing is how you handle adds and drops — students missing from the
+    file are marked dropped, never deleted.
+  </p>
+
+  <div class="card">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabFile" aria-selected="true">Upload a file</button>
+      <button role="tab" id="tabPaste" aria-selected="false">Paste from a spreadsheet</button>
+    </div>
+
+    <div id="paneFile">
+      <div class="drop" id="drop">
+        <p style="margin:0 0 .6rem">Drop a <code>.csv</code> or <code>.txt</code> here</p>
+        <input type="file" id="file" accept=".csv,.txt,.tsv,text/csv,text/plain">
+      </div>
+    </div>
+
+    <div id="panePaste" hidden>
+      <p class="small muted" style="margin-top:.8rem">
+        Select the cells in Excel or Google Sheets, including the header row, and paste.
+        Tab-separated text is handled automatically.
+      </p>
+      <textarea id="paste" spellcheck="false"
+        placeholder="Student ID&#9;Last Name&#9;First Name&#9;Period&#9;PEM"></textarea>
+    </div>
+
+    <label for="course">Course name
+      <span class="hint">Only needed if the file has no Course column.</span></label>
+    <input id="course" type="text" placeholder="Algebra I">
+
+    <div id="importMsg" hidden></div>
+    <p class="row">
+      <button id="previewBtn">Preview changes</button>
+      <button id="confirmBtn" class="secondary" hidden>Apply this import</button>
+    </p>
+
+    <div id="planBox" hidden></div>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let pending = null;   // { text, course } awaiting confirmation
+
+function notice(el, text, kind) {
+  el.hidden = false;
+  el.className = 'notice ' + kind;
+  el.textContent = text;
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---- tabs ----
+
+function selectTab(which) {
+  const file = which === 'file';
+  $('tabFile').setAttribute('aria-selected', String(file));
+  $('tabPaste').setAttribute('aria-selected', String(!file));
+  $('paneFile').hidden = !file;
+  $('panePaste').hidden = file;
+}
+$('tabFile').addEventListener('click', () => selectTab('file'));
+$('tabPaste').addEventListener('click', () => selectTab('paste'));
+
+// ---- file input + drag and drop ----
+
+let fileText = '';
+async function takeFile(file) {
+  if (!file) return;
+  fileText = await file.text();
+  notice($('importMsg'), `Loaded ${file.name} — ${fileText.split(/\r?\n/).filter(Boolean).length - 1} data rows. Preview to see what it would change.`, 'ok');
+  resetPlan();
+}
+$('file').addEventListener('change', (e) => takeFile(e.target.files[0]));
+
+const drop = $('drop');
+for (const type of ['dragenter', 'dragover']) {
+  drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add('over'); });
+}
+for (const type of ['dragleave', 'drop']) {
+  drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.remove('over'); });
+}
+drop.addEventListener('drop', (e) => takeFile(e.dataTransfer.files[0]));
+
+// ---- import ----
+
+function currentText() {
+  return $('paneFile').hidden ? $('paste').value : fileText;
+}
+
+function resetPlan() {
+  pending = null;
+  $('planBox').hidden = true;
+  $('confirmBtn').hidden = true;
+}
+$('paste').addEventListener('input', resetPlan);
+$('course').addEventListener('input', resetPlan);
+
+async function send(text, course, preview) {
+  const qs = new URLSearchParams();
+  if (course) qs.set('course', course);
+  if (preview) qs.set('preview', '1');
+  const res = await fetch('/api/admin/roster?' + qs, { method: 'POST', body: text });
+  return { res, body: await res.json() };
+}
+
+$('previewBtn').addEventListener('click', async () => {
+  const text = currentText().trim();
+  const course = $('course').value.trim();
+  $('importMsg').hidden = true;
+  if (!text) { notice($('importMsg'), 'Choose a file or paste some rows first.', 'error'); return; }
+
+  $('previewBtn').disabled = true;
+  try {
+    const { res, body } = await send(text, course, true);
+    if (!res.ok) { notice($('importMsg'), body.error || 'Could not read that file.', 'error'); return; }
+    renderPlan(body);
+    pending = { text, course };
+    $('confirmBtn').hidden = false;
+  } catch {
+    notice($('importMsg'), 'Could not reach the server.', 'error');
+  } finally {
+    $('previewBtn').disabled = false;
+  }
+});
+
+$('confirmBtn').addEventListener('click', async () => {
+  if (!pending) return;
+  $('confirmBtn').disabled = true;
+  try {
+    const { res, body } = await send(pending.text, pending.course, false);
+    if (!res.ok) { notice($('importMsg'), body.error || 'Import failed.', 'error'); return; }
+    notice($('importMsg'),
+      `Imported ${body.imported} students — ${body.inserted} new, ${body.updated} updated, ${body.dropped} marked dropped.`, 'ok');
+    resetPlan();
+    fileText = ''; $('paste').value = ''; $('file').value = '';
+    loadCourses();
+  } catch {
+    notice($('importMsg'), 'Could not reach the server.', 'error');
+  } finally {
+    $('confirmBtn').disabled = false;
+  }
+});
+
+function renderPlan(plan) {
+  const stat = (n, label, danger) =>
+    `<div class="stat${danger ? ' danger' : ''}"><b>${n}</b><span>${label}</span></div>`;
+
+  let html = '<div class="plan">'
+    + stat(plan.inserts, 'new students')
+    + stat(plan.updates, 'updated')
+    + stat(plan.would_drop, 'would drop', plan.would_drop > 0)
+    + stat(plan.with_parent_email + '/' + plan.parsed, 'with parent email')
+    + '</div>';
+
+  html += `<p class="small muted">Read as ${plan.delimiter === 'tab' ? 'tab-separated' : `"${esc(plan.delimiter)}"-separated`}`
+    + ` · ${plan.courses.map(esc).join(', ')}`
+    + (plan.new_courses.length ? ` · new class: ${plan.new_courses.map(esc).join(', ')}` : '') + '</p>';
+
+  if (plan.would_drop) {
+    html += '<div class="notice error"><b>These students would be marked dropped</b><br>'
+      + plan.would_drop_students.map(esc).join('<br>')
+      + (plan.would_drop > plan.would_drop_students.length ? `<br>…and ${plan.would_drop - plan.would_drop_students.length} more` : '')
+      + '<br><br>Their accounts and signatures are kept. If this looks wrong, the file is probably missing a period.</div>';
+  }
+  for (const w of plan.warnings || []) html += `<div class="notice error">${esc(w)}</div>`;
+  if (plan.skipped?.length) {
+    html += `<div class="notice error"><b>${plan.skipped.length} line(s) skipped</b><br>`
+      + plan.skipped.slice(0, 10).map((s) => `Line ${s.line}: ${esc(s.reason)}`).join('<br>') + '</div>';
+  }
+
+  if (plan.sample?.length) {
+    html += '<table><thead><tr><th>Student ID</th><th>Name</th><th>Period</th><th>Parent email</th></tr></thead><tbody>'
+      + plan.sample.map((r) => `<tr><td>${esc(r.student_ext_id)}</td><td>${esc(r.last)}, ${esc(r.first)}</td>`
+        + `<td>${esc(r.period ?? '')}</td><td>${esc(r.parent_email ?? '—')}</td></tr>`).join('')
+      + '</tbody></table><p class="small muted">First few rows, as parsed.</p>';
+  }
+
+  $('planBox').innerHTML = html;
+  $('planBox').hidden = false;
+}
+
+// ---- courses ----
+
+async function loadCourses() {
+  try {
+    const res = await fetch('/api/admin/roster');
+    if (res.status === 401) {
+      location.href = '/admin/login/?next=' + encodeURIComponent(location.pathname);
+      return;
+    }
+    const { courses } = await res.json();
+    const body = $('coursesTable').querySelector('tbody');
+    body.innerHTML = courses.map((c) => `<tr>
+        <td>${esc(c.name)}</td>
+        <td class="num">${c.students ?? 0}</td>
+        <td class="num">${c.dropped ?? 0}</td>
+        <td class="num">${c.registered ?? 0}</td>
+        <td class="num">${c.codes_issued ?? 0}</td>
+        <td><a href="/admin/progress/?course_id=${c.id}">Who has signed</a>
+            &nbsp;·&nbsp;
+            <a href="/admin/editor/?course_id=${c.id}">Syllabus</a>
+            &nbsp;·&nbsp;
+            <a href="/api/admin/credentials?course_id=${c.id}" download>Credentials</a></td>
+      </tr>`).join('');
+    $('coursesEmpty').hidden = courses.length > 0;
+  } catch {
+    notice($('coursesMsg'), 'Could not load classes.', 'error');
+  }
+}
+
+$('signout').addEventListener('click', async () => {
+  // Clears the cookie server-side. An Access session is ended by Access itself.
+  await fetch('/api/admin/login', { method: 'DELETE' });
+  location.href = '/admin/login/';
+});
+
+loadCourses();
+</script>
+</body>
+</html>

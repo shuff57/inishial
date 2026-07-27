@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Syllabus editor · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+<style>
+  main { max-width: 52rem; }
+  .toolbar { position: sticky; top: 0; z-index: 6; background: var(--desk); color: var(--paper); padding: .55rem 1.1rem; }
+  .toolbar > div { max-width: 52rem; margin: 0 auto; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar button { padding: .4rem .8rem; font-size: .88rem; }
+  .toolbar .status { font-size: .82rem; color: var(--ink-silver); }
+
+  .blk { position: relative; display: flex; gap: .5rem; align-items: flex-start; margin: .35rem 0; }
+  .blk .grip {
+    cursor: grab; user-select: none; color: var(--ink-silver); font-size: 1.1rem; line-height: 1.6;
+    padding: .2rem .15rem; flex: 0 0 auto;
+  }
+  .blk .body { flex: 1; min-width: 0; }
+  .blk .edit {
+    padding: .3rem .5rem; border-radius: var(--radius-sm); border: 1px solid transparent;
+    outline: none; min-height: 1.6rem;
+  }
+  .blk .edit:hover { border-color: var(--border-warm); }
+  .blk .edit:focus { border-color: var(--rose); background: var(--ivory); }
+  .blk .edit :is(h1,h2,h3) { margin: .2rem 0; font-family: var(--font-display); }
+  .blk .edit ul, .blk .edit ol { margin: .2rem 0; padding-left: 1.2rem; }
+  .blk .edit p { margin: .2rem 0; }
+
+  .blk .tools { display: flex; gap: .25rem; flex: 0 0 auto; opacity: 0; transition: opacity .15s; }
+  .blk:hover .tools, .blk:focus-within .tools { opacity: 1; }
+  .blk .tools button { padding: .2rem .45rem; font-size: .75rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
+  .blk .tools button:hover { background: var(--sand); color: var(--ink); }
+  .blk .tools button.on { background: var(--tab-3); color: var(--ink); border-color: var(--tab-3); }
+
+  .blk[data-type=initial] .body, .blk[data-type=agree] .body {
+    border-left: 4px solid var(--tab-3); background: var(--ivory);
+    border-radius: var(--radius-sm); padding: .35rem .3rem;
+  }
+  .blk[data-type=heading] .edit { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; }
+  .blk.sortable-ghost { opacity: .35; }
+  .blk .why { font-family: var(--font-hand); font-size: 1.05rem; color: var(--rose); padding-left: .5rem; }
+
+  .adders { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1.2rem 0; }
+  .adders button { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .85rem; padding: .4rem .7rem; }
+  .adders button:hover { background: var(--sand); color: var(--ink); }
+  .drop { border: 2px dashed var(--ring); border-radius: var(--radius-md); padding: 1.6rem 1rem; text-align: center; color: var(--ink-stone); }
+  .drop.over { border-color: var(--rose); background: var(--sand); color: var(--rose); }
+  textarea { width: 100%; min-height: 8rem; font: 13px/1.5 var(--font-mono); }
+  .diff li { margin: .2rem 0; }
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div>
+  <strong id="who">Syllabus editor</strong>
+  <span class="spacer"></span>
+  <span class="status" id="status"></span>
+  <button class="secondary" id="suggestBtn" title="Ask Ollama which sections should need initials">Suggest initials</button>
+  <button class="secondary" id="saveBtn">Save draft</button>
+  <button id="publishBtn">Publish…</button>
+</div></div>
+
+<main>
+  <div id="msg" hidden></div>
+
+  <h1 id="title" contenteditable="true" spellcheck="false">Course Syllabus</h1>
+  <p class="muted small">Click any line to edit it. Drag the handle to reorder. Mark the sections a parent
+    must initial with <b>✍</b>. Nothing is live until you publish.</p>
+
+  <div id="importCard" class="card">
+    <h2 style="margin-top:.2rem">Start from a document</h2>
+    <div class="drop" id="drop">
+      <p style="margin:0 0 .6rem">Drop a <code>.docx</code> here, or paste the text below</p>
+      <input type="file" id="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+    </div>
+    <label for="paste">…or paste your syllabus text</label>
+    <textarea id="paste" spellcheck="false" placeholder="Paste from Word, Google Docs, or plain text."></textarea>
+    <p class="row" style="margin-top:.8rem">
+      <button class="secondary" id="pasteBtn">Use this text</button>
+      <span class="small muted">Replaces the draft below.</span>
+    </p>
+  </div>
+
+  <div id="blocks"></div>
+
+  <div class="adders">
+    <button data-add="heading">+ Heading</button>
+    <button data-add="text">+ Paragraph</button>
+    <button data-add="list">+ List</button>
+    <button data-add="initial">+ Initial here</button>
+    <button data-add="agree">+ Agree to terms</button>
+  </div>
+</main>
+
+<script src="/vendor/mammoth.browser.min.js"></script>
+<script src="/vendor/Sortable.min.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const courseId = Number(new URLSearchParams(location.search).get('course_id'));
+let state = { syllabusId: null, blocks: [], dirty: false, signatures: 0, published: null };
+
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function notice(text, kind) { const m = $('msg'); m.hidden = false; m.className = 'notice ' + kind; m.textContent = text; }
+function status(text) { $('status').textContent = text; }
+function markDirty() { state.dirty = true; status('Unsaved changes'); }
+
+// ---- HTML -> blocks, deterministically ----
+//
+// Mammoth already emits semantic HTML, so this is a walk over top-level
+// elements, not a parsing problem. Doing it here rather than server-side keeps
+// the model out of the path that carries the actual policy text.
+function htmlToBlocks(html) {
+  const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+  const out = [];
+  for (const el of doc.body.firstChild.children) {
+    const tag = el.tagName.toLowerCase();
+    const text = el.textContent.trim();
+    if (!text && tag !== 'hr') continue;
+    if (/^h[1-6]$/.test(tag)) out.push({ type: 'heading', html: `<h2>${esc(text)}</h2>` });
+    else if (tag === 'ul' || tag === 'ol') out.push({ type: 'list', html: el.outerHTML });
+    else if (tag === 'table') out.push({ type: 'text', html: el.outerHTML });
+    else out.push({ type: 'text', html: `<p>${el.innerHTML}</p>` });
+  }
+  return out;
+}
+
+function textToBlocks(text) {
+  return text.split(/\n{2,}/).map((chunk) => {
+    const t = chunk.trim();
+    if (!t) return null;
+    // A short line with no terminal punctuation reads as a heading.
+    if (t.length < 60 && !/[.!?;:]$/.test(t) && !t.includes('\n')) return { type: 'heading', html: `<h2>${esc(t)}</h2>` };
+    if (/^\s*[-*•]\s+/m.test(t)) {
+      const items = t.split('\n').filter((l) => l.trim()).map((l) => `<li>${esc(l.replace(/^\s*[-*•]\s+/, ''))}</li>`);
+      return { type: 'list', html: `<ul>${items.join('')}</ul>` };
+    }
+    return { type: 'text', html: `<p>${esc(t).replace(/\n/g, '<br>')}</p>` };
+  }).filter(Boolean);
+}
+
+// ---- rendering ----
+
+function render() {
+  const host = $('blocks');
+  host.textContent = '';
+  state.blocks.forEach((block, i) => host.appendChild(blockRow(block, i)));
+  $('importCard').hidden = state.blocks.length > 0;
+}
+
+function blockRow(block, index) {
+  const row = document.createElement('div');
+  row.className = 'blk';
+  row.dataset.type = block.type;
+  row.dataset.index = index;
+
+  const grip = document.createElement('div');
+  grip.className = 'grip';
+  grip.textContent = '⠿';
+  grip.title = 'Drag to reorder';
+
+  const body = document.createElement('div');
+  body.className = 'body';
+
+  const edit = document.createElement('div');
+  edit.className = 'edit';
+  edit.contentEditable = 'true';
+  edit.spellcheck = false;
+  // Prompts are plain text; everything else carries the document's own markup.
+  if (block.type === 'initial' || block.type === 'agree') edit.textContent = block.html;
+  else edit.innerHTML = block.html;
+
+  edit.addEventListener('input', () => {
+    block.html = (block.type === 'initial' || block.type === 'agree') ? edit.textContent.trim() : edit.innerHTML;
+    markDirty();
+  });
+  body.appendChild(edit);
+
+  if (block.why) {
+    const why = document.createElement('div');
+    why.className = 'why';
+    why.textContent = '↑ ' + block.why;
+    body.appendChild(why);
+  }
+
+  const tools = document.createElement('div');
+  tools.className = 'tools';
+
+  const initialBtn = document.createElement('button');
+  const isPrompt = block.type === 'initial' || block.type === 'agree';
+  initialBtn.textContent = '✍';
+  initialBtn.title = isPrompt ? 'Stop asking for initials here' : 'Ask for initials on this section';
+  if (isPrompt) initialBtn.classList.add('on');
+  initialBtn.addEventListener('click', () => {
+    if (isPrompt) {
+      block.type = 'text';
+      block.html = `<p>${esc(block.html)}</p>`;
+    } else {
+      // Turning prose into a prompt keeps the words but drops the markup --
+      // the prompt is a sentence the parent initials against, not a section.
+      block.type = 'initial';
+      block.html = (edit.textContent || '').trim().slice(0, 200) || 'I have read and understand this section.';
+    }
+    delete block.why;
+    markDirty();
+    render();
+  });
+
+  const del = document.createElement('button');
+  del.textContent = '✕';
+  del.title = 'Delete this block';
+  del.addEventListener('click', () => { state.blocks.splice(index, 1); markDirty(); render(); });
+
+  tools.append(initialBtn, del);
+  row.append(grip, body, tools);
+  return row;
+}
+
+new Sortable($('blocks'), {
+  handle: '.grip',
+  animation: 150,
+  ghostClass: 'sortable-ghost',
+  onEnd: (e) => {
+    const [moved] = state.blocks.splice(e.oldIndex, 1);
+    state.blocks.splice(e.newIndex, 0, moved);
+    markDirty();
+    render();
+  },
+});
+
+// ---- import ----
+
+async function takeDocx(file) {
+  if (!file) return;
+  try {
+    status('Converting…');
+    const { value, messages } = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
+    state.blocks = htmlToBlocks(value);
+    markDirty();
+    render();
+    const warned = messages.filter((m) => m.type === 'warning').length;
+    notice(`Imported ${state.blocks.length} sections from ${file.name}.`
+      + (warned ? ` ${warned} formatting detail(s) were simplified.` : ''), 'ok');
+  } catch (err) {
+    notice('Could not read that file. Is it a .docx?', 'error');
+  } finally { status(''); }
+}
+
+$('file').addEventListener('change', (e) => takeDocx(e.target.files[0]));
+const drop = $('drop');
+for (const t of ['dragenter', 'dragover']) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); });
+for (const t of ['dragleave', 'drop']) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); });
+drop.addEventListener('drop', (e) => takeDocx(e.dataTransfer.files[0]));
+
+$('pasteBtn').addEventListener('click', () => {
+  const text = $('paste').value.trim();
+  if (!text) { notice('Paste something first.', 'error'); return; }
+  state.blocks = textToBlocks(text);
+  markDirty();
+  render();
+  notice(`Split into ${state.blocks.length} sections. Mark the ones needing initials.`, 'ok');
+});
+
+for (const btn of document.querySelectorAll('[data-add]')) {
+  btn.addEventListener('click', () => {
+    const type = btn.dataset.add;
+    const defaults = {
+      heading: '<h2>New section</h2>',
+      text: '<p>New paragraph.</p>',
+      list: '<ul><li>First item</li></ul>',
+      initial: 'I have read and understand this section.',
+      agree: 'I have read this syllabus in full and agree to its terms.',
+    };
+    state.blocks.push({ type, html: defaults[type] });
+    markDirty();
+    render();
+  });
+}
+
+// ---- suggest / save / publish ----
+
+$('suggestBtn').addEventListener('click', async () => {
+  if (!state.blocks.length) { notice('Nothing to look at yet.', 'error'); return; }
+  $('suggestBtn').disabled = true;
+  status('Asking Ollama…');
+  try {
+    const res = await fetch('/api/admin/suggest', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocks: state.blocks }),
+    });
+    const body = await res.json();
+    if (!body.available) { notice(body.reason || 'Suggestions are not available.', 'error'); return; }
+    if (!body.suggestions.length) { notice('No further sections suggested.', 'ok'); return; }
+    // Suggestions annotate; they never rewrite. You still click ✍ to accept.
+    for (const s of body.suggestions) if (state.blocks[s.index]) state.blocks[s.index].why = s.reason;
+    render();
+    notice(`${body.suggestions.length} suggestion(s) marked in the margin. Click ✍ on the ones you agree with — nothing was changed.`, 'ok');
+  } catch {
+    notice('Could not reach the server.', 'error');
+  } finally { $('suggestBtn').disabled = false; status(''); }
+});
+
+async function save() {
+  const res = await fetch('/api/admin/syllabus', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ course_id: courseId, title: $('title').textContent.trim(), blocks: state.blocks }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || 'Save failed.');
+  state.syllabusId = body.syllabus_id;
+  state.dirty = false;
+  return body;
+}
+
+$('saveBtn').addEventListener('click', async () => {
+  $('saveBtn').disabled = true;
+  status('Saving…');
+  try {
+    const body = await save();
+    notice(`Draft saved — ${body.blocks} sections, version ${body.draft.num} (not yet published).`, 'ok');
+    status('Saved');
+  } catch (err) { notice(err.message, 'error'); status(''); }
+  finally { $('saveBtn').disabled = false; }
+});
+
+$('publishBtn').addEventListener('click', async () => {
+  $('publishBtn').disabled = true;
+  try {
+    if (state.dirty) await save();
+    const preview = await (await fetch('/api/admin/syllabus?preview=1', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syllabus_id: state.syllabusId }),
+    })).json();
+    if (preview.error) { notice(preview.error, 'error'); return; }
+
+    const d = preview.diff;
+    const lines = [
+      `Publish version ${preview.version}?`,
+      preview.previous ? `Replaces version ${preview.previous}.` : 'This is the first published version.',
+      '',
+      `${d.added.length} section(s) new or changed`,
+      `${d.removed.length} removed`,
+      `${d.unchanged} unchanged — existing signatures on these stay valid`,
+    ];
+    if (d.resign_required) {
+      lines.push('', `${d.resign_required} changed section(s) ask for initials.`,
+        'Parents who already signed will need to initial those again.');
+    }
+    if (!confirm(lines.join('\n'))) return;
+
+    const res = await fetch('/api/admin/syllabus', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ syllabus_id: state.syllabusId }),
+    });
+    const body = await res.json();
+    if (!res.ok) { notice(body.error || 'Publish failed.', 'error'); return; }
+    notice(`Published version ${body.published_version}. Parents opening the link now see this. `
+      + `Editing continues in draft ${body.next_draft.num}.`, 'ok');
+    status('Published');
+  } catch (err) { notice(err.message || 'Publish failed.', 'error'); }
+  finally { $('publishBtn').disabled = false; }
+});
+
+$('title').addEventListener('input', markDirty);
+addEventListener('beforeunload', (e) => { if (state.dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+// ---- load ----
+
+(async function load() {
+  if (!courseId) { notice('No class chosen. Open this from the admin page.', 'error'); return; }
+  const res = await fetch(`/api/admin/syllabus?course_id=${courseId}`);
+  if (res.status === 401) { location.href = '/admin/login/?next=' + encodeURIComponent(location.pathname + location.search); return; }
+  const body = await res.json();
+  if (!res.ok) { notice(body.error || 'Could not load.', 'error'); return; }
+
+  $('who').textContent = body.course.name;
+  state.syllabusId = body.syllabus?.id ?? null;
+  state.blocks = body.blocks ?? [];
+  state.published = body.published;
+  state.signatures = body.signatures ?? 0;
+  if (body.syllabus) $('title').textContent = body.syllabus.title;
+
+  if (body.published) {
+    status(`Live: v${body.published.num}${body.signatures ? ` · ${body.signatures} signatures` : ''}`);
+  } else {
+    status('Never published');
+  }
+  render();
+})();
+</script>
+</body>
+</html>

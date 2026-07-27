@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who has signed · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+<style>
+  main { max-width: 58rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: .45rem .55rem; border-bottom: 1px solid var(--border-warm); vertical-align: top; }
+  th { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-stone); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; font-size: .74rem; font-weight: 700; padding: .12rem .5rem; border-radius: 9999px; white-space: nowrap; }
+  .pill.complete { background: var(--tab-1); color: #10352a; }
+  .pill.partial { background: var(--tab-5); color: #4a3a10; }
+  .pill.stale { background: var(--tab-2); color: #2f2450; }
+  .pill.not_started, .pill.no_code { background: var(--sand); color: var(--ink-olive); }
+  .pill.not_registered { background: var(--tab-3); color: #5a1f2c; }
+  .filters { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1rem 0; }
+  .filters button { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .84rem; padding: .35rem .7rem; }
+  .filters button[aria-pressed=true] { background: var(--rose); color: #fff; border-color: var(--rose-deep); }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: .7rem; margin: 1rem 0; }
+  .stat { border: 1px solid var(--border-warm); border-radius: var(--radius-sm); padding: .6rem .7rem; background: var(--ivory); }
+  .stat b { display: block; font-size: 1.5rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .74rem; color: var(--ink-stone); text-transform: uppercase; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+<header class="site"><div>
+  <div class="brand">ini<span class="sh">SH</span>ial</div>
+  <p class="tagline">No backpack required.</p>
+</div></header>
+
+<main>
+  <h1 id="title">Who has signed</h1>
+  <p class="muted small" id="sub"></p>
+  <div id="msg" hidden></div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="filters" id="filters">
+    <button data-f="all" aria-pressed="true">Everyone</button>
+    <button data-f="outstanding" aria-pressed="false">Still outstanding</button>
+    <button data-f="not_registered" aria-pressed="false">Not registered</button>
+    <button data-f="stale" aria-pressed="false">Signed an older version</button>
+    <button data-f="complete" aria-pressed="false">Complete</button>
+  </div>
+
+  <p class="row">
+    <a id="csv" href="#"><button class="secondary">Download CSV</button></a>
+    <a id="creds" href="#"><button class="secondary">Credentials CSV</button></a>
+    <a id="edit" href="#"><button class="secondary">Edit syllabus</button></a>
+  </p>
+
+  <table>
+    <thead><tr>
+      <th>Student</th><th>Per.</th><th>Status</th><th class="num">Initialed</th><th>Parent email</th><th></th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p id="empty" class="muted small" hidden>Nobody matches that filter.</p>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const courseId = Number(new URLSearchParams(location.search).get('course_id'));
+let data = null;
+let filter = 'all';
+
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function notice(text, kind) { const m = $('msg'); m.hidden = false; m.className = 'notice ' + kind; m.textContent = text; }
+
+// "Outstanding" is the working list: anyone you would actually chase. Complete
+// students are not on it, and neither is anyone whose signature is still valid.
+const OUTSTANDING = new Set(['not_registered', 'no_code', 'not_started', 'partial', 'stale']);
+
+function matches(s) {
+  if (filter === 'all') return true;
+  if (filter === 'outstanding') return OUTSTANDING.has(s.status);
+  return s.status === filter;
+}
+
+function render() {
+  const shown = data.students.filter(matches);
+  $('rows').innerHTML = shown.map((s) => `<tr>
+      <td>${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
+      <td>${esc(s.period ?? '')}</td>
+      <td><span class="pill ${s.status}">${esc(s.status_label)}</span></td>
+      <td class="num">${s.required ? `${s.parent_signed}/${s.required}` : '—'}</td>
+      <td class="small">${esc(s.email ?? '—')}</td>
+      <td>${s.account_id && s.parent_signed
+        ? `<a href="/admin/signed?account_id=${s.account_id}" target="_blank">Signed copy</a>` : ''}</td>
+    </tr>`).join('');
+  $('empty').hidden = shown.length > 0;
+}
+
+for (const btn of $('filters').querySelectorAll('button')) {
+  btn.addEventListener('click', () => {
+    filter = btn.dataset.f;
+    for (const b of $('filters').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b === btn));
+    render();
+  });
+}
+
+(async function load() {
+  if (!courseId) { notice('No class chosen. Open this from the admin page.', 'error'); return; }
+  const res = await fetch(`/api/admin/progress?course_id=${courseId}`);
+  if (res.status === 401) { location.href = '/admin/login/?next=' + encodeURIComponent(location.pathname + location.search); return; }
+  data = await res.json();
+  if (!res.ok) { notice(data.error || 'Could not load.', 'error'); return; }
+
+  $('title').textContent = data.course.name;
+  $('sub').textContent = data.published
+    ? `Version ${data.published.num} is live · ${data.published.required} sections require initials · ${data.total} active students`
+    : `No syllabus published yet · ${data.total} active students`;
+
+  $('csv').href = `/api/admin/progress?course_id=${courseId}&format=csv`;
+  $('creds').href = `/api/admin/credentials?course_id=${courseId}`;
+  $('edit').href = `/admin/editor/?course_id=${courseId}`;
+
+  const c = data.counts;
+  const outstanding = [...OUTSTANDING].reduce((n, k) => n + (c[k] ?? 0), 0);
+  $('summary').innerHTML =
+      `<div class="stat"><b>${c.complete ?? 0}</b><span>complete</span></div>`
+    + `<div class="stat"><b>${outstanding}</b><span>outstanding</span></div>`
+    + `<div class="stat"><b>${c.not_registered ?? 0}</b><span>not registered</span></div>`
+    + `<div class="stat"><b>${c.stale ?? 0}</b><span>older version</span></div>`;
+
+  if (!data.published) notice('No syllabus is published for this class yet, so nobody can sign. Publish one first.', 'error');
+  render();
+})();
+</script>
+</body>
+</html>

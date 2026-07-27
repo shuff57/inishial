@@ -1,0 +1,18 @@
+{
+  "name": "inishial",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "iniSHial — No backpack required. A living syllabus parents initial section by section.",
+  "license": "MIT",
+  "scripts": {
+    "local": "node scripts/dev.mjs",
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "dev": "wrangler pages dev public --d1 DB=inishial",
+    "db:local": "wrangler d1 execute inishial --local --file=migrations/0001_init.sql",
+    "db:remote": "wrangler d1 execute inishial --remote --file=migrations/0001_init.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3"
+  }
+}

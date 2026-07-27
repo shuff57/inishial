@@ -1,0 +1,43 @@
+# Cloudflare Pages config for iniSHial.
+#
+# Cloudflare project and D1 names must be lowercase, so the platform-facing
+# name is `inishial` even though the app is branded iniSHial.
+#
+# Separate D1 database from bookshelf on purpose: this one holds student PII
+# (names, student IDs, parent email addresses) and should not share a blast
+# radius with the public bookshelf app.
+#
+# First-time setup:
+#   npx wrangler d1 create inishial          # paste the id below
+#   npm run db:local                          # apply schema locally
+#   npm run db:remote                         # apply schema in production
+#
+# Then, in the dashboard, put a Cloudflare Access application in front of
+# /api/admin/* and /admin/* — the Functions fail closed without it, but failing
+# closed is not the same as being protected.
+
+name = "inishial"
+pages_build_output_dir = "public"
+compatibility_date = "2026-07-27"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "inishial"
+database_id = "26a2ff24-a632-4b74-9034-3b40622b15fa"
+
+[vars]
+# Comma-separated allowlist, checked on top of the Access policy. Leave empty
+# to accept any identity Access lets through.
+ADMIN_EMAILS = ""
+# Ollama host for the authoring-time AI pass. Secret set out of band:
+#   npx wrangler pages secret put OLLAMA_API_KEY --project-name inishial
+OLLAMA_HOST = "https://ollama.com"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "inishial"
+database_id = "26a2ff24-a632-4b74-9034-3b40622b15fa"
+
+[env.production.vars]
+ADMIN_EMAILS = ""
+OLLAMA_HOST = "https://ollama.com"
