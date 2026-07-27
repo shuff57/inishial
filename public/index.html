@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>iniSHial</title>
 <link rel="stylesheet" href="/app.css">
-<script src="/ui.js"></script>
+<!-- The stored theme, applied before the first paint. Inline and tiny on
+     purpose: a blocking <script src> here cost ~88ms of first paint, and a
+     cross-document view transition cannot start until the new page paints,
+     so that delay was visible as a pause-then-flash on every page turn. -->
+<script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script src="/ui.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the page</a>

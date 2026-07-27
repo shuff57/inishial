@@ -263,6 +263,11 @@ header.site nav {
 
 .nav-main a, .nav-end a, .nav-end button {
   display: block; white-space: nowrap;
+  /* Nav controls size themselves. Without this the admin pages' Sign out
+     button inherited the two-rule height meant for buttons on the paper, which
+     made the admin nav 28px taller than the public one -- so the sheet started
+     lower on half the site. */
+  min-height: 0;
   font: inherit; font-size: .92rem; font-weight: 600; line-height: 1.3;
   color: var(--desk-ink);
   text-decoration: none;
@@ -327,8 +332,9 @@ main {
      past the 65-75 that stays comfortable to read. This holds it near 78. */
   max-width: 42rem;
   margin: var(--rule) auto calc(var(--rule) * 4);
-  /* Top padding is a whole number of rules, which is what lets the background
-     offset below be a plain --baseline instead of a running total. */
+  /* Two ruled lines of margin at the top of the sheet before anything is
+     written. Has to stay a whole number of rules -- that is what lets the
+     background offset below be a plain --baseline instead of a running total. */
   padding: calc(var(--rule) * 2) 1.6rem calc(var(--rule) * 3) 3.2rem;
   background-color: var(--paper);
   /* Faint ruled lines, pitched to --rule so body copy rides them. */
@@ -393,7 +399,10 @@ h1 {
    separate it from a previous section -- the box edge already does that.
    Replaces the `style="margin-top:.2rem"` that used to be sprinkled through the
    pages, each of which knocked the grid sideways by a fraction of a rule. */
-:is(.card, .done-banner, .initial-box, main) > :first-child { margin-top: 0; }
+/* ...and through a first <section> wrapper. /sign/ wraps its two views in
+   <section>, which hid its <h1> from this rule and started that page two ruled
+   lines lower than every other one. */
+:is(.card, .done-banner, .initial-box, main, main > section:first-child) > :first-child { margin-top: 0; }
 /* Labels carry their leading gap as padding, so :first-child needs that killed
    too or the first question sits a rule lower than everything else. */
 :is(.card, .done-banner, main, form) > label:first-child { padding-top: 0; }
@@ -532,14 +541,13 @@ a.button, .brand { text-decoration: none; }
 .card.plain {
   border: 0;
   border-radius: 0;
-  /* No padding at all. With a border there was a box to pad away from; without
-     one, the padding and the margin stacked into three blank rules between
-     sections, which read as a gap rather than a break. */
-  padding: 0;
+  /* One blank ruled line above each section and none below: with a border there
+     was a box to pad away from, and without one the old symmetric padding plus
+     the margin stacked into three blank rules, which read as a gap rather than
+     a break. Between two sections this lands as two lines -- the margin and
+     the next section's own line. */
+  padding: var(--rule) 0 0;
 }
-/* One extra ruled line BETWEEN sections, and only between them -- the first
-   section still opens directly under the line that introduces it. */
-.card.plain + .card.plain { padding-top: var(--rule); }
 
 /* ---- forms ---- */
 
@@ -681,6 +689,15 @@ p:has(> button:only-child), p:has(> .button:only-child) {
 /* Block-level so it does not sit in a line box (whose strut would add its own
    leading under it), but shrink-to-fit so it stays button-shaped. */
 p > button:only-child, p > .button:only-child { display: flex; width: fit-content; }
+
+/* A form's submit sits a blank line below the last answer -- it is a different
+   kind of thing from the questions above it, and on a worksheet you do not
+   sign immediately under the last blank. Scoped to buttons directly in a form,
+   so the two nearly identical sign-in forms cannot drift apart, and so the
+   landing page's choices are left alone. */
+form > p:has(> button:only-child) {
+  padding-top: calc(var(--rule) + var(--baseline) + var(--sit));
+}
 button:hover:not([disabled]), .button:hover { background: var(--accent-soft); color: var(--ink); }
 /* Feedback on the press, not the release. */
 button:active:not([disabled]), .button:active { transform: scale(.975); }
@@ -913,7 +930,7 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
 @media (max-width: 34rem) {
   /* Padding stays a whole number of rules -- narrowing the sheet must not knock
      the grid out from under it. */
-  main { padding: var(--rule) 1.1rem calc(var(--rule) * 2) 2.4rem; border-radius: 0; margin-top: 0; }
+  main { padding: calc(var(--rule) * 2) 1.1rem calc(var(--rule) * 2) 2.4rem; border-radius: 0; margin-top: 0; }
   main::before { left: .45rem; }
   main::after { left: 1.75rem; }
   h1 { font-size: 1.55rem; }
@@ -934,41 +951,43 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
  */
 @view-transition { navigation: auto; }
 
-/* Only the sheet turns. The nav is furniture on the desk -- it stays put, which
-   is also what stops the whole viewport from swinging. */
+/* The nav is furniture on the desk: it keeps its own name so it is lifted out
+   of the turning snapshot and stays put. Everything else rides `root`.
+ *
+ * Naming `main` instead was the obvious thing and it was wrong twice over. The
+ * group then has to morph between two sheets of DIFFERENT heights, which
+ * stretches the outgoing snapshot; and both sheets sit in the same place, so
+ * any transparency at all shows one straight through the other. `root` is
+ * always exactly the viewport, so there is no size to morph, and the desk
+ * underneath is a flat colour -- only the sheet reads as turning. */
 header.site { view-transition-name: chrome; }
-main { view-transition-name: sheet; }
 
 @media (prefers-reduced-motion: no-preference) {
-  ::view-transition-group(sheet) { animation-duration: 460ms; }
+  ::view-transition-group(root) { animation-duration: 520ms; }
 
-  /* Default is a cross-fade in plus-lighter, which would wash the two sheets
-     into each other mid-turn. These two are solid pages passing one another. */
-  ::view-transition-image-pair(sheet) { isolation: auto; }
-  ::view-transition-old(sheet), ::view-transition-new(sheet) { mix-blend-mode: normal; }
+  /* Default is a cross-fade in plus-lighter. Two sheets of paper passing each
+     other do not blend -- one is on top of the other. */
+  ::view-transition-image-pair(root) { isolation: auto; }
+  ::view-transition-old(root), ::view-transition-new(root) { mix-blend-mode: normal; }
 
-  ::view-transition-old(sheet) {
+  /* The page underneath does not move and does not fade in. It was already
+     there. Animating it was what produced the double-exposure: for most of the
+     transition you could read both pages at once. */
+  ::view-transition-new(root) { z-index: 1; animation: none; opacity: 1; }
+
+  /* The page being turned stays fully opaque the whole way round, so you never
+     see through it. It only disappears once it is edge-on and there is nothing
+     left to see. The slight rotate is the corner: the top-right leads, the way
+     it does when you actually pinch a page. */
+  ::view-transition-old(root) {
     z-index: 2;
     transform-origin: left center;
-    animation: sheet-turn-away 460ms cubic-bezier(.45, 0, .3, 1) both;
+    animation: page-turn 520ms cubic-bezier(.42, 0, .3, 1) both;
   }
-  ::view-transition-new(sheet) {
-    z-index: 1;
-    transform-origin: left center;
-    animation: sheet-settle 460ms cubic-bezier(.22, 1, .36, 1) both;
-  }
-
-  /* The slight rotate is the corner: the top-right lifts a moment before the
-     rest of the edge, the way it does when you actually pinch a page. Opacity
-     is gone before 90deg so the mirrored back of the sheet is never seen. */
-  @keyframes sheet-turn-away {
-    0%   { transform: perspective(1600px) rotateY(0) rotate(0); opacity: 1; }
-    45%  { filter: drop-shadow(-16px 0 26px rgba(0,0,0,.30)); }
-    100% { transform: perspective(1600px) rotateY(88deg) rotate(-1.4deg); opacity: 0; }
-  }
-  @keyframes sheet-settle {
-    0%   { transform: perspective(1600px) rotateY(-11deg); opacity: .55; }
-    100% { transform: perspective(1600px) rotateY(0); opacity: 1; }
+  @keyframes page-turn {
+    0%   { transform: perspective(2400px) rotateY(0) rotate(0); opacity: 1; }
+    88%  { opacity: 1; }
+    100% { transform: perspective(2400px) rotateY(92deg) rotate(-1.2deg); opacity: 0; }
   }
 }
 
