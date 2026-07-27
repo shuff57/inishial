@@ -1,15 +1,28 @@
-// POST /api/register  -- student self-registration (public, QR-code target)
+// POST /api/register  -- student self-registration and re-entry (public,
+// QR-code target)
 //
 // Body: { student_ext_id, last, username, parent_email }
+//        username and parent_email are for first-time sign-up only; a returning
+//        student sends just the ID and last name.
 //
 // Gated on the student already existing in the teacher's uploaded roster, so
 // only real students in real classes can create an account.
 //
 // No access code is issued here. Codes are minted by the teacher's credential
-// export (see api/admin/credentials.js) -- students never handle one.
+// export (see api/admin/credentials.js) -- students never handle one. Instead
+// registration itself issues a student-role session, so the student can go
+// straight from signing up to initialing their own copy. The parent's code is
+// untouched by this: a student session can only ever write role='student'
+// signature rows, so the two attestations stay independent on one account.
+//
+// ponytail: student ID + last name is the whole gate on a student session,
+// which is the same gate registration already had -- claiming an account was
+// always possible for someone holding both. Add a teacher-approval step if a
+// class turns out to have students signing for each other.
 
 import { json, badRequest, serverMisconfigured, readJson } from '../_lib/http.js';
 import { hit, reset, clientIp } from '../_lib/ratelimit.js';
+import { signSession, sessionCookie } from '../_lib/session.js';
 
 const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,31}$/i;
 // Deliberately permissive. Strict RFC-5322 validation rejects addresses that
@@ -18,6 +31,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return serverMisconfigured('the DB binding');
+  // Checked before the insert, not after: a thrown session mint would otherwise
+  // leave the account created but the student staring at a 500.
+  if (!env.SESSION_SECRET) return serverMisconfigured('SESSION_SECRET');
 
   const body = await readJson(request);
   if (!body) return badRequest('Expected a JSON body.');
@@ -28,15 +44,9 @@ export async function onRequestPost({ request, env }) {
   const parentEmail = String(body.parent_email ?? '').trim();
 
   if (!studentExtId || !last) return badRequest('Enter your student ID and last name.');
-  if (!USERNAME_RE.test(username)) {
-    return badRequest('Username must be 3-32 characters: letters, numbers, dot, dash, underscore.');
-  }
-  // Optional: the roster export already carries a contact address for most
-  // families. This is the escape hatch for the ones where it is missing or
-  // wrong, so it is validated when given and ignored when not.
-  if (parentEmail && !EMAIL_RE.test(parentEmail)) {
-    return badRequest("That doesn't look like an email address. Leave it blank to use the one your school has on file.");
-  }
+
+  // Username and email are validated further down, after the returning-student
+  // check: someone coming back to finish tomorrow supplies neither.
 
   const nowSec = Math.floor(Date.now() / 1000);
 
@@ -63,16 +73,48 @@ export async function onRequestPost({ request, env }) {
     return badRequest("That student ID and last name don't match our class roster. Check with your teacher.");
   }
 
-  const existing = await env.DB.prepare('SELECT username FROM accounts WHERE roster_id = ?1')
+  // A student who already registered gets a fresh session rather than a 409.
+  // Sessions last two hours, so without this the student who comes back the
+  // next day is locked out: they hold no access code (only the parent does)
+  // and re-registering is refused.
+  //
+  // The rate limiter is deliberately NOT reset on this path. Resetting it after
+  // a real registration is safe because that can only happen once per student;
+  // resetting it here would let anyone holding one valid ID and last name clear
+  // their own counter at will and enumerate the roster behind it.
+  const existing = await env.DB.prepare('SELECT id, username, parent_email FROM accounts WHERE roster_id = ?1')
     .bind(rosterRow.id).first();
   if (existing) {
-    return json({ error: 'You are already registered. Ask your teacher if you need help signing in.' }, 409);
+    const token = await signSession(env, Number(existing.id), 'student', nowSec);
+    return json({
+      ok: true,
+      returning: true,
+      username: existing.username,
+      student: `${rosterRow.first} ${rosterRow.last}`,
+      course: rosterRow.course,
+      period: rosterRow.period,
+      has_contact: !!(existing.parent_email || rosterRow.parent_email),
+      next: '/sign/',
+      message: 'Welcome back. Pick up where you left off — anything you already initialed is saved.',
+    }, 200, { 'Set-Cookie': sessionCookie(token) });
   }
 
+  if (!USERNAME_RE.test(username)) {
+    return badRequest('Username must be 3-32 characters: letters, numbers, dot, dash, underscore.');
+  }
+  // Optional: the roster export already carries a contact address for most
+  // families. This is the escape hatch for the ones where it is missing or
+  // wrong, so it is validated when given and ignored when not.
+  if (parentEmail && !EMAIL_RE.test(parentEmail)) {
+    return badRequest("That doesn't look like an email address. Leave it blank to use the one your school has on file.");
+  }
+
+  let accountId;
   try {
-    await env.DB.prepare(
+    const insert = await env.DB.prepare(
       'INSERT INTO accounts (roster_id, username, parent_email, created_at) VALUES (?1, ?2, ?3, ?4)',
     ).bind(rosterRow.id, username, parentEmail || null, nowSec).run();
+    accountId = Number(insert.meta.last_row_id);
   } catch (err) {
     // UNIQUE(username) is the only constraint a well-formed request can trip.
     if (String(err?.message || '').includes('UNIQUE')) {
@@ -89,6 +131,8 @@ export async function onRequestPost({ request, env }) {
   // could otherwise read off a shared Chromebook:
   //   - the parent's email address, in any form, masked or not
   //   - the access code, which is minted only by the teacher's export
+  const token = await signSession(env, accountId, 'student', nowSec);
+
   return json({
     ok: true,
     username,
@@ -96,8 +140,9 @@ export async function onRequestPost({ request, env }) {
     course: rosterRow.course,
     period: rosterRow.period,
     has_contact: hasContact,
+    next: '/sign/',
     message: hasContact
-      ? 'You are registered. Your teacher will email your parent or guardian a link to the syllabus.'
-      : 'You are registered. Tell your teacher we have no parent email on file for you.',
-  }, 201);
+      ? 'You are registered. Read the syllabus and add your initials now. Your teacher will email your parent or guardian to do the same.'
+      : 'You are registered. Read the syllabus and add your initials now, and tell your teacher we have no parent email on file for you.',
+  }, 201, { 'Set-Cookie': sessionCookie(token) });
 }
