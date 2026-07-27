@@ -6,7 +6,7 @@
 // whole syllabus collapses into one section -- section-level dragging and
 // section-level initials both stop working.
 //
-// A regex handles this badly. "Late Work" and "Instructor: Steven Huff" are both
+// A regex handles this badly. "Late Work" and "Instructor: Jane Okafor" are both
 // short bold lines; only one is a heading.
 //
 // The same three rules as api/admin/suggest.js, for the same reason -- this text

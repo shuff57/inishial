@@ -12,7 +12,7 @@ import { retag, blockText, sectionRanges, looksUnstructured, structureProblem, s
 const BOLD_HEADINGS = [
   { type: 'text', html: '<p><strong>Late Work</strong></p>' },
   { type: 'text', html: '<p>Assignments lose 10% per school day.</p>' },
-  { type: 'text', html: '<p><strong>Instructor: Steven Huff</strong></p>' },
+  { type: 'text', html: '<p><strong>Instructor: Jane Okafor</strong></p>' },
   { type: 'initial', html: 'I have read the late work policy.' },
   { type: 'list', html: '<ul><li>A pencil</li></ul>' },
 ];
@@ -171,8 +171,8 @@ test('a paste that guessed too many headings is flagged', () => {
   // textToBlocks promotes any short unpunctuated line, so "Instructor: Steven
   // Huff" and "Email: ..." become headings alongside the real ones.
   const overGuessed = [
-    { type: 'heading', html: '<h2>Instructor: Steven Huff</h2>' },
-    { type: 'heading', html: '<h2>Email: shuff@chicousd.org</h2>' },
+    { type: 'heading', html: '<h2>Instructor: Jane Okafor</h2>' },
+    { type: 'heading', html: '<h2>Email: j.okafor@school.edu</h2>' },
     { type: 'heading', html: '<h2>Late Work</h2>' },
     { type: 'text', html: '<p>Assignments lose 10% per school day.</p>' },
     { type: 'heading', html: '<h2>Use of AI</h2>' },
@@ -183,12 +183,12 @@ test('a paste that guessed too many headings is flagged', () => {
 
 test('demoting is a real outcome, not just promoting', () => {
   const out = retag(
-    [{ type: 'heading', html: '<h2>Instructor: Steven Huff</h2>' }, { type: 'text', html: '<p>body</p>' }],
+    [{ type: 'heading', html: '<h2>Instructor: Jane Okafor</h2>' }, { type: 'text', html: '<p>body</p>' }],
     [{ index: 0, tag: 'text' }],
   );
   assert.equal(out[0].type, 'text');
-  assert.equal(out[0].html, '<p>Instructor: Steven Huff</p>');
-  assert.equal(blockText(out[0].html), 'Instructor: Steven Huff');
+  assert.equal(out[0].html, '<p>Instructor: Jane Okafor</p>');
+  assert.equal(blockText(out[0].html), 'Instructor: Jane Okafor');
 });
 
 test('the notice names the problem it actually found', () => {
