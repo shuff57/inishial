@@ -51,7 +51,7 @@ export async function onRequestPost({ request, env }) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    const res = await fetch(`${env.OLLAMA_HOST || 'https://ollama.com'}/api/chat`, {
+    const res = await fetch(`${ollamaBase(env)}/api/chat`, {
       method: 'POST',
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OLLAMA_API_KEY}` },
@@ -98,4 +98,11 @@ function stripHtml(html) {
     .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** Ollama's own OLLAMA_HOST convention allows a bare `host:port`, which is not a
+ *  URL -- fetch() rejects it outright. Add the scheme when it is missing. */
+function ollamaBase(env) {
+  const raw = String(env.OLLAMA_HOST || 'https://ollama.com').trim().replace(/\/+$/, '');
+  return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
 }

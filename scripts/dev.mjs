@@ -33,12 +33,41 @@ const db = new DatabaseSync(DB_FILE);
 db.exec('PRAGMA foreign_keys = ON;');
 if (fresh) db.exec(readFileSync(join(ROOT, 'migrations/0001_init.sql'), 'utf8'));
 
+// ---- local secrets ----
+//
+// `.secrets.local` is gitignored and is where a key goes for local testing:
+//
+//   OLLAMA_API_KEY=sk-...
+//
+// A real environment variable still wins, so CI and one-off runs can override
+// without editing the file. Nothing here is ever echoed -- the startup banner
+// reports only whether a key was found.
+function localSecrets() {
+  const file = join(ROOT, '.secrets.local');
+  if (!existsSync(file)) return {};
+  const out = {};
+  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
+    if (/^\s*(#|$)/.test(line)) continue;
+    const at = line.indexOf('=');
+    if (at < 1) continue;
+    out[line.slice(0, at).trim()] = line.slice(at + 1).trim().replace(/^["']|["']$/g, '');
+  }
+  return out;
+}
+const secrets = localSecrets();
+
 const env = {
   DB: d1(db),
   SESSION_SECRET: 'local-dev-secret-do-not-use-in-production',
   ADMIN_EMAILS: DEV_ADMIN,
-  OLLAMA_HOST: process.env.OLLAMA_HOST || 'https://ollama.com',
-  OLLAMA_API_KEY: process.env.OLLAMA_API_KEY || '',
+  // `.secrets.local` wins over the ambient environment for these three, which is
+  // the opposite of the usual precedence and deliberate: a machine-wide
+  // OLLAMA_HOST pointing at somebody's local daemon (0.0.0.0:11434) otherwise
+  // silently overrides this project's key and the failure looks like a network
+  // fault rather than a config one.
+  OLLAMA_HOST: secrets.OLLAMA_HOST || process.env.OLLAMA_HOST || 'https://ollama.com',
+  OLLAMA_API_KEY: secrets.OLLAMA_API_KEY || process.env.OLLAMA_API_KEY || '',
+  OLLAMA_MODEL: secrets.OLLAMA_MODEL || process.env.OLLAMA_MODEL || '',
 };
 
 async function seed() {
@@ -103,6 +132,7 @@ const ROUTES = {
   '/api/admin/credentials': () => import('../functions/api/admin/credentials.js'),
   '/api/admin/syllabus': () => import('../functions/api/admin/syllabus.js'),
   '/api/admin/suggest': () => import('../functions/api/admin/suggest.js'),
+  '/api/admin/structure': () => import('../functions/api/admin/structure.js'),
   '/api/admin/progress': () => import('../functions/api/admin/progress.js'),
   '/api/admin/login': () => import('../functions/api/admin/login.js'),
   '/admin/signed': () => import('../functions/admin/signed.js'),
@@ -211,5 +241,6 @@ createServer(async (req, res) => {
   http://localhost:${PORT}/admin/login/  teacher sign-in   (password ${DEV_PASSWORD})
 
   Database: .dev.sqlite  (delete it to reseed)
+  Ollama:   ${env.OLLAMA_API_KEY ? 'key loaded from .secrets.local (' + (env.OLLAMA_MODEL || 'default model') + ')' : 'no key — AI steps stay disabled, everything else works'}
 `);
 });
