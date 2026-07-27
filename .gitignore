@@ -10,3 +10,9 @@ node_modules/
 !tests/fixtures/*.csv
 
 .secrets.local
+
+# turn.js is NON-COMMERCIAL BSD (turnjs.com/license.txt) and this repo is MIT,
+# so shipping it would make the licensing incoherent. Vendored locally for the
+# /preview/turn/ page only, which is itself a preview and not part of the app.
+public/vendor/turn.min.js
+public/vendor/jquery.min.js

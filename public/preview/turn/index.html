@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>turn.js preview · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+<script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script src="/ui.js" defer></script>
+<!--
+  PREVIEW ONLY. Not linked from the app and not part of the build that ships.
+
+  turn.js is under a NON-COMMERCIAL BSD licence (turnjs.com/license.txt) while
+  iniSHial is MIT and now public, so shipping this file would make the repo's
+  licensing incoherent. Both vendored files are gitignored until that is a
+  decision somebody has actually made. It also needs jQuery, which is otherwise
+  the project's only runtime dependency.
+
+  What this page is for: seeing the real curl on real syllabus content, on the
+  real theme, so the effect can be judged rather than argued about.
+
+  What it CANNOT do, and the reason it is a separate page: turn.js flips child
+  elements inside ONE document. It cannot animate a navigation from / to
+  /register/. Using it for the app's page turns means the whole app becomes a
+  single document with a client router.
+-->
+<style>
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+  .stage {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem 1rem 3rem;
+  }
+  /* turn.js positions pages absolutely and needs pixel dimensions, so the book
+     is sized from JS and re-sized on resize. */
+  #book { box-shadow: var(--shadow-paper); }
+  #book .page {
+    background-color: var(--paper);
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--rule) - 1px),
+      color-mix(in srgb, var(--ring) 55%, transparent) calc(var(--rule) - 1px),
+      color-mix(in srgb, var(--ring) 55%, transparent) var(--rule));
+    background-position: 0 calc(var(--baseline) + var(--sit));
+    padding: calc(var(--rule) * 2) 1.6rem 1rem 3.2rem;
+    overflow: hidden;
+    color: var(--ink);
+  }
+  /* The binder holes and margin rule, same as the real sheet. */
+  #book .page::before {
+    content: ""; position: absolute; left: .82rem; top: 0; bottom: 0; width: 14px;
+    background-image: radial-gradient(circle at 7px 7px, var(--desk) 6.5px, transparent 7px);
+    background-size: 14px 96px; background-repeat: repeat-y; background-position: 0 3.2rem;
+    opacity: .5; pointer-events: none;
+  }
+  #book .page::after {
+    content: ""; position: absolute; left: 2.5rem; top: 0; bottom: 0; width: 1px;
+    background: color-mix(in srgb, var(--mark-deep) 45%, transparent); pointer-events: none;
+  }
+  #book .page h2 { margin-top: 0; }
+  #book .page .folio {
+    position: absolute; bottom: .6rem; right: 1.4rem;
+    font-family: var(--font-hand); font-size: 1.1rem; color: var(--ink-stone);
+  }
+  .controls { display: flex; gap: .6rem; justify-content: center; padding: 0 1rem 1.5rem; }
+  .caveat {
+    max-width: 42rem; margin: 0 auto 1.5rem; padding: 0 1rem;
+    color: var(--desk-ink); font-size: .95rem; line-height: var(--rule);
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#book">Skip to the flipbook</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/">Start</a></li>
+    <li><a href="/register/">Set up my account</a></li>
+    <li><a href="/sign/">Read &amp; initial</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <a href="/admin/login/">Teacher sign-in</a>
+  </div>
+</nav></header>
+
+<p class="caveat">Preview of <b>turn.js</b> on real syllabus content — drag a corner, or use the
+  buttons and the arrow keys. This page is not part of the app.</p>
+
+<div class="stage">
+  <div id="book">
+    <div class="page">
+      <h2>Algebra I — Course Syllabus</h2>
+      <p class="muted small">Period 3 · Version 1</p>
+      <p>This course covers linear equations, systems, quadratics, and an introduction
+        to functions. We meet daily and most work is completed in class.</p>
+      <p class="note-hand tape">No backpack required.</p>
+      <span class="folio">1</span>
+    </div>
+    <div class="page">
+      <h2>Late work</h2>
+      <p>Assignments turned in after the due date lose <span class="mark swiped">10% per school
+        day</span>, to a floor of 50%. Work more than two weeks late is not accepted
+        without a documented absence.</p>
+      <div class="initial-box">
+        <p class="prompt">I have read and understand the late work policy.</p>
+        <p class="stamp">Initialed <b>MA</b> on 8/14/2026</p>
+      </div>
+      <span class="folio">2</span>
+    </div>
+    <div class="page">
+      <h2>Attendance</h2>
+      <p>Attendance is taken daily. Three unexcused tardies equal one absence.
+        Students are responsible for work missed during any absence.</p>
+      <div class="initial-box">
+        <p class="prompt">I have read and understand the attendance policy.</p>
+      </div>
+      <span class="folio">3</span>
+    </div>
+    <div class="page">
+      <h2>Academic honesty</h2>
+      <p>Work submitted must be your own. Copying another student's work, or
+        submitting <span class="mark swiped">unattributed AI output</span>, is academic
+        dishonesty and is reported to the office.</p>
+      <span class="folio">4</span>
+    </div>
+    <div class="page">
+      <h2>Materials</h2>
+      <ul>
+        <li>A charged Chromebook, daily</li>
+        <li>Pencil and lined paper</li>
+        <li>A scientific calculator</li>
+      </ul>
+      <span class="folio">5</span>
+    </div>
+    <div class="page">
+      <h2>Contact</h2>
+      <p>Email is the fastest way to reach me. I answer within one school day.</p>
+      <p class="note-hand">See you in class.</p>
+      <span class="folio">6</span>
+    </div>
+  </div>
+</div>
+
+<div class="controls">
+  <button class="secondary" id="prev">← Previous</button>
+  <button class="secondary" id="next">Next →</button>
+  <button class="secondary" id="mode">Switch to book spread</button>
+</div>
+<p class="caveat" id="modeNote"></p>
+
+<script src="/vendor/jquery.min.js"></script>
+<script src="/vendor/turn.min.js"></script>
+<script>
+// turn.js needs pixel dimensions and has no notion of a responsive container,
+// so the book is measured against the viewport and told its size on every
+// resize. Portrait-ish, because a syllabus is a page and not a spread.
+function bookSize() {
+  const w = Math.min(760, Math.floor(window.innerWidth * 0.92));
+  const h = Math.min(
+    Math.floor(w * 1.32),
+    Math.floor(window.innerHeight - 210),
+  );
+  return { width: w, height: Math.max(360, h) };
+}
+
+const $book = $('#book');
+const first = bookSize();
+
+$book.turn({
+  width: first.width,
+  height: first.height,
+  autoCenter: true,
+  display: 'single',     // a notebook is one sheet at a time, not a spread
+  gradients: true,       // the fold shading -- the whole reason to be here
+  acceleration: true,
+  duration: 650,
+  elevation: 60,
+});
+
+addEventListener('resize', () => {
+  const s = bookSize();
+  $book.turn('size', s.width, s.height);
+});
+
+document.getElementById('prev').addEventListener('click', () => $book.turn('previous'));
+document.getElementById('next').addEventListener('click', () => $book.turn('next'));
+
+// The thing worth seeing. In `single` turn.js does a flat sliding wipe -- there
+// is no fold, because a lone sheet has no spine to fold against. The curl and
+// its gradient shading only exist in `double`, i.e. a two-page book spread.
+// That is the actual trade: the curl costs you the notebook-page shape.
+const NOTE = {
+  single: 'Single sheet — matches the app’s shape, but turn.js only wipes. No fold, no curl.',
+  double: 'Book spread — this is the real turn.js curl, with the fold shading. It is a book, not a sheet of notebook paper.',
+};
+let mode = 'single';
+document.getElementById('modeNote').textContent = NOTE.single;
+document.getElementById('mode').addEventListener('click', () => {
+  mode = mode === 'single' ? 'double' : 'single';
+  const s = bookSize();
+  $book.turn('display', mode);
+  $book.turn('size', mode === 'double' ? Math.min(1100, s.width * 1.7) : s.width, s.height);
+  document.getElementById('mode').textContent =
+    mode === 'single' ? 'Switch to book spread' : 'Switch to single sheet';
+  document.getElementById('modeNote').textContent = NOTE[mode];
+});
+
+// turn.js binds no keyboard of its own.
+addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') $book.turn('previous');
+  if (e.key === 'ArrowRight') $book.turn('next');
+});
+</script>
+</body>
+</html>
