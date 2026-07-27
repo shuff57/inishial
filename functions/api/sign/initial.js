@@ -9,7 +9,7 @@
 
 import { json, badRequest, unauthorized, serverMisconfigured, readJson } from '../../_lib/http.js';
 import { currentSession, SIGNER_ROLES } from '../../_lib/session.js';
-import { sha256Hex } from '../../_lib/codes.js';
+import { blocksOf, attestationHash } from '../../_lib/syllabus.js';
 
 // Initials, not a name: letters, optional dots, 1-6 characters.
 const INITIALS_RE = /^[\p{L}][\p{L}.]{0,5}$/u;
@@ -48,9 +48,12 @@ export async function onRequestPost({ request, env }) {
   if (!block) return json({ error: 'That section is not part of your syllabus.' }, 404);
   if (!block.needs_initials) return badRequest('That section does not ask for initials.');
 
-  // Hash the stored text, never anything the client sent. This is what pins
-  // what was actually agreed to.
-  const blockHash = await sha256Hex(block.html);
+  // Hash the stored text, never anything the client sent, and hash the whole
+  // SECTION rather than the prompt sentence -- see attestedBlocks(). Initialing
+  // "I have read the late work policy" is an attestation about the paragraph
+  // above it, so that paragraph is what the signature has to pin.
+  const versionBlocks = await blocksOf(env.DB, block.version_id);
+  const blockHash = await attestationHash(versionBlocks, versionBlocks.findIndex((b) => b.id === blockId));
 
   const existing = await env.DB.prepare(
     `SELECT initials, signed_at FROM signatures

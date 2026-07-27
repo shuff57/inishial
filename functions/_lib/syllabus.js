@@ -73,6 +73,58 @@ export async function replaceDraftBlocks(db, versionId, blocks) {
 }
 
 /**
+ * The blocks an initials prompt actually attests to.
+ *
+ * A section is a heading plus every block up to the next heading (blocks before
+ * the first heading are a preamble section of their own). The model is lifted
+ * from bookSHelf's page editor, where an h2 delimits a section the same way.
+ *
+ * This exists because the prompt sentence is NOT the thing being agreed to. A
+ * parent initialing "I have read the late work policy" is attesting to the
+ * paragraph above it. Hashing only the prompt let the policy change from 10% to
+ * 5% a day while the signature silently carried over -- exactly the failure the
+ * whole versioning design exists to prevent.
+ *
+ *   - `initial` attests to its own section.
+ *   - `agree` attests to the WHOLE document, because that is what its wording
+ *     claims ("I have read this syllabus in full"). Strict on purpose: any
+ *     change anywhere stales it. If that proves too noisy in a real term, narrow
+ *     it to the sections that ask for initials rather than dropping it.
+ *   - anything else attests only to itself.
+ */
+export function attestedBlocks(blocks, index) {
+  const block = blocks[index];
+  if (!block) return [];
+  if (block.type === 'agree') return blocks;
+  if (block.type !== 'initial') return [block];
+
+  let start = index;
+  while (start > 0 && blocks[start - 1].type !== 'heading') start--;
+  if (start > 0) start--;                    // the heading opens the section
+  let end = index + 1;
+  while (end < blocks.length && blocks[end].type !== 'heading') end++;
+  return blocks.slice(start, end);
+}
+
+/**
+ * The hash recorded against a signature: every block the prompt covers, in
+ * order, type included so a prompt and a paragraph with identical text cannot
+ * collide.
+ */
+export function attestationHash(blocks, index) {
+  return sha256Hex(attestedBlocks(blocks, index).map((b) => `${b.type}:${b.html}`).join('\n'));
+}
+
+/** Attestation hashes of every prompt in a version, as a set. */
+async function promptAttestations(blocks) {
+  const out = new Set();
+  for (let i = 0; i < blocks.length; i++) {
+    if (blocks[i].needs_initials) out.add(await attestationHash(blocks, i));
+  }
+  return out;
+}
+
+/**
  * What changed between two versions, by block text.
  *
  * Matching is on content hash rather than block id: publishing clones rows, so
@@ -99,11 +151,20 @@ export async function diffVersions(db, fromVersionId, toVersionId) {
     if (!afterHashes.has(await hash(b))) removed.push({ type: b.type, html: b.html });
   }
 
+  // Re-signing is judged on what each prompt ATTESTS TO, not on the prompt's
+  // own text. A prompt whose wording is untouched still goes stale when the
+  // policy above it is rewritten -- that is the whole point of the section
+  // model above.
+  const beforeAttestations = await promptAttestations(before);
+  let resignRequired = 0;
+  for (let i = 0; i < after.length; i++) {
+    if (after[i].needs_initials && !beforeAttestations.has(await attestationHash(after, i))) resignRequired++;
+  }
+
   return {
     added,
     removed,
     unchanged: after.length - added.length,
-    // Only changed sections that ask for initials force anyone to re-sign.
-    resign_required: added.filter((b) => b.needs_initials).length,
+    resign_required: resignRequired,
   };
 }

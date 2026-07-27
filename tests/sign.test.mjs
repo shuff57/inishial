@@ -169,9 +169,61 @@ test('the recorded hash is of the stored text, not anything the client sent', as
   await initial(env, cookie, { block_id: blockIds[2], initials: 'MRA', html: '<p>I agree to nothing.</p>' });
 
   const row = env._raw.prepare('SELECT block_hash FROM signatures').get();
+  const { attestationHash } = await import('../functions/_lib/syllabus.js');
+  const stored = env._raw.prepare('SELECT type, html, needs_initials FROM blocks WHERE version_id = (SELECT version_id FROM blocks WHERE id = ?) ORDER BY ord').all(blockIds[2]);
+  assert.equal(row.block_hash, await attestationHash(stored, 2));
+});
+
+test('the hash covers the policy, not just the prompt sentence', async () => {
+  const { env, cookie, blockIds } = await signedIn();
+  await initial(env, cookie, { block_id: blockIds[2], initials: 'MRA' });
+  const recorded = env._raw.prepare('SELECT block_hash FROM signatures').get().block_hash;
+
   const { sha256Hex } = await import('../functions/_lib/codes.js');
-  const stored = env._raw.prepare('SELECT html FROM blocks WHERE id = ?').get(blockIds[2]).html;
-  assert.equal(row.block_hash, await sha256Hex(stored));
+  const promptOnly = await sha256Hex('I have read the late work policy.');
+  assert.notEqual(recorded, promptOnly,
+    'hashing the prompt alone would let the 10%-per-day policy be rewritten under a live signature');
+});
+
+test('rewriting the policy changes the hash even when the prompt is untouched', async () => {
+  const { attestationHash } = await import('../functions/_lib/syllabus.js');
+  const before = [
+    { type: 'heading', html: '<h2>Late Work</h2>' },
+    { type: 'text', html: '<p>Late work loses 10% per day.</p>' },
+    { type: 'initial', html: 'I have read the late work policy.', needs_initials: true },
+  ];
+  const after = before.map((b, i) => (i === 1 ? { ...b, html: '<p>Late work loses 5% per day.</p>' } : b));
+
+  assert.notEqual(await attestationHash(before, 2), await attestationHash(after, 2),
+    'the prompt is identical in both; the policy it attests to is not');
+});
+
+test('a prompt is unaffected by a change in someone else\'s section', async () => {
+  const { attestationHash } = await import('../functions/_lib/syllabus.js');
+  const before = [
+    { type: 'heading', html: '<h2>Late Work</h2>' },
+    { type: 'text', html: '<p>Late work loses 10% per day.</p>' },
+    { type: 'initial', html: 'I have read the late work policy.', needs_initials: true },
+    { type: 'heading', html: '<h2>Attendance</h2>' },
+    { type: 'text', html: '<p>Three tardies equal one absence.</p>' },
+  ];
+  const after = before.map((b, i) => (i === 4 ? { ...b, html: '<p>Four tardies equal one absence.</p>' } : b));
+
+  assert.equal(await attestationHash(before, 2), await attestationHash(after, 2),
+    'a section boundary has to actually bound something, or every edit re-signs everything');
+});
+
+test('an agree block attests to the whole document', async () => {
+  const { attestationHash, attestedBlocks } = await import('../functions/_lib/syllabus.js');
+  const blocks = [
+    { type: 'heading', html: '<h2>Late Work</h2>' },
+    { type: 'text', html: '<p>Late work loses 10% per day.</p>' },
+    { type: 'agree', html: 'I have read this syllabus in full and agree to its terms.', needs_initials: true },
+  ];
+  assert.equal(attestedBlocks(blocks, 2).length, 3, 'in full means in full');
+
+  const edited = blocks.map((b, i) => (i === 1 ? { ...b, html: '<p>Late work loses 5% per day.</p>' } : b));
+  assert.notEqual(await attestationHash(blocks, 2), await attestationHash(edited, 2));
 });
 
 test('editing a published section would break its recorded hash', async () => {

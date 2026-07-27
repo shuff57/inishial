@@ -155,7 +155,9 @@ test('the publish preview reports what changed and writes nothing', async () => 
   assert.equal(preview.diff.added.length, 1);
   assert.equal(preview.diff.removed.length, 1);
   assert.equal(preview.diff.unchanged, 2, 'the heading and the prompt are untouched');
-  assert.equal(preview.diff.resign_required, 0, 'the changed block is prose, so nobody re-initials');
+  // The prompt sentence did not change, but the policy it attests to did --
+  // 10% a day became 20%. Re-initialing is exactly what that should cost.
+  assert.equal(preview.diff.resign_required, 1, 'rewriting the policy stales the initials on it');
 
   const published = env._raw.prepare('SELECT COUNT(*) AS n FROM versions WHERE published_at IS NOT NULL').get().n;
   assert.equal(published, 1, 'preview must not publish');
@@ -173,6 +175,24 @@ test('changing a section that asks for initials flags a re-sign', async () => {
   });
   const preview = await (await adminPublish(env, { syllabus_id: saved.syllabus_id }, '?preview=1')).json();
   assert.equal(preview.diff.resign_required, 1);
+});
+
+test('editing a section with no prompt costs nobody a re-initial', async () => {
+  const env = freshEnv();
+  const id = course(env);
+  const saved = await (await adminSave(env, {
+    course_id: id,
+    blocks: [...DRAFT, { type: 'heading', html: '<h2>Materials</h2>' }, { type: 'text', html: '<p>Bring a pencil.</p>' }],
+  })).json();
+  await adminPublish(env, { syllabus_id: saved.syllabus_id });
+
+  await adminSave(env, {
+    course_id: id,
+    blocks: [...DRAFT, { type: 'heading', html: '<h2>Materials</h2>' }, { type: 'text', html: '<p>Bring two pencils.</p>' }],
+  });
+  const preview = await (await adminPublish(env, { syllabus_id: saved.syllabus_id }, '?preview=1')).json();
+  assert.equal(preview.diff.added.length, 1, 'the Materials paragraph did change');
+  assert.equal(preview.diff.resign_required, 0, 'but no prompt attests to it');
 });
 
 test('a typo fix in prose leaves every signature intact', async () => {
