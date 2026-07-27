@@ -5,40 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Admin · iniSHial</title>
 <link rel="stylesheet" href="/app.css">
+<script src="/ui.js"></script>
 <style>
   main { max-width: 56rem; }
   table { width: 100%; border-collapse: collapse; font-size: .92rem; }
-  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--border-warm); }
+  th, td { text-align: left; padding: 0 .6rem; border-bottom: 1px solid var(--border-warm); }
   th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-stone); }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .tabs { display: flex; gap: .3rem; margin: 1rem 0 0; }
-  .tabs button { background: transparent; color: var(--ink-stone); border: 1px solid transparent; border-radius: 8px 8px 0 0; }
+  .tabs { display: flex; gap: .3rem; margin: var(--rule) 0 0; }
+  .tabs button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border: 1px solid transparent; border-radius: 8px 8px 0 0; }
   .tabs button[aria-selected=true] { color: var(--ink); border-color: var(--border-warm); border-bottom-color: var(--ivory); background: var(--ivory); }
   textarea {
-    width: 100%; min-height: 11rem; padding: .7rem .8rem; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    width: 100%; min-height: calc(var(--rule) * 6); padding: calc(var(--rule) / 2 - 1px) .8rem; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
     color: var(--ink); background: var(--paper); border: 1px solid var(--border-warm); border-radius: 8px; resize: vertical;
   }
-  .drop { border: 2px dashed var(--border-warm); border-radius: var(--radius-md); padding: 2rem 1rem; text-align: center; color: var(--ink-stone); }
-  .drop.over { border-color: var(--rose); background: var(--sand); color: var(--rose); }
-  .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: .8rem; margin: 1rem 0; }
+  .drop { border: 2px dashed var(--border-warm); border-radius: var(--radius-md); padding: calc(var(--rule) - 2px) 1rem; text-align: center; color: var(--ink-stone); }
+  .drop.over { border-color: var(--accent); background: var(--sand); color: var(--accent); }
+  .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: .8rem; margin: var(--rule) 0; }
   .stat { border: 1px solid var(--border-warm); border-radius: 8px; padding: .7rem .8rem; }
   .stat b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
   .stat span { font-size: .78rem; color: var(--ink-stone); text-transform: uppercase; letter-spacing: .04em; }
-  .stat.danger b { color: var(--rose-deep); }
+  .stat.danger b { color: var(--danger); }
   code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--paper); padding: .1rem .3rem; border-radius: 4px; }
 </style>
 </head>
 <body>
-<header class="site"><div>
-  <div class="brand">ini<span class="sh">SH</span>ial</div>
-  <p class="tagline">No backpack required.</p>
-</div></header>
-
-<main>
-  <div class="row" style="justify-content:space-between">
-    <h1 style="margin-bottom:0">Classes</h1>
-    <button class="secondary" id="signout">Sign out</button>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/admin/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/admin/">Classes</a></li>
+    <li><a href="/admin/editor/" data-keep-course>Syllabus editor</a></li>
+    <li><a href="/admin/progress/" data-keep-course>Who has signed</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <button type="button" class="secondary" id="navSignout">Sign out</button>
   </div>
+</nav></header>
+
+<main id="main" tabindex="-1">
+  <h1>Classes</h1>
   <div id="coursesMsg" hidden></div>
   <div class="card" id="coursesCard">
     <table id="coursesTable">
@@ -59,20 +66,20 @@
   </p>
 
   <div class="card">
-    <div class="tabs" role="tablist">
+    <div class="tabs on-rules" role="tablist">
       <button role="tab" id="tabFile" aria-selected="true">Upload a file</button>
       <button role="tab" id="tabPaste" aria-selected="false">Paste from a spreadsheet</button>
     </div>
 
     <div id="paneFile">
       <div class="drop" id="drop">
-        <p style="margin:0 0 .6rem">Drop a <code>.csv</code> or <code>.txt</code> here</p>
+        <p>Drop a <code>.csv</code> or <code>.txt</code> here</p>
         <input type="file" id="file" accept=".csv,.txt,.tsv,text/csv,text/plain">
       </div>
     </div>
 
     <div id="panePaste" hidden>
-      <p class="small muted" style="margin-top:.8rem">
+      <p class="small muted">
         Select the cells in Excel or Google Sheets, including the header row, and paste.
         Tab-separated text is handled automatically.
       </p>
@@ -264,11 +271,8 @@ async function loadCourses() {
   }
 }
 
-$('signout').addEventListener('click', async () => {
-  // Clears the cookie server-side. An Access session is ended by Access itself.
-  await fetch('/api/admin/login', { method: 'DELETE' });
-  location.href = '/admin/login/';
-});
+// Sign-out moved to the nav, so its handler lives in /ui.js alongside it --
+// every admin page has the button now, and three copies would have drifted.
 
 loadCourses();
 </script>

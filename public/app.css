@@ -5,15 +5,16 @@
  * from the "Notebook Tabs" preset in zarazhangrui/frontend-slides via Open
  * Design's fs-notebook-tabs example. MIT. See ATTRIBUTION.md.
  *
- * Palette is used UNCHANGED from bookSHelf's sheet, which has a recorded
- * accessibility audit: --ink-stone #6b6358 on cream #f8f6f1 is ~4.9:1, and
- * --ink-near-black is ~15:1. Do not lighten either, and do not put body text
- * on anything but the cream ground.
- *
  * Handwriting is an ACCENT, never the body. This document is one a parent has
  * to read and legally initial -- a script face for policy text would hurt
  * comprehension and, on a small phone, exclude readers outright. Caveat is
  * used for initials, margin notes, and the masthead only.
+ *
+ * THE ACCENT IS A HIGHLIGHTER, NOT A COLOUR. Emphasis never recolours text:
+ * every word on the page is --ink, and importance is carried by a marker band
+ * or a strip of tape BEHIND the words. That is one contrast pair to get right
+ * instead of a dozen, it survives both themes unchanged, and it is the one
+ * emphasis a teacher actually makes on paper.
  */
 
 @font-face {
@@ -26,32 +27,42 @@
   font-display: swap;
 }
 
+/* ---- palette ----
+ *
+ * Light values live here unconditionally, so a browser without light-dark()
+ * still gets a complete, readable cream sheet rather than a page of
+ * guaranteed-invalid custom properties (which would compute to nothing and
+ * take the body text with them). The dark half is layered on below.
+ */
 :root {
-  /* Brand — berry-rose "red pen", deepened from the deck's pink margin rule
-     so it clears AA on cream. */
-  --rose: #a8455f;
-  --rose-light: #c76f86;
-  --rose-deep: #7f3348;
-  --focus: #4a90c4;
-
-  /* Surfaces */
   --paper: #f8f6f1;
   --ivory: #fdfcf9;
   --sand: #efece3;
-  --desk: #2d2d2d;
-  --desk-deep: #1e1e1e;
+  --desk: #ded5c2;
+  --desk-deep: #cdc2ab;
+  --desk-ink: #3a3833;
 
-  /* Ink, warm ramp */
   --ink: #1a1a1a;
   --ink-charcoal: #3a3833;
   --ink-olive: #4d4a43;
   --ink-stone: #6b6358;
   --ink-silver: #a8a297;
 
-  /* Lines */
   --border-cream: #efece3;
   --border-warm: #e4e0d5;
   --ring: #d8d2c4;
+
+  /* The marker. --mark is the band, --mark-deep its edge and the colour of any
+     line or outline that has to read as "the accent" without being text. */
+  --mark: #ffe08a;
+  --mark-deep: #b98d24;
+  --tape: #eee2c6;
+  --accent: #7a5c1f;
+  --accent-deep: #5c451a;
+  --accent-soft: #d8b45f;
+  --focus: #2f6f9e;
+
+  --danger: #8d3346;
 
   /* Index-tab hues — the notebook's wayfinding spine, order preserved */
   --tab-1: #98d4bb;
@@ -60,7 +71,7 @@
   --tab-4: #a8d8ea;
   --tab-5: #ffe6a7;
 
-  --shadow-paper: 0 1px 2px rgba(0,0,0,.05), 0 12px 40px rgba(0,0,0,.28);
+  --shadow-paper: 0 1px 2px rgba(0,0,0,.05), 0 12px 40px rgba(0,0,0,.16);
   --shadow-soft: 0 4px 24px rgba(0,0,0,.05);
 
   --radius-sm: 4px;
@@ -73,79 +84,252 @@
   --font-hand: "Caveat", "Segoe Script", "Bradley Hand", cursive;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* Ruled-line pitch. Body line-height matches it so prose sits ON the rules. */
-  --rule: 30px;
+  /* ---- the baseline grid ----
+   *
+   * --rule is the ruled-line pitch AND the unit every vertical measurement on
+   * the page is built from. Body line-height is exactly one rule, so successive
+   * lines of prose land on successive rules; anything between two paragraphs
+   * (a heading, a card, a button, a form field) must consume a WHOLE number of
+   * rules or every line after it drifts off the paper.
+   *
+   * --baseline is how far a 17px/32px line box's baseline sits below its own
+   * top edge. It is the one number here that comes from the FONT rather than
+   * from arithmetic, so it moves a little with whatever the reader actually has
+   * installed. It is measured, not guessed -- see the drift figures in
+   * ATTRIBUTION.md. Chasing an exact zero would mean self-hosting DM Sans,
+   * which is a font download on every parent's phone to move text one pixel.
+   *
+   * Everything downstream follows from those: shift the ruled background down
+   * by --baseline + --sit, and any line box starting at a multiple of --rule
+   * from the top of the content box has a rule drawn just under its baseline.
+   */
+  --rule: 32px;
+  --baseline: 23px;
+
+  /* How far ABOVE the rule the text sits. Writing on lined paper rests on the
+     line, not through it -- with --sit at 0 the rule cuts the descenders of
+     every g, p and y on the page. 3px clears them and still reads as sitting
+     on the line rather than floating. */
+  --sit: 3px;
+
+  --swipe: 420ms cubic-bezier(.22, 1, .36, 1);
+
+  /* Overwritten by ui.js with the nav's measured height. The 0 fallback is what
+     a no-JS reader gets: the other sticky bars land at the very top and the nav
+     scrolls away, which is worse than ideal but never overlapping. */
+  --nav-h: 0px;
 }
 
-@media (prefers-color-scheme: dark) {
+/* light-dark() carries BOTH themes in one declaration, so a token can never
+   drift between them -- the alternative is a second @media block holding a
+   duplicate of every value, which is exactly how a dark theme ends up with one
+   stale colour nobody notices. Browsers without it keep the light block above.
+   The toggle then only has to set `color-scheme`; it never touches a colour. */
+@supports (color: light-dark(#fff, #000)) {
   :root {
-    --rose: #d98aa0;
-    --rose-light: #e6a7ba;
-    --rose-deep: #b8657c;
-    --paper: #1e1e1e;
-    --ivory: #232320;
-    --sand: #33322e;
-    --desk: #141413;
-    --desk-deep: #0e0e0d;
-    --ink: #ede8dc;
-    --ink-charcoal: #cfcabd;
-    --ink-olive: #b3ada0;
-    --ink-stone: #8a8578;
-    --ink-silver: #6f6a5f;
-    --border-cream: rgba(255,255,255,.06);
-    --border-warm: rgba(255,255,255,.10);
-    --ring: rgba(255,255,255,.12);
-    --shadow-paper: 0 1px 2px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.5);
+    color-scheme: light dark;
+
+    --paper: light-dark(#f8f6f1, #1e1e1e);
+    --ivory: light-dark(#fdfcf9, #26251f);
+    --sand: light-dark(#efece3, #33322e);
+    --desk: light-dark(#ded5c2, #141413);
+    --desk-deep: light-dark(#cdc2ab, #0e0e0d);
+    --desk-ink: light-dark(#3a3833, #ede8dc);
+
+    --ink: light-dark(#1a1a1a, #ede8dc);
+    --ink-charcoal: light-dark(#3a3833, #cfcabd);
+    --ink-olive: light-dark(#4d4a43, #b3ada0);
+    --ink-stone: light-dark(#6b6358, #a29c8e);
+    --ink-silver: light-dark(#a8a297, #6f6a5f);
+
+    --border-cream: light-dark(#efece3, rgba(255,255,255,.06));
+    --border-warm: light-dark(#e4e0d5, rgba(255,255,255,.11));
+    --ring: light-dark(#d8d2c4, rgba(255,255,255,.16));
+
+    /* The dark band is the same highlighter seen through a dim room: same hue,
+       dropped far enough that --ink (near-white) rides it at ~7:1. */
+    --mark: light-dark(#ffe08a, #6d5717);
+    --mark-deep: light-dark(#b98d24, #d9b354);
+    --tape: light-dark(#eee2c6, #46402f);
+    --accent: light-dark(#7a5c1f, #e6c67f);
+    --accent-deep: light-dark(#5c451a, #f0d79c);
+    --accent-soft: light-dark(#d8b45f, #8a6f28);
+    --focus: light-dark(#2f6f9e, #7fbde6);
+
+    --danger: light-dark(#8d3346, #e79aab);
   }
+  /* The whole toggle. Two declarations, because every colour above already
+     knows what to do once the scheme is pinned. */
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"] { color-scheme: dark; }
+}
+
+/* The page's drop shadow is the one token light-dark() cannot carry -- it is a
+   comma-separated shorthand, and light-dark() takes exactly two values. So this
+   one restates, and it is the ONLY thing that does. A stale shadow is a
+   cosmetic bug; a stale colour would be an unreadable page. */
+:root[data-theme="dark"] { --shadow-paper: 0 1px 2px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.5); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --shadow-paper: 0 1px 2px rgba(0,0,0,.4), 0 12px 40px rgba(0,0,0,.5); }
 }
 
 * { box-sizing: border-box; }
+
+/* 17px rather than the browser's 16px default. This is a document a parent
+   reads once, carefully, on a phone, and every rem-based measurement on the
+   page scales with it. */
+html { font-size: 17px; }
 
 /* The desk the notebook sits on. */
 body {
   margin: 0;
   background: var(--desk);
-  background-image: radial-gradient(ellipse at 50% 0%, #3a3a38 0%, var(--desk) 55%, var(--desk-deep) 100%);
+  background-image: radial-gradient(ellipse at 50% 0%,
+    color-mix(in srgb, var(--desk) 82%, var(--paper)) 0%,
+    var(--desk) 55%, var(--desk-deep) 100%);
   color: var(--ink);
-  font: 16px/var(--rule) var(--font-body);
+  font: 1rem/var(--rule) var(--font-body);
   -webkit-text-size-adjust: 100%;
+  min-height: 100vh;
 }
 
-/* ---- masthead ---- */
+/* Skip link: the nav is the same six items on every page, so a screen-reader
+   or keyboard user would otherwise tab through all of them to reach the one
+   thing that changed. */
+.skip {
+  position: absolute; left: .5rem; top: -3rem; z-index: 50;
+  background: var(--paper); color: var(--ink);
+  padding: .5rem .9rem; border-radius: var(--radius-sm);
+  border: 1px solid var(--ring); font-weight: 600; text-decoration: none;
+  transition: top 120ms ease-out;
+}
+.skip:focus { top: .5rem; }
+
+/* ---- the top nav ----
+ *
+ * Logo left, destinations centre, session right. It is the same bar on every
+ * page including the editor, which is the whole point: there is no screen you
+ * can land on with no way back out.
+ */
 
 header.site {
-  padding: 1.4rem 1.1rem .9rem;
-  color: var(--paper);
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--desk) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid color-mix(in srgb, var(--desk-ink) 14%, transparent);
+  color: var(--desk-ink);
 }
-header.site > div { max-width: 48rem; margin: 0 auto; }
+header.site nav {
+  max-width: 62rem; margin: 0 auto;
+  padding: .5rem .9rem;
+  display: flex; align-items: center; gap: .7rem;
+}
 
 .brand {
   font-family: var(--font-display);
-  font-size: 1.6rem;
+  font-size: 1.3rem;
   font-weight: 600;
   letter-spacing: -.01em;
   line-height: 1.2;
-  color: var(--paper);
+  color: var(--desk-ink);
+  text-decoration: none;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
-.brand .sh { color: var(--rose-light); }
+/* The one piece of brand emphasis, and it is a marker stroke -- the letters
+   stay the same ink as the rest of the word. */
+.brand .sh {
+  position: relative;
+  isolation: isolate;
+  padding: 0 .06em;
+}
+.brand .sh::before {
+  content: ''; position: absolute; z-index: -1;
+  left: 0; right: 0; top: .12em; bottom: .1em;
+  background: var(--mark);
+  border-radius: 1px 3px 2px 3px;
+  transform: rotate(-.7deg);
+}
 
-.tagline {
-  font-family: var(--font-hand);
-  font-size: 1.25rem;
-  line-height: 1.2;
-  color: var(--tab-5);
-  margin: .15rem 0 0;
-  transform: rotate(-1.2deg);
-  transform-origin: left center;
+.nav-main {
+  list-style: none; display: flex; gap: .1rem;
+  margin: 0; padding: 0;
+  flex: 1 1 auto; justify-content: center;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.nav-main::-webkit-scrollbar { display: none; }
+
+.nav-main a, .nav-end a, .nav-end button {
+  display: block; white-space: nowrap;
+  font: inherit; font-size: .92rem; font-weight: 600; line-height: 1.3;
+  color: var(--desk-ink);
+  text-decoration: none;
+  padding: .38rem .6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  isolation: isolate;
+}
+
+/* Hover and current page are the SAME marker band; hover draws it, current
+   keeps it drawn. So the pointer literally previews "you are here" rather than
+   inventing a second visual language for the same idea. */
+.nav-main a::before, .nav-end a::before, .nav-end button::before {
+  content: ''; position: absolute; z-index: -1;
+  left: .18rem; right: .18rem; top: .3rem; bottom: .28rem;
+  background: var(--mark);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--swipe);
+}
+.nav-main a:hover::before, .nav-end a:hover::before, .nav-end button:hover::before,
+.nav-main a:focus-visible::before, .nav-main a[aria-current="page"]::before {
+  transform: scaleX(1);
+}
+.nav-main a[aria-current="page"] { color: var(--ink); }
+
+.nav-end { display: flex; align-items: center; gap: .2rem; flex: 0 0 auto; }
+
+/* Theme toggle. A single button that reports its own state, rather than a
+   three-way control -- "follow the system" is the default nobody has to pick,
+   and the two overrides are the only thing worth a click. */
+.theme-toggle {
+  width: 2.1rem; height: 2.1rem;
+  min-height: 0;
+  display: grid; place-items: center;
+  padding: 0 !important;
+}
+.theme-toggle svg { width: 1.05rem; height: 1.05rem; }
+.theme-toggle::before { display: none; }
+.theme-toggle:hover { background: color-mix(in srgb, var(--desk-ink) 12%, transparent) !important; }
+.theme-toggle .sun { display: none; }
+.theme-toggle .moon { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle .sun { display: block; }
+  :root:not([data-theme="light"]) .theme-toggle .moon { display: none; }
+}
+:root[data-theme="dark"] .theme-toggle .sun { display: block; }
+:root[data-theme="dark"] .theme-toggle .moon { display: none; }
+:root[data-theme="light"] .theme-toggle .sun { display: none; }
+:root[data-theme="light"] .theme-toggle .moon { display: block; }
 
 /* ---- the page ---- */
 
 main {
   position: relative;
-  max-width: 48rem;
-  margin: 0 auto 4rem;
-  padding: 2rem 1.6rem 3.5rem 3.2rem;
+  /* Narrowed from 48rem when the body went to 17px. The measure is what
+     matters, not the sheet: at 48rem a 17px line ran to ~90 characters, well
+     past the 65-75 that stays comfortable to read. This holds it near 78. */
+  max-width: 42rem;
+  margin: var(--rule) auto calc(var(--rule) * 4);
+  /* Top padding is a whole number of rules, which is what lets the background
+     offset below be a plain --baseline instead of a running total. */
+  padding: calc(var(--rule) * 2) 1.6rem calc(var(--rule) * 3) 3.2rem;
   background-color: var(--paper);
   /* Faint ruled lines, pitched to --rule so body copy rides them. */
   background-image: repeating-linear-gradient(
@@ -155,7 +339,11 @@ main {
     color-mix(in srgb, var(--ring) 55%, transparent) calc(var(--rule) - 1px),
     color-mix(in srgb, var(--ring) 55%, transparent) var(--rule)
   );
-  background-position: 0 2rem;
+  /* The rules are drawn at the BOTTOM of each band, so pushing the whole
+     pattern down by --baseline puts a rule under the first baseline -- and,
+     because every block below consumes whole rules, under every one after it.
+     The extra --sit drops it clear of the descenders. */
+  background-position: 0 calc(var(--baseline) + var(--sit));
   border-radius: 2px 6px 6px 2px;
   box-shadow: var(--shadow-paper);
 }
@@ -173,143 +361,365 @@ main::before {
   pointer-events: none;
 }
 
-/* The red-pen margin rule. */
+/* The margin rule. Amber now rather than red pen -- the accent is the marker,
+   and a second competing ink colour was the thing that read as "pink". */
 main::after {
   content: "";
   position: absolute;
   left: 2.5rem; top: 0; bottom: 0; width: 1px;
-  background: color-mix(in srgb, var(--rose) 42%, transparent);
+  background: color-mix(in srgb, var(--mark-deep) 45%, transparent);
   pointer-events: none;
 }
 
 /* ---- type ---- */
 
+/* Headings occupy whole rules like everything else. The `top` nudges are the
+   only fudge on the page: a display serif at 29.6px has a taller content box
+   than a 30px line, so its natural baseline lands a few pixels low. `position:
+   relative` moves the glyphs onto the rule WITHOUT moving the box, so the grid
+   below is untouched -- a margin tweak would have shifted every following line
+   off the paper to fix one heading. */
 h1 {
   font-family: var(--font-display);
   font-size: 1.85rem;
   font-weight: 600;
-  line-height: 1.15;
+  line-height: var(--rule);
   letter-spacing: -.015em;
-  margin: 1.6rem 0 .5rem;
+  margin: calc(var(--rule) * 2) 0 0;
+  position: relative;
+  top: -4px;
 }
+/* A heading that opens a box does not also need the two rules of air that
+   separate it from a previous section -- the box edge already does that.
+   Replaces the `style="margin-top:.2rem"` that used to be sprinkled through the
+   pages, each of which knocked the grid sideways by a fraction of a rule. */
+:is(.card, .done-banner, .initial-box, main) > :first-child { margin-top: 0; }
 h2 {
   font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 600;
-  line-height: 1.25;
-  margin: 2rem 0 .4rem;
+  line-height: var(--rule);
+  margin: calc(var(--rule) * 2) 0 0;
+  position: relative;
+  top: -1px;
 }
+h3 { font-family: var(--font-display); font-size: 1.05rem; line-height: var(--rule); margin: var(--rule) 0 0; }
 p { margin: 0 0 var(--rule); }
-a { color: var(--rose); text-underline-offset: 2px; }
+ul, ol { margin: 0 0 var(--rule); padding-left: 1.4rem; }
+li { line-height: var(--rule); }
 .muted { color: var(--ink-stone); }
-.small { font-size: .875rem; line-height: 1.55; }
+/* Smaller type, same rule pitch -- a note written on the paper still gets one
+   ruled line per line of writing. */
+.small { font-size: .875rem; line-height: var(--rule); }
 code { font: 13px var(--font-mono); background: var(--sand); padding: .1rem .3rem; border-radius: var(--radius-sm); }
+
+/* Links: same ink as the sentence around them, marked underneath. The band is
+   only 3px tall at rest so it reads as an underline, and fills the word on
+   hover -- it is the same gesture, finished.
+   text-decoration stays on as the non-colour, non-background cue, since a
+   background band is exactly what forced-colours mode and print throw away. */
+a {
+  color: inherit;
+  position: relative;
+  isolation: isolate;
+  text-decoration: underline;
+  text-decoration-color: var(--mark-deep);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+a::before {
+  content: ''; position: absolute; z-index: -1;
+  left: -.12em; right: -.12em; top: .08em; bottom: 0;
+  background: var(--mark);
+  border-radius: 2px;
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  transition: transform var(--swipe);
+}
+a:hover::before, a:focus-visible::before { transform: scaleY(1); }
+a.button::before, .brand::before { display: none; }
+a.button, .brand { text-decoration: none; }
 
 /* A pencilled aside in the margin. Decorative only. */
 .note-hand {
   font-family: var(--font-hand);
   font-size: 1.15rem;
-  line-height: 1.3;
-  color: var(--rose);
-  transform: rotate(-.8deg);
+  line-height: var(--rule);
+  color: var(--ink-charcoal);
 }
+
+/* ---- the marker and the tape ----
+ *
+ * .mark  — a highlighter band swiped behind the words.
+ * .tape  — a torn strip of masking tape the words are written on.
+ *
+ * Both are pseudo-element backgrounds driven by `transform`, never by
+ * background-size: a transform is the one property that animates on the
+ * compositor, so the swipe stays smooth on the cheap Chromebook a student is
+ * actually holding. Both leave the text at --ink.
+ */
+/* Full ink, always -- including inside a .muted paragraph, which is where the
+   marker is most often used. Inheriting the muted grey put --ink-stone on the
+   band at 4.2:1 in light and 2.5:1 in dark, i.e. the act of emphasising a
+   phrase made it the least readable text on the page. */
+.mark, .tape { color: var(--ink); }
+
+.mark {
+  position: relative;
+  isolation: isolate;
+  padding: 0 .18em;
+}
+.mark::before {
+  content: ''; position: absolute; z-index: -1;
+  left: 0; right: 0; top: .08em; bottom: .04em;
+  background: var(--mark);
+  /* Uneven corners: a marker does not start and stop square. */
+  border-radius: 2px 5px 3px 6px;
+  transform: scaleX(0) rotate(-.5deg);
+  transform-origin: left center;
+  transition: transform var(--swipe);
+}
+.mark.swiped::before { transform: scaleX(1) rotate(-.5deg); }
+
+/* No padding: the strip is grown by the pseudo-element's negative inset
+   instead, so the tape can be bigger than the words without the inline-block
+   growing its line box and pushing the next line off its rule. */
+.tape {
+  position: relative;
+  isolation: isolate;
+  display: inline-block;
+  line-height: var(--rule);
+  transform: rotate(-.9deg);
+}
+.tape::before {
+  content: ''; position: absolute; z-index: -1;
+  inset: -.05em -.75em;
+  background: var(--tape);
+  box-shadow: 0 1px 3px rgba(0,0,0,.13);
+  /* The torn ends. A polygon costs nothing and is the whole reason it reads as
+     tape instead of a rectangle. */
+  clip-path: polygon(
+    1.5% 6%, 98% 0%, 100% 94%, 2% 100%
+  );
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--swipe);
+}
+.tape.swiped::before { transform: scaleX(1); }
 
 /* ---- cards ---- */
 
+/* A box drawn ON the paper, not a panel laid over it: the background is gone so
+   the ruled lines run straight through, which is the only way the text inside a
+   card can be seen to sit on them. Vertical padding is a rule minus the border,
+   so the card as a whole still consumes a whole number of rules. */
 .card {
-  background: var(--ivory);
+  background: transparent;
   border: 1px solid var(--border-warm);
   border-radius: var(--radius-md);
-  padding: 1.1rem 1.2rem 1.3rem;
-  box-shadow: var(--shadow-soft);
-  margin: 1.2rem 0;
+  padding: calc(var(--rule) - 1px) 1.2rem;
+  margin: var(--rule) 0;
+}
+
+/* No box at all -- just a section written further down the same page. For a
+   choice between two things there is nothing to enclose, and the border was
+   drawing a second rectangle inside the sheet. Padding goes to a whole rule
+   now that there is no border to subtract, and the horizontal padding goes
+   entirely, so the text lines up with the margin rule like everything else. */
+.card.plain {
+  border: 0;
+  border-radius: 0;
+  padding: var(--rule) 0;
 }
 
 /* ---- forms ---- */
 
-label { display: block; font-weight: 600; font-size: .9rem; line-height: 1.4; margin: 1.1rem 0 .35rem; }
-.hint { display: block; font-weight: 400; color: var(--ink-stone); font-size: .85rem; line-height: 1.45; }
+label { display: block; font-weight: 600; font-size: .9rem; line-height: var(--rule); margin: var(--rule) 0 0; }
+.hint { display: block; font-weight: 400; color: var(--ink-stone); font-size: .85rem; line-height: var(--rule); }
 
-input[type=text], input[type=email], input[type=password], textarea, input[type=file] {
+/* Two rules tall. That is both the grid unit and a 60px touch target, which is
+   comfortably over the 44px floor -- the two constraints happened to agree, and
+   where they had not, the target would have won. */
+input[type=text], input[type=email], input[type=password], input[type=file] {
   width: 100%;
-  padding: .65rem .75rem;
+  height: calc(var(--rule) * 2);
+  padding: 0 .75rem;
   font: inherit;
-  line-height: 1.4;
   color: var(--ink);
-  background: var(--paper);
+  background: transparent;
   border: 1px solid var(--ring);
   border-radius: var(--radius-sm);
 }
-input:focus-visible, button:focus-visible, textarea:focus-visible, a:focus-visible {
+input[type=file] { padding: calc(var(--rule) / 2 - .4rem) .75rem; }
+/* display:block, not the default inline-block. As an inline-block a textarea
+   sits in a line box and the strut adds its descender underneath -- 9px of
+   invisible space that put everything below it off the grid, and which no
+   amount of padding arithmetic would have explained. */
+textarea {
+  display: block;
+  width: 100%;
+  padding: calc(var(--rule) / 2 - 1px) .75rem;
+  font: inherit;
+  line-height: var(--rule);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ring);
+  border-radius: var(--radius-sm);
+}
+input:focus-visible, button:focus-visible, textarea:focus-visible, a:focus-visible,
+[tabindex]:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
-button {
+/* The primary button is the marker again: ink on a highlighter band. It gets a
+   real border so it is still a button under forced-colours, where the
+   background is discarded. */
+/* Two rules tall, so a button occupies exactly two lines of the paper and the
+   text after it resumes on the grid. Its LABEL is centred rather than sat on a
+   rule: a rule can only pass through the label or the button's edges, not both,
+   and a control reads as an object placed on the page rather than as
+   handwriting on it. */
+button, .button {
   font: inherit;
   font-weight: 600;
-  line-height: 1.2;
-  padding: .65rem 1.1rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--rose-deep);
-  background: var(--rose);
-  color: #fff;
+  line-height: var(--rule);
+  min-height: calc(var(--rule) * 2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.1rem;
+  border-radius: var(--radius-sm) var(--radius-md) var(--radius-sm) var(--radius-md);
+  border: 1px solid var(--mark-deep);
+  background: var(--mark);
+  color: var(--ink);
   cursor: pointer;
+  transition: transform 110ms ease-out, background 140ms ease-out;
 }
-button:hover:not([disabled]) { background: var(--rose-deep); }
-button[disabled] { opacity: .5; cursor: not-allowed; }
-button.secondary { background: transparent; color: var(--ink); border-color: var(--ring); }
-button.secondary:hover:not([disabled]) { background: var(--sand); }
+/* A link that navigates, styled as a button -- kept an <a> so it lands in the
+   tab order and opens in a new tab the way a link is expected to. */
+.button { text-decoration: none; }
 
+/* A button that is the only thing in its paragraph sits BETWEEN two rules:
+   top edge on one, bottom edge two rules down, so it fills those two lines
+   exactly instead of straddling three.
+ *
+ * The offsets are padding on the wrapper, not margins on the button. Margins
+ * would collapse with the previous paragraph's, which silently eats the
+ * top offset and puts the button back off the grid -- the arithmetic looks
+ * right in the stylesheet and is wrong on screen.
+ *
+ * Without :has() the button is still two rules tall, just not rule-aligned. */
+p:has(> button:only-child), p:has(> .button:only-child) {
+  padding: calc(var(--baseline) + var(--sit)) 0
+           calc(var(--rule) - var(--baseline) - var(--sit));
+  margin: 0 0 var(--rule);
+}
+/* Block-level so it does not sit in a line box (whose strut would add its own
+   leading under it), but shrink-to-fit so it stays button-shaped. */
+p > button:only-child, p > .button:only-child { display: flex; width: fit-content; }
+button:hover:not([disabled]), .button:hover { background: var(--accent-soft); color: var(--ink); }
+/* Feedback on the press, not the release. */
+button:active:not([disabled]), .button:active { transform: scale(.975); }
+button[disabled] { opacity: .5; cursor: not-allowed; }
+/* .secondary / .danger apply to both a <button> and an <a class="button">, so
+   a link that navigates never has to be faked with a nested control. */
+.secondary { background: transparent; color: var(--ink); border-color: var(--ring); }
+.secondary:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
+.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+.danger:hover:not([disabled]) { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+
+/* Same offsets as a standalone button, so a row of controls also sits BETWEEN
+   two rules rather than straddling them. Padding again, not margin -- see the
+   note on the standalone case. */
+.on-rules, .row {
+  padding-top: calc(var(--baseline) + var(--sit));
+  padding-bottom: calc(var(--rule) - var(--baseline) - var(--sit));
+}
 .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 
-fieldset { border: 1px solid var(--border-warm); border-radius: var(--radius-sm); padding: .5rem .9rem .9rem; margin: 1.1rem 0 0; }
-legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; }
-.choice { display: flex; align-items: center; gap: .5rem; margin: .35rem 0; font-weight: 400; line-height: 1.4; }
-.choice input { width: 1.1rem; height: 1.1rem; accent-color: var(--rose); }
+/* Tables are still the paper. One rule per row of data, so a roster reads like
+   a ledger ruled by the same lines as everything else. Zero vertical padding --
+   the line-height IS the row height. */
+table { border-collapse: collapse; }
+th, td { line-height: calc(var(--rule) - 1px); padding-top: 0; padding-bottom: 0; }
 
-.notice { border-radius: var(--radius-sm); padding: .7rem .9rem; margin: 1rem 0; font-size: .92rem; line-height: 1.5; }
-.notice.error { background: #f6e0e4; color: var(--rose-deep); border-left: 3px solid var(--rose); }
-.notice.ok { background: color-mix(in srgb, var(--tab-1) 40%, var(--paper)); color: #1f5544; border-left: 3px solid var(--tab-1); }
-@media (prefers-color-scheme: dark) {
-  .notice.error { background: #3a2b30; color: var(--rose-light); }
-  .notice.ok { background: #23332e; color: var(--tab-1); }
+/* Compact controls (tab strips, filter chips, block adders) are exactly one
+   rule tall. They opt out of the two-rule sizing on the main button because
+   they are chrome for the page, not actions in the reading flow -- but they
+   still have to land on the grid or the content after them drifts. */
+.compact { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; }
+
+/* A fieldset splits its top border to make room for the legend, so its height
+   is legend + content + padding-bottom + the one remaining border. 29px of
+   bottom padding is what makes that sum a whole number of rules. */
+fieldset {
+  border: 1px solid var(--border-warm); border-radius: var(--radius-sm);
+  padding: 0 .9rem calc(var(--rule) - 1px); margin: var(--rule) 0 0;
+}
+legend { font-weight: 600; font-size: .9rem; line-height: var(--rule); padding: 0 .3rem; }
+/* One choice, one ruled line. Block rather than flex: a flex container centres
+   its line box instead of aligning a baseline, which floated the radio labels
+   6px off the rules. */
+.choice { display: block; margin: 0; font-weight: 400; line-height: var(--rule); }
+.choice input {
+  width: 1.1rem; height: 1.1rem; margin: 0 .45rem 0 0;
+  vertical-align: -.15em; accent-color: var(--mark-deep);
+}
+
+/* Notices carry a left bar AND a word, never colour alone. */
+.notice {
+  border-radius: var(--radius-sm);
+  padding: calc(var(--rule) / 2) .9rem;
+  margin: var(--rule) 0;
+  font-size: .92rem;
+  line-height: var(--rule);
+}
+.notice.error {
+  background: color-mix(in srgb, var(--danger) 12%, var(--paper));
+  color: var(--ink); border-left: 3px solid var(--danger);
+}
+.notice.ok {
+  background: color-mix(in srgb, var(--tab-1) 30%, var(--paper));
+  color: var(--ink); border-left: 3px solid var(--tab-1);
 }
 
 /* ---- progress spine ---- */
 
 .progress {
-  position: sticky; top: 0; z-index: 5;
+  position: sticky; top: var(--nav-h); z-index: 5;
   background: var(--desk);
-  color: var(--paper);
+  color: var(--desk-ink);
   padding: .6rem 1.1rem .5rem;
   font-size: .88rem;
   font-weight: 600;
   line-height: 1.3;
+  border-bottom: 1px solid color-mix(in srgb, var(--desk-ink) 14%, transparent);
 }
 .progress > div { max-width: 48rem; margin: 0 auto; display: flex; justify-content: space-between; gap: 1rem; }
-.bar { height: 3px; background: rgba(255,255,255,.16); border-radius: 2px; margin-top: .4rem; overflow: hidden; }
-.bar > i { display: block; height: 100%; background: var(--tab-1); width: 0; transition: width .3s; }
+.bar { height: 3px; background: color-mix(in srgb, var(--desk-ink) 20%, transparent); border-radius: 2px; margin-top: .4rem; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--mark-deep); width: 0; transition: width .3s ease-out; }
 
 /* ---- syllabus blocks ---- */
 
 .block { margin: 0 0 var(--rule); }
-.block :is(h1, h2, h3) { margin: calc(var(--rule) * 1.2) 0 .4rem; }
+.block :is(h1, h2, h3) { margin: var(--rule) 0 0; }
 .block ul, .block ol { padding-left: 1.3rem; margin: 0 0 var(--rule); }
-.block li { margin: 0; }
+.block li { margin: 0; line-height: var(--rule); }
 
-/* The section that asks for initials: a taped-in card, tab-flagged. */
+/* The section that asks for initials. Translucent rather than solid, so the
+   ruled lines carry on underneath it and the prompt reads as written on the
+   same sheet as the policy it is attesting to. */
 .initial-box {
   position: relative;
-  background: var(--ivory);
+  background: color-mix(in srgb, var(--ivory) 55%, transparent);
   border: 1px solid var(--ring);
-  border-left: 4px solid var(--tab-3);
+  border-left: 4px solid var(--mark-deep);
   border-radius: var(--radius-sm);
-  padding: 1rem 1.1rem;
-  margin: calc(var(--rule) * .8) 0 var(--rule);
-  box-shadow: var(--shadow-soft);
+  padding: calc(var(--rule) - 1px) 1.1rem;
+  margin: var(--rule) 0;
 }
-.initial-box .prompt { font-weight: 600; line-height: 1.45; margin: 0 0 .7rem; }
+.initial-box .prompt { font-weight: 600; line-height: var(--rule); margin: 0 0 var(--rule); }
 .initial-box .row { align-items: center; }
 
 /* Initials are handwriting -- the one place a script face belongs. */
@@ -330,15 +740,24 @@ legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; }
 }
 .initial-box input::placeholder { color: var(--ink-silver); font-size: 1.3rem; }
 
-.initial-box.done { border-left-color: var(--tab-1); background: var(--paper); }
-.stamp { font-size: .85rem; line-height: 1.5; color: var(--ink-stone); margin: 0; }
+.initial-box.done { border-left-color: var(--tab-1); background: transparent; }
+.stamp { font-size: .85rem; line-height: var(--rule); color: var(--ink-stone); margin: 0; }
+/* The initials are handwriting at 1.6rem sitting in a 1rem line. As a
+   baseline-aligned inline-block its own baseline sits 3px off the strut's, so
+   it grew every stamp line to 32px -- and since each signed section then ran
+   2px long, the drift ACCUMULATED down the page: by the fourth section the text
+   was 4px off the rules. `vertical-align: top` takes it out of baseline
+   alignment, so its 30px box fits the line exactly and the rest of the document
+   stays on the grid. */
 .stamp b {
   font-family: var(--font-hand);
   font-size: 1.6rem;
   font-weight: 700;
-  color: var(--rose);
+  line-height: var(--rule);
+  color: var(--ink);
   letter-spacing: .04em;
   display: inline-block;
+  vertical-align: top;
   transform: rotate(-2deg);
   margin: 0 .15rem;
 }
@@ -346,28 +765,123 @@ legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; }
 .done-banner {
   border: 1px solid var(--ring);
   border-left: 4px solid var(--tab-1);
-  background: var(--ivory);
+  background: color-mix(in srgb, var(--ivory) 55%, transparent);
   border-radius: var(--radius-sm);
-  padding: 1.2rem;
+  padding: calc(var(--rule) - 1px) 1.2rem;
   text-align: center;
-  box-shadow: var(--shadow-soft);
 }
-.done-banner h2 { margin-top: .2rem; }
+.done-banner h2 { margin-top: 0; }
 
 /* ---- narrow screens ---- */
 
+@media (max-width: 44rem) {
+  header.site nav { flex-wrap: wrap; row-gap: .3rem; padding: .45rem .7rem; }
+  .nav-main { order: 3; flex-basis: 100%; justify-content: flex-start; }
+  .nav-end { margin-left: auto; }
+}
 @media (max-width: 34rem) {
-  main { padding: 1.5rem 1.1rem 3rem 2.4rem; border-radius: 0; }
+  /* Padding stays a whole number of rules -- narrowing the sheet must not knock
+     the grid out from under it. */
+  main { padding: var(--rule) 1.1rem calc(var(--rule) * 2) 2.4rem; border-radius: 0; margin-top: 0; }
   main::before { left: .45rem; }
   main::after { left: 1.75rem; }
   h1 { font-size: 1.55rem; }
-  .brand { font-size: 1.4rem; }
+  .brand { font-size: 1.15rem; }
+}
+
+/* ---- turning the page ----
+ *
+ * Navigating between two pages of this app turns the sheet: the outgoing page
+ * hinges on the left spine -- where the binder holes are -- lifts toward the
+ * reader and swings over, revealing the next page underneath.
+ *
+ * Native cross-document view transitions, no library and no JavaScript. The
+ * page-flip libraries (StPageFlip and friends) render a book widget out of DOM
+ * nodes they own; they cannot animate an actual navigation, and this is a
+ * multi-page app with forms and server state, not a flipbook. Browsers without
+ * the API simply navigate instantly, which is what they do today.
+ */
+@view-transition { navigation: auto; }
+
+/* Only the sheet turns. The nav is furniture on the desk -- it stays put, which
+   is also what stops the whole viewport from swinging. */
+header.site { view-transition-name: chrome; }
+main { view-transition-name: sheet; }
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(sheet) { animation-duration: 460ms; }
+
+  /* Default is a cross-fade in plus-lighter, which would wash the two sheets
+     into each other mid-turn. These two are solid pages passing one another. */
+  ::view-transition-image-pair(sheet) { isolation: auto; }
+  ::view-transition-old(sheet), ::view-transition-new(sheet) { mix-blend-mode: normal; }
+
+  ::view-transition-old(sheet) {
+    z-index: 2;
+    transform-origin: left center;
+    animation: sheet-turn-away 460ms cubic-bezier(.45, 0, .3, 1) both;
+  }
+  ::view-transition-new(sheet) {
+    z-index: 1;
+    transform-origin: left center;
+    animation: sheet-settle 460ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+
+  /* The slight rotate is the corner: the top-right lifts a moment before the
+     rest of the edge, the way it does when you actually pinch a page. Opacity
+     is gone before 90deg so the mirrored back of the sheet is never seen. */
+  @keyframes sheet-turn-away {
+    0%   { transform: perspective(1600px) rotateY(0) rotate(0); opacity: 1; }
+    45%  { filter: drop-shadow(-16px 0 26px rgba(0,0,0,.30)); }
+    100% { transform: perspective(1600px) rotateY(88deg) rotate(-1.4deg); opacity: 0; }
+  }
+  @keyframes sheet-settle {
+    0%   { transform: perspective(1600px) rotateY(-11deg); opacity: .55; }
+    100% { transform: perspective(1600px) rotateY(0); opacity: 1; }
+  }
+}
+
+/* ---- motion off ----
+ *
+ * Every band above still ARRIVES -- it just arrives already drawn. Dropping the
+ * transform instead of the transition would leave the highlight permanently at
+ * scale 0, i.e. the emphasis would silently vanish for the users who asked for
+ * less motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+  .mark::before, .tape::before, a::before,
+  .nav-main a::before, .nav-end a::before, .nav-end button::before { transition: none; }
+  button:active:not([disabled]) { transform: none; }
+  /* A page turn is a large motion across the whole viewport -- exactly the kind
+     that triggers vestibular symptoms. The navigation still happens; it just
+     happens instantly. */
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* ---- forced colours ----
+ *
+ * A Windows high-contrast user gets no backgrounds at all, which would delete
+ * every highlight on the page. Give the emphasis back as a border.
+ */
+@media (forced-colors: active) {
+  .mark, .tape { border-bottom: 2px solid; }
+  .mark::before, .tape::before, a::before { display: none; }
+  .nav-main a[aria-current="page"] { border-color: currentColor; }
+  button, .button { border: 1px solid; }
 }
 
 /* ---- print: the signed copy ---- */
 
 @media print {
-  header.site, .progress, button, .no-print { display: none !important; }
+  header.site, .progress, .skip, button, .no-print { display: none !important; }
   body { background: #fff; }
   main {
     max-width: none; margin: 0; padding: 0 .5in;
@@ -376,5 +890,9 @@ legend { font-weight: 600; font-size: .9rem; padding: 0 .3rem; }
   main::before, main::after { display: none; }
   .initial-box { break-inside: avoid; border-color: #999; background: #fff; box-shadow: none; }
   .stamp b { color: #000; }
+  /* The marker does not survive a printer, so emphasis falls back to the
+     underline that was there the whole time. */
+  .mark::before, .tape::before, a::before { display: none; }
+  .tape { transform: none; }
   a { color: inherit; text-decoration: none; }
 }

@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Who has signed · iniSHial</title>
 <link rel="stylesheet" href="/app.css">
+<script src="/ui.js"></script>
 <style>
   main { max-width: 58rem; }
   table { width: 100%; border-collapse: collapse; font-size: .9rem; }
-  th, td { text-align: left; padding: .45rem .55rem; border-bottom: 1px solid var(--border-warm); vertical-align: top; }
+  th, td { text-align: left; padding: 0 .55rem; border-bottom: 1px solid var(--border-warm); vertical-align: top; }
   th { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-stone); font-weight: 600; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .pill { display: inline-block; font-size: .74rem; font-weight: 700; padding: .12rem .5rem; border-radius: 9999px; white-space: nowrap; }
@@ -17,29 +18,38 @@
   .pill.stale { background: var(--tab-2); color: #2f2450; }
   .pill.not_started, .pill.no_code { background: var(--sand); color: var(--ink-olive); }
   .pill.not_registered { background: var(--tab-3); color: #5a1f2c; }
-  .filters { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1rem 0; }
-  .filters button { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .84rem; padding: .35rem .7rem; }
-  .filters button[aria-pressed=true] { background: var(--rose); color: #fff; border-color: var(--rose-deep); }
-  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: .7rem; margin: 1rem 0; }
+  .filters { display: flex; gap: .4rem; flex-wrap: wrap; margin: var(--rule) 0; }
+  .filters button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .84rem; }
+  .filters button[aria-pressed=true] { background: var(--mark); color: var(--ink); border-color: var(--mark-deep); }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: .7rem; margin: var(--rule) 0; }
   .stat { border: 1px solid var(--border-warm); border-radius: var(--radius-sm); padding: .6rem .7rem; background: var(--ivory); }
   .stat b { display: block; font-size: 1.5rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
   .stat span { font-size: .74rem; color: var(--ink-stone); text-transform: uppercase; letter-spacing: .04em; }
 </style>
 </head>
 <body>
-<header class="site"><div>
-  <div class="brand">ini<span class="sh">SH</span>ial</div>
-  <p class="tagline">No backpack required.</p>
-</div></header>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/admin/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/admin/">Classes</a></li>
+    <li><a href="/admin/editor/" data-keep-course>Syllabus editor</a></li>
+    <li><a href="/admin/progress/" data-keep-course>Who has signed</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <button type="button" class="secondary" id="navSignout">Sign out</button>
+  </div>
+</nav></header>
 
-<main>
+<main id="main" tabindex="-1">
   <h1 id="title">Who has signed</h1>
   <p class="muted small" id="sub"></p>
   <div id="msg" hidden></div>
 
   <div class="summary" id="summary"></div>
 
-  <div class="filters" id="filters">
+  <div class="filters on-rules" id="filters">
     <button data-f="all" aria-pressed="true">Everyone</button>
     <button data-f="outstanding" aria-pressed="false">Still outstanding</button>
     <button data-f="not_registered" aria-pressed="false">Not registered</button>
@@ -48,9 +58,11 @@
   </div>
 
   <p class="row">
-    <a id="csv" href="#"><button class="secondary">Download CSV</button></a>
-    <a id="creds" href="#"><button class="secondary">Credentials CSV</button></a>
-    <a id="edit" href="#"><button class="secondary">Edit syllabus</button></a>
+    <!-- Links styled as buttons. A <button> nested in an <a> is invalid HTML
+         and announces inconsistently; these navigate, so they stay links. -->
+    <a id="csv" class="button secondary" href="#">Download CSV</a>
+    <a id="creds" class="button secondary" href="#">Credentials CSV</a>
+    <a id="edit" class="button secondary" href="#">Edit syllabus</a>
   </p>
 
   <table>

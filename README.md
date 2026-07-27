@@ -46,9 +46,9 @@ the whole stack open source.
 ## Stack
 
 Cloudflare Pages + Functions + D1. Static HTML and vanilla JS, no build step.
-Every dependency is open source: Mammoth (DOCX), pdf.js (PDF), SortableJS
-(reorder), Ollama (authoring-time AI). WebCrypto for hashing — already in the
-runtime, nothing installed.
+Every dependency is open source: Mammoth (DOCX), pdf.js (PDF), Ollama
+(authoring-time AI). WebCrypto for hashing — already in the runtime, nothing
+installed.
 
 ## Setup
 

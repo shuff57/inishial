@@ -5,14 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Not found · iniSHial</title>
 <link rel="stylesheet" href="/app.css">
+<script src="/ui.js"></script>
 </head>
 <body>
-<header class="site"><div>
-  <div class="brand">ini<span class="sh">SH</span>ial</div>
-  <p class="tagline">No backpack required.</p>
-</div></header>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/">Start</a></li>
+    <li><a href="/register/">Set up my account</a></li>
+    <li><a href="/sign/">Read &amp; initial</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <a href="/admin/login/">Teacher sign-in</a>
+  </div>
+</nav></header>
 
-<main>
+<main id="main" tabindex="-1">
   <h1>That page isn't here</h1>
   <p class="muted">The link may be mistyped, or the page may have moved.</p>
   <p class="note-hand">Check the link your teacher sent you.</p>

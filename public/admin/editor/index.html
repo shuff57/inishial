@@ -5,105 +5,191 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Syllabus editor · iniSHial</title>
 <link rel="stylesheet" href="/app.css">
+<script src="/ui.js"></script>
 <style>
   main { max-width: 52rem; }
-  .toolbar { position: sticky; top: 0; z-index: 6; background: var(--desk); color: var(--paper); padding: .55rem 1.1rem; }
+  /* Parks directly under the site nav -- --nav-h is measured, because the nav
+     wraps to two rows on a phone and Publish must never sit behind it. */
+  .toolbar {
+    position: sticky; top: var(--nav-h); z-index: 6;
+    background: var(--desk); color: var(--desk-ink); padding: .55rem 1.1rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--desk-ink) 14%, transparent);
+  }
   .toolbar > div { max-width: 52rem; margin: 0 auto; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
   .toolbar .spacer { flex: 1; }
-  .toolbar button { padding: .4rem .8rem; font-size: .88rem; }
+  .toolbar button { min-height: 0; height: var(--rule); padding: 0 .8rem; font-size: .88rem; line-height: calc(var(--rule) - 2px); }
   .toolbar .status { font-size: .82rem; color: var(--ink-silver); }
 
   .blk { position: relative; display: flex; gap: .5rem; align-items: flex-start; margin: .35rem 0; }
-  .blk .grip {
-    cursor: grab; user-select: none; color: var(--ink-silver); font-size: 1.1rem; line-height: 1.6;
-    padding: .2rem .15rem; flex: 0 0 auto;
-  }
   .blk .body { flex: 1; min-width: 0; }
   .blk .edit {
     padding: .3rem .5rem; border-radius: var(--radius-sm); border: 1px solid transparent;
     outline: none; min-height: 1.6rem;
+    /* A press picks the block up rather than placing a caret, so it must not
+       read as a text field until a double-click actually opens it for typing. */
+    user-select: none;
   }
-  .blk .edit:hover { border-color: var(--border-warm); }
-  .blk .edit:focus { border-color: var(--rose); background: var(--ivory); }
+  .blk .edit.typing { cursor: text; user-select: text; border-color: var(--accent); background: var(--ivory); }
   .blk .edit :is(h1,h2,h3) { margin: .2rem 0; font-family: var(--font-display); }
   .blk .edit ul, .blk .edit ol { margin: .2rem 0; padding-left: 1.2rem; }
   .blk .edit p { margin: .2rem 0; }
 
-  .blk .tools { display: flex; gap: .25rem; flex: 0 0 auto; opacity: 0; transition: opacity .15s; }
+  .tools { display: flex; gap: .25rem; flex: 0 0 auto; opacity: 0; transition: opacity .15s; }
   .blk:hover .tools, .blk:focus-within .tools { opacity: 1; }
-  .blk .tools button { padding: .2rem .45rem; font-size: .75rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
-  .blk .tools button:hover { background: var(--sand); color: var(--ink); }
-  .blk .tools button.on { background: var(--tab-3); color: var(--ink); border-color: var(--tab-3); }
+  .tools button { min-height: 0; line-height: 1.2; padding: .2rem .45rem; font-size: .75rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
+  .tools button:hover { background: var(--sand); color: var(--ink); }
+  .tools button.on { background: var(--tab-3); color: var(--ink); border-color: var(--tab-3); }
 
   .blk[data-type=initial] .body, .blk[data-type=agree] .body {
     border-left: 4px solid var(--tab-3); background: var(--ivory);
     border-radius: var(--radius-sm); padding: .35rem .3rem;
   }
   .blk[data-type=heading] .edit { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; }
-  .blk.sortable-ghost { opacity: .35; }
-  .blk .why { font-family: var(--font-hand); font-size: 1.05rem; color: var(--rose); padding-left: .5rem; }
+  .blk .why { font-family: var(--font-hand); font-size: 1.05rem; color: var(--accent); padding-left: .5rem; }
+
+  /* A section is ONE box you click and move, the way a div.callout is one
+     draggable unit in bookSHelf -- not a heading plus a pile of loose rows. */
+  .sec {
+    position: relative; border: 1px solid transparent; border-radius: var(--radius-md);
+    padding: .35rem .5rem; margin: .5rem 0;
+  }
+  .sec-body { min-width: 0; }
+
+  /* Hover preview, ported from bookSHelf layoutEditor.ts:1014-1026. Outline
+     whatever the cursor is over and switch the cursor to `move`, so you can see
+     AND feel what a press would pick up before committing to it. Exactly one
+     thing is outlined at a time -- competing hover styles on the row and the
+     card would leave you guessing which one you would actually grab. */
+  .hovering { outline: 2px dashed var(--accent); outline-offset: 2px; cursor: move; }
+  .hovering .edit { cursor: move; }
+
+  /* Selection. One press picks a thing up; the outline is the whole feedback,
+     since there is no handle to point at. */
+  .sec.picked { border-color: var(--accent); background: var(--ivory); box-shadow: 0 0 0 3px var(--sand); }
+  .blk.picked .body { box-shadow: 0 0 0 2px var(--accent); border-radius: var(--radius-sm); }
+  .sec.picked, .blk.picked { cursor: move; }
+
+  /* Initials are a section-level decision, so the toggle sits on the card. */
+  .sec-tools { position: absolute; top: .3rem; right: .4rem; z-index: 1; }
+  .sec:hover .sec-tools, .sec.picked .sec-tools, .sec.signs .sec-tools,
+  .sec:focus-within .sec-tools { opacity: 1; }
+  /* A bar rather than a border, so marking a section for initials does not
+     nudge every block in it sideways. */
+  .sec.signs::before {
+    content: ''; position: absolute; left: 0; top: .3rem; bottom: .3rem;
+    width: 4px; border-radius: 2px; background: var(--tab-3);
+  }
+
+  /* Drag chrome. The ghost tracks the cursor; the placeholder sits IN FLOW at
+     the landing spot so the real rows reflow around it and you see the actual
+     result, not a hairline between two rows. */
+  .pm-ghost {
+    position: fixed; left: 0; top: 0; margin: 0; pointer-events: none; z-index: 40;
+    opacity: .78; max-height: 220px; overflow: hidden; box-sizing: border-box;
+    padding: .35rem .6rem; border-radius: var(--radius-sm); background: var(--paper);
+    box-shadow: 0 8px 24px rgba(0,0,0,.28);
+  }
+  .pm-placeholder {
+    margin: .35rem 0; border: 2px dashed var(--accent); border-radius: var(--radius-sm);
+    background: var(--sand); pointer-events: none;
+  }
 
   .adders { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1.2rem 0; }
-  .adders button { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .85rem; padding: .4rem .7rem; }
+  .adders button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .85rem; }
   .adders button:hover { background: var(--sand); color: var(--ink); }
-  .drop { border: 2px dashed var(--ring); border-radius: var(--radius-md); padding: 1.6rem 1rem; text-align: center; color: var(--ink-stone); }
-  .drop.over { border-color: var(--rose); background: var(--sand); color: var(--rose); }
-  textarea { width: 100%; min-height: 8rem; font: 13px/1.5 var(--font-mono); }
+  .drop { border: 2px dashed var(--ring); border-radius: var(--radius-md); padding: calc(var(--rule) - 2px) 1rem; text-align: center; color: var(--ink-stone); }
+  .drop.over { border-color: var(--accent); background: var(--sand); color: var(--accent); }
+  textarea { width: 100%; min-height: calc(var(--rule) * 5); font: 13px/var(--rule) var(--font-mono); }
   .diff li { margin: .2rem 0; }
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/admin/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/admin/">Classes</a></li>
+    <li><a href="/admin/editor/" data-keep-course>Syllabus editor</a></li>
+    <li><a href="/admin/progress/" data-keep-course>Who has signed</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <button type="button" class="secondary" id="navSignout">Sign out</button>
+  </div>
+</nav></header>
 
 <div class="toolbar"><div>
   <strong id="who">Syllabus editor</strong>
   <span class="spacer"></span>
   <span class="status" id="status"></span>
+  <button class="secondary" id="importBtn" title="Start over from a .docx or pasted text">Import…</button>
+  <button class="secondary" id="structureBtn" title="Ask Ollama which lines are really headings. Retags only — never changes a word.">Fix headings</button>
   <button class="secondary" id="suggestBtn" title="Ask Ollama which sections should need initials">Suggest initials</button>
   <button class="secondary" id="saveBtn">Save draft</button>
   <button id="publishBtn">Publish…</button>
 </div></div>
 
-<main>
+<main id="main" tabindex="-1">
   <div id="msg" hidden></div>
 
   <h1 id="title" contenteditable="true" spellcheck="false">Course Syllabus</h1>
-  <p class="muted small">Click any line to edit it. Drag the handle to reorder. Mark the sections a parent
-    must initial with <b>✍</b>. Nothing is live until you publish.</p>
+  <p class="muted small"><b>Click</b> a block to pick it up, then drag it where it goes — or use
+    ↑ / ↓. Clicking a heading picks up its whole section. <b>Double-click</b> to type.
+    Use <b>✍</b> on a section to require a parent's initials on it. Nothing is live
+    until you publish.</p>
 
   <div id="importCard" class="card">
-    <h2 style="margin-top:.2rem">Start from a document</h2>
+    <h2>Start from a document</h2>
     <div class="drop" id="drop">
-      <p style="margin:0 0 .6rem">Drop a <code>.docx</code> here, or paste the text below</p>
+      <p>Drop a <code>.docx</code> here, or paste the text below</p>
       <input type="file" id="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
     </div>
     <label for="paste">…or paste your syllabus text</label>
     <textarea id="paste" spellcheck="false" placeholder="Paste from Word, Google Docs, or plain text."></textarea>
-    <p class="row" style="margin-top:.8rem">
-      <button class="secondary" id="pasteBtn">Use this text</button>
-      <span class="small muted">Replaces the draft below.</span>
-    </p>
+    <!-- The caption sits under the button rather than beside it. Next to a
+         two-rule control its baseline lands mid-rule and cannot be fixed
+         without a per-element nudge; below it, it is just another line of the
+         page. It also stops wrapping awkwardly on a phone. -->
+    <p class="row"><button class="secondary" id="pasteBtn">Use this text</button></p>
+    <p class="small muted">Replaces the draft below.</p>
   </div>
 
   <div id="blocks"></div>
 
-  <div class="adders">
+  <div class="adders on-rules">
     <button data-add="heading">+ Heading</button>
     <button data-add="text">+ Paragraph</button>
     <button data-add="list">+ List</button>
-    <button data-add="initial">+ Initial here</button>
     <button data-add="agree">+ Agree to terms</button>
   </div>
 </main>
 
 <script src="/vendor/mammoth.browser.min.js"></script>
-<script src="/vendor/Sortable.min.js"></script>
-<script>
+<script type="module">
+import { dragRange, insertionIndex, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget,
+         sectionSigns, toggleSigning, retag, blockText, structureProblem, structureAdvice } from './reorder.js';
+
 const $ = (id) => document.getElementById(id);
 const courseId = Number(new URLSearchParams(location.search).get('course_id'));
 let state = { syllabusId: null, blocks: [], dirty: false, signatures: 0, published: null };
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-function notice(text, kind) { const m = $('msg'); m.hidden = false; m.className = 'notice ' + kind; m.textContent = text; }
+function notice(text, kind, action) {
+  const m = $('msg');
+  m.hidden = false;
+  m.className = 'notice ' + kind;
+  m.textContent = text;
+  // An offer is only useful next to the thing it is about; making the teacher
+  // find the toolbar button is how a fix goes unused.
+  if (action) {
+    const btn = document.createElement('button');
+    btn.className = 'secondary';
+    btn.style.marginLeft = '.6rem';
+    btn.textContent = action.label;
+    btn.addEventListener('click', action.run);
+    m.appendChild(btn);
+  }
+}
 function status(text) { $('status').textContent = text; }
 function markDirty() { state.dirty = true; status('Unsaved changes'); }
 
@@ -143,11 +229,66 @@ function textToBlocks(text) {
 
 // ---- rendering ----
 
+// A section renders as ONE card you grab and move, the way a div.example or a
+// div.callout is one draggable box in bookSHelf. Mammoth flattens a .docx into
+// a row per paragraph, so without this grouping a three-paragraph policy is
+// three loose rows and moving it means three separate drags.
+//
+// The grouping is not just cosmetic: it is the same section attestedBlocks()
+// hashes a signature against, so what you drag as one thing is what a parent
+// initials as one thing.
 function render() {
   const host = $('blocks');
   host.textContent = '';
-  state.blocks.forEach((block, i) => host.appendChild(blockRow(block, i)));
-  $('importCard').hidden = state.blocks.length > 0;
+  for (const [from, to] of sectionRanges(state.blocks)) {
+    host.appendChild(sectionCard(from, to));
+  }
+  // Every row was just replaced, so any open typing session is on a detached
+  // node. Drop the reference rather than leave a stale one holding the keyboard.
+  if (caretIn && !host.contains(caretIn)) caretIn = null;
+  if (hovering && !host.contains(hovering)) hovering = null;
+  $('importCard').hidden = !importOpen && state.blocks.length > 0;
+}
+
+function sectionCard(from, to) {
+  const headed = state.blocks[from]?.type === 'heading';
+  const sec = document.createElement('div');
+  sec.className = 'sec' + (headed ? '' : ' sec-loose');
+  sec.dataset.from = from;
+  if (selected && selected.kind === 'section' && selected.at === from) sec.classList.add('picked');
+
+  const body = document.createElement('div');
+  body.className = 'sec-body';
+  for (let i = from; i < to; i++) body.appendChild(blockRow(state.blocks[i], i));
+  sec.appendChild(body);
+
+  // Asking for initials is a SECTION decision, not a per-line one. A parent
+  // initials "I have read the late work policy" -- that attests to the whole
+  // section, which is exactly what attestationHash() covers. Offering the
+  // toggle on every paragraph would invite marking a stray line and produce a
+  // prompt attesting to a section nobody meant to bound.
+  if (headed) {
+    const signed = sectionSigns(state.blocks, from, to);
+    const tools = document.createElement('div');
+    tools.className = 'tools sec-tools';
+
+    const btn = document.createElement('button');
+    btn.textContent = '✍';
+    btn.title = signed ? 'Stop asking for initials on this section' : 'Ask for initials on this section';
+    btn.setAttribute('aria-pressed', String(signed));
+    if (signed) btn.classList.add('on');
+    btn.addEventListener('click', () => {
+      state.blocks = toggleSigning(state.blocks, from, to);
+      selected = null;
+      markDirty();
+      render();
+    });
+
+    tools.appendChild(btn);
+    sec.appendChild(tools);
+    if (signed) sec.classList.add('signs');
+  }
+  return sec;
 }
 
 function blockRow(block, index) {
@@ -155,11 +296,7 @@ function blockRow(block, index) {
   row.className = 'blk';
   row.dataset.type = block.type;
   row.dataset.index = index;
-
-  const grip = document.createElement('div');
-  grip.className = 'grip';
-  grip.textContent = '⠿';
-  grip.title = 'Drag to reorder';
+  if (selected && selected.kind === 'block' && selected.at === index) row.classList.add('picked');
 
   const body = document.createElement('div');
   body.className = 'body';
@@ -185,70 +322,344 @@ function blockRow(block, index) {
     body.appendChild(why);
   }
 
+  // No per-block initials toggle: that lives on the section card, because the
+  // section is what a prompt attests to. Deleting is still per-block.
   const tools = document.createElement('div');
   tools.className = 'tools';
-
-  const initialBtn = document.createElement('button');
-  const isPrompt = block.type === 'initial' || block.type === 'agree';
-  initialBtn.textContent = '✍';
-  initialBtn.title = isPrompt ? 'Stop asking for initials here' : 'Ask for initials on this section';
-  if (isPrompt) initialBtn.classList.add('on');
-  initialBtn.addEventListener('click', () => {
-    if (isPrompt) {
-      block.type = 'text';
-      block.html = `<p>${esc(block.html)}</p>`;
-    } else {
-      // Turning prose into a prompt keeps the words but drops the markup --
-      // the prompt is a sentence the parent initials against, not a section.
-      block.type = 'initial';
-      block.html = (edit.textContent || '').trim().slice(0, 200) || 'I have read and understand this section.';
-    }
-    delete block.why;
-    markDirty();
-    render();
-  });
 
   const del = document.createElement('button');
   del.textContent = '✕';
   del.title = 'Delete this block';
   del.addEventListener('click', () => { state.blocks.splice(index, 1); markDirty(); render(); });
 
-  tools.append(initialBtn, del);
-  row.append(grip, body, tools);
+  tools.append(del);
+  row.append(body, tools);
   return row;
 }
 
-new Sortable($('blocks'), {
-  handle: '.grip',
-  animation: 150,
-  ghostClass: 'sortable-ghost',
-  onEnd: (e) => {
-    const [moved] = state.blocks.splice(e.oldIndex, 1);
-    state.blocks.splice(e.newIndex, 0, moved);
-    markDirty();
-    render();
-  },
+// ---- selection: click to pick up, double-click to type ----
+//
+// PowerPoint semantics, ported from bookSHelf annotate.ts:318-335. There are no
+// drag handles: a single press SELECTS the block (and preventDefault on
+// mousedown is what suppresses the caret, since contenteditable would otherwise
+// swallow the gesture), and a second press -- e.detail >= 2, the double-click --
+// is let through so the browser places a caret natively.
+//
+// Once a caret is live inside a box, pressing again INSIDE that same box keeps
+// typing; pressing outside ends the edit and goes back to selecting objects.
+
+let selected = null;   // {kind: 'block'|'section', at: index} or null
+let caretIn = null;    // the .edit currently being typed in, or null
+
+function pick(next) {
+  const same = selected && next && selected.kind === next.kind && selected.at === next.at;
+  selected = next;
+  if (!same) endCaret();
+  render();
+}
+
+function endCaret() {
+  if (!caretIn) return;
+  caretIn.classList.remove('typing');
+  const sel = window.getSelection();
+  if (sel) sel.removeAllRanges();
+  caretIn = null;
+}
+
+/** What a press at this element picks up. The DOM half of pickTarget(): read
+ *  which section and which row were hit, then let the pure model decide. */
+function pickTargetFor(el) {
+  const sec = el.closest('.sec');
+  if (!sec) return null;
+  const row = el.closest('.blk');
+  return pickTarget(state.blocks, Number(sec.dataset.from), row ? Number(row.dataset.index) : null);
+}
+
+/** The element standing for a pick target. */
+function elementFor(target) {
+  if (!target) return null;
+  return $('blocks').querySelector(target.kind === 'section'
+    ? `.sec[data-from="${target.at}"]`
+    : `.blk[data-index="${target.at}"]`);
+}
+
+const isPicked = (t) => !!(t && selected && selected.kind === t.kind && selected.at === t.at);
+
+let hovering = null;   // element currently showing the hover preview
+let dragging = false;  // suppresses hover while a drag is live
+
+function setHover(el) {
+  if (hovering === el) return;
+  if (hovering) hovering.classList.remove('hovering');
+  hovering = el;
+  if (hovering) hovering.classList.add('hovering');
+}
+
+// Track what a press would pick up and outline it. Same pickTarget the mousedown
+// handler uses, so the preview can never point at something a click would not
+// actually grab.
+$('blocks').addEventListener('mousemove', (e) => {
+  if (dragging) return setHover(null);
+  // Never fight the I-beam over the exact box someone is typing in; every other
+  // block still shows the drag affordance (bookSHelf's elementHasLiveCaret).
+  if (caretIn && caretIn.contains(e.target)) return setHover(null);
+  const target = pickTargetFor(e.target);
+  // The selected thing already has its own outline; a second one underneath is
+  // just noise.
+  setHover(isPicked(target) ? null : elementFor(target));
 });
+$('blocks').addEventListener('mouseleave', () => setHover(null));
+
+$('blocks').addEventListener('mousedown', (e) => {
+  if (e.button !== 0) return;
+  if (e.target.closest('.tools')) return;              // the ✍ / ✕ buttons are their own thing
+  if (e.detail >= 2) return;                           // second press of a double-click: let the caret land
+  if (caretIn && caretIn.contains(e.target)) return;   // already typing in this box, keep typing
+
+  const target = pickTargetFor(e.target);
+  if (!target) { endCaret(); pick(null); return; }
+
+  // Suppress the caret and start the move gesture in the same press, so
+  // click-and-drag works as one motion rather than click-then-drag.
+  e.preventDefault();
+  const changed = !selected || selected.kind !== target.kind || selected.at !== target.at;
+  if (changed) pick(target);
+  startDrag(e, target.at, target.kind);
+});
+
+$('blocks').addEventListener('dblclick', (e) => {
+  const row = e.target.closest('.blk');
+  if (!row) return;
+  const edit = row.querySelector('.edit');
+  if (!edit) return;
+  endCaret();
+  caretIn = edit;
+  edit.classList.add('typing');
+  edit.focus();
+  // The dblclick's own default already placed a caret and selected the word
+  // under the pointer; nothing further to do.
+});
+
+// A press anywhere outside the block list drops the selection, the way clicking
+// the slide background deselects in PowerPoint.
+//
+// CAPTURE phase, and that is load-bearing: selecting re-renders, which detaches
+// the very node that was pressed, and closest() on a detached node returns null.
+// In the bubble phase this test would therefore read every in-list press as
+// "outside" and cancel the selection it had just made.
+document.addEventListener('mousedown', (e) => {
+  if (e.target.closest('#blocks, .toolbar, .adders')) return;
+  if (selected || caretIn) { endCaret(); pick(null); }
+}, true);
+
+document.addEventListener('keydown', (e) => {
+  if (!selected || caretIn) return;                    // typing owns the keyboard
+  if (e.key === 'Escape') { endCaret(); pick(null); return; }
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();
+  const block = state.blocks[selected.at];
+  if (!moveByKey(selected.at, e.key === 'ArrowUp' ? -1 : 1)) return;
+  // The move re-indexes everything; follow the block that actually moved so a
+  // second arrow press continues from where the first left off.
+  selected = { kind: selected.kind, at: state.blocks.indexOf(block) };
+  render();
+});
+
+// ---- reordering ----
+//
+// Ported from bookSHelf's page editor (studio/src/main/pageMoveEditor.ts over
+// shared/pageMove.ts). Carried over: the drag starts from the block body itself,
+// a heading carries its whole SECTION, and the landing spot is an in-flow
+// placeholder rather than a hairline, so the rows reflow and you see the actual
+// result. Dropped: bookSHelf's container rules -- its pages nest a block inside
+// a callout, a syllabus is flat, so there is nothing to drop INTO.
+//
+// The pure model lives in ./reorder.js so it can be unit-tested without a DOM.
+
+function applyMove(from, to, dest) {
+  const next = moveRange(state.blocks, from, to, dest);
+  if (!next) return false;
+  state.blocks = next;
+  markDirty();
+  render();
+  return true;
+}
+
+function moveByKey(index, dir) {
+  const move = keyDestination(state.blocks, index, dir);
+  return move ? applyMove(move.from, move.to, move.dest) : false;
+}
+
+/**
+ * `kind` picks what the drag moves and therefore what it can land between:
+ *
+ *   'section' — the unit is a whole section card, and the drop candidates are
+ *               the other section cards. A section can only land between
+ *               sections, never inside one.
+ *   'block'   — the unit is a single row, and the candidates are every other
+ *               row in the document, so a paragraph can move into another
+ *               section. Rows are nested inside section cards now, but
+ *               querySelectorAll returns document order, which is exactly the
+ *               order of state.blocks -- so the index math is unchanged.
+ */
+function startDrag(ev, index, kind) {
+  if (ev.button !== 0) return;
+  ev.preventDefault();
+  const [from, to] = kind === 'section' ? dragRange(state.blocks, index) : [index, index + 1];
+  const host = $('blocks');
+  const x0 = ev.clientX, y0 = ev.clientY;
+  let live = false, ghost = null, ph = null, grabDX = 0, grabDY = 0;
+  let units = [], moved = [], hidden = [];
+
+  function begin() {
+    live = true;
+    dragging = true;
+    setHover(null);
+    // `units` are the things the placeholder can sit between; `moved` are the
+    // DOM nodes to hide. For a section they are the same card.
+    const rows = [...host.querySelectorAll('.blk')];
+    if (kind === 'section') {
+      units = [...host.querySelectorAll('.sec')];
+      moved = [units.find((s) => Number(s.dataset.from) === from)];
+    } else {
+      units = rows;
+      moved = [rows[from]];
+    }
+    const first = moved[0].getBoundingClientRect();
+    const last = moved[moved.length - 1].getBoundingClientRect();
+    grabDX = x0 - first.left;
+    grabDY = y0 - first.top;
+
+    ghost = moved[0].cloneNode(true);
+    ghost.className = 'pm-ghost';
+    ghost.style.width = Math.round(first.width) + 'px';
+    document.body.appendChild(ghost);
+
+    ph = document.createElement('div');
+    ph.className = 'pm-placeholder';
+    ph.style.height = Math.max(8, Math.round(last.bottom - first.top)) + 'px';
+
+    for (const el of moved) { hidden.push(el.style.display); el.style.display = 'none'; }
+  }
+
+  /** Candidate units the placeholder may precede, excluding what is moving. */
+  const others = () => units.filter((el) => !moved.includes(el));
+
+  function move(e) {
+    if (!live) {
+      if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) < 4) return;
+      begin();
+    }
+    ghost.style.left = (e.clientX - grabDX) + 'px';
+    ghost.style.top = (e.clientY - grabDY) + 'px';
+    // Detach before measuring, so the drop math always sees the resting layout
+    // rather than the gap the placeholder itself just opened. Without this the
+    // placeholder chases the cursor and the target oscillates.
+    ph.remove();
+    const cand = others();
+    const at = insertionIndex(e.clientY, cand.map((r) => r.getBoundingClientRect()));
+    const before = cand[at];
+    (before ? before.parentNode : host).insertBefore(ph, before ?? null);
+  }
+
+  function finish(commit) {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    document.removeEventListener('keydown', onKey, true);
+    if (!live) return;
+
+    let dest = null;
+    if (commit) {
+      // Read the drop off the placeholder's RESTING position rather than
+      // re-running the hit test, so the drop always matches what was shown.
+      const cand = others();
+      let ref = ph.nextElementSibling;
+      while (ref && !cand.includes(ref)) ref = ref.nextElementSibling;
+      const at = ref ? cand.indexOf(ref) : cand.length;
+      // A section's position among sections has to be converted back to a
+      // position among blocks before the array move can use it.
+      dest = kind === 'section' ? sectionDest(state.blocks, from, to, at) : at;
+    }
+    ph.remove();
+    ghost.remove();
+    dragging = false;
+    moved.forEach((el, i) => { el.style.display = hidden[i] || ''; });
+    if (dest !== null) applyMove(from, to, dest);
+  }
+
+  const up = () => finish(true);
+  const onKey = (e) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    finish(false);
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+  document.addEventListener('keydown', onKey, true);
+}
 
 // ---- import ----
 
+// The import card auto-shows on an empty draft, but importing is also how you
+// start over from a corrected document -- so it has to stay reachable once
+// there is content. Hiding it forever meant deleting every block by hand first.
+let importOpen = false;
+
+function setImportOpen(open) {
+  importOpen = open;
+  render();
+  if (open) $('importCard').scrollIntoView({ block: 'nearest' });
+}
+
+$('importBtn').addEventListener('click', () => setImportOpen(!importOpen || $('importCard').hidden));
+
+/** Importing REPLACES the draft, so say what that costs before doing it. */
+function confirmReplace() {
+  if (!state.blocks.length) return true;
+  const prompts = state.blocks.filter((b) => b.type === 'initial' || b.type === 'agree').length;
+  return confirm(
+    `Replace the current draft?
+
+`
+    + `${state.blocks.length} block(s)`
+    + (prompts ? ` and ${prompts} initials prompt(s)` : '')
+    + ` will be discarded.
+
+`
+    + `Published versions are untouched — this only replaces the draft you are editing.`,
+  );
+}
+
 async function takeDocx(file) {
   if (!file) return;
+  if (!confirmReplace()) return;
   try {
     status('Converting…');
     const { value, messages } = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
     state.blocks = htmlToBlocks(value);
+    selected = null;
+    importOpen = false;
     markDirty();
     render();
     const warned = messages.filter((m) => m.type === 'warning').length;
-    notice(`Imported ${state.blocks.length} sections from ${file.name}.`
-      + (warned ? ` ${warned} formatting detail(s) were simplified.` : ''), 'ok');
+    const summary = `Imported ${state.blocks.length} sections from ${file.name}.`
+      + (warned ? ` ${warned} formatting detail(s) were simplified.` : '');
+    notice(summary, 'ok');
+    offerStructureIfFlat(summary);
   } catch (err) {
     notice('Could not read that file. Is it a .docx?', 'error');
   } finally { status(''); }
 }
 
-$('file').addEventListener('change', (e) => takeDocx(e.target.files[0]));
+$('file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  // Clear the input before handling, so picking the SAME file again still fires
+  // a change event. Without this, declining the replace prompt and retrying with
+  // the same document silently does nothing.
+  e.target.value = '';
+  takeDocx(file);
+});
 const drop = $('drop');
 for (const t of ['dragenter', 'dragover']) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); });
 for (const t of ['dragleave', 'drop']) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); });
@@ -257,10 +668,15 @@ drop.addEventListener('drop', (e) => takeDocx(e.dataTransfer.files[0]));
 $('pasteBtn').addEventListener('click', () => {
   const text = $('paste').value.trim();
   if (!text) { notice('Paste something first.', 'error'); return; }
+  if (!confirmReplace()) return;
   state.blocks = textToBlocks(text);
+  selected = null;
+  importOpen = false;
   markDirty();
   render();
-  notice(`Split into ${state.blocks.length} sections. Mark the ones needing initials.`, 'ok');
+  const pasted = `Split into ${state.blocks.length} sections.`;
+  notice(pasted, 'ok');
+  offerStructureIfFlat(pasted);
 });
 
 for (const btn of document.querySelectorAll('[data-add]')) {
@@ -270,7 +686,6 @@ for (const btn of document.querySelectorAll('[data-add]')) {
       heading: '<h2>New section</h2>',
       text: '<p>New paragraph.</p>',
       list: '<ul><li>First item</li></ul>',
-      initial: 'I have read and understand this section.',
       agree: 'I have read this syllabus in full and agree to its terms.',
     };
     state.blocks.push({ type, html: defaults[type] });
@@ -280,6 +695,50 @@ for (const btn of document.querySelectorAll('[data-add]')) {
 }
 
 // ---- suggest / save / publish ----
+
+async function runStructure() {
+  if (!state.blocks.length) { notice('Nothing to look at yet.', 'error'); return; }
+  $('structureBtn').disabled = true;
+  status('Checking headings…');
+  try {
+    const res = await fetch('/api/admin/structure', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ blocks: state.blocks }),
+    });
+    const body = await res.json();
+    if (!body.available) { notice(body.reason || 'Not available.', 'error'); return; }
+    if (!body.retag.length) { notice('Headings already look right — nothing changed.', 'ok'); return; }
+
+    // retag() rebuilds only the tag; blockText() proves the words are untouched.
+    const before = JSON.stringify(state.blocks.map((b) => blockText(b.html)));
+    const next = retag(state.blocks, body.retag);
+    if (JSON.stringify(next.map((b) => blockText(b.html))) !== before) {
+      notice('Refused: that would have changed the wording, not just the headings.', 'error');
+      return;
+    }
+    state.blocks = next;
+    selected = null;
+    markDirty();
+    render();
+    const promoted = body.retag.filter((r) => r.tag === 'heading').length;
+    notice(`Retagged ${body.retag.length} line(s) — ${promoted} promoted to headings, `
+      + `${body.retag.length - promoted} back to body text. Wording unchanged.`, 'ok');
+  } catch {
+    notice('Could not reach the server.', 'error');
+  } finally { $('structureBtn').disabled = false; status(''); }
+}
+
+$('structureBtn').addEventListener('click', runStructure);
+
+/** After an import, say so when the document arrived without usable headings --
+ *  that is the moment the fix is worth offering, and the moment a teacher can
+ *  tell whether the result is right. Never run automatically: this text is what
+ *  a parent signs, so a model touching it is always a decision, not a default. */
+function offerStructureIfFlat(imported) {
+  const problem = structureProblem(state.blocks);
+  if (!problem) return;
+  notice(`${imported} ${structureAdvice(problem)}`, 'ok', { label: 'Fix headings', run: runStructure });
+}
 
 $('suggestBtn').addEventListener('click', async () => {
   if (!state.blocks.length) { notice('Nothing to look at yet.', 'error'); return; }
@@ -296,7 +755,7 @@ $('suggestBtn').addEventListener('click', async () => {
     // Suggestions annotate; they never rewrite. You still click ✍ to accept.
     for (const s of body.suggestions) if (state.blocks[s.index]) state.blocks[s.index].why = s.reason;
     render();
-    notice(`${body.suggestions.length} suggestion(s) marked in the margin. Click ✍ on the ones you agree with — nothing was changed.`, 'ok');
+    notice(`${body.suggestions.length} suggestion(s) marked in the margin. Click ✍ on the sections you agree with — nothing was changed.`, 'ok');
   } catch {
     notice('Could not reach the server.', 'error');
   } finally { $('suggestBtn').disabled = false; status(''); }
