@@ -27,18 +27,18 @@
   <p class="muted">Already set one up? Enter your student ID and last name and leave the rest blank —
     it takes you back to your syllabus.</p>
 
-  <form id="form" class="card" novalidate>
+  <form id="form" class="card plain" novalidate>
     <label for="sid">Student ID number
       <span class="hint">The number on your school ID card.</span></label>
-    <input id="sid" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+    <input id="sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
 
     <label for="last">Last name</label>
-    <input id="last" name="last" type="text" autocomplete="family-name" required>
+    <input id="last" class="blank-name" name="last" type="text" autocomplete="family-name" required>
 
     <label for="username">Pick a username <span class="hint">— first time only</span>
       <span class="hint">3–32 characters. Letters, numbers, dot, dash, underscore.
         Leave blank if you already have an account.</span></label>
-    <input id="username" name="username" type="text" autocomplete="off">
+    <input id="username" class="blank-name" name="username" type="text" autocomplete="off">
 
     <label for="email">Parent or guardian's email <span class="hint">— optional</span>
       <span class="hint">Your school already has a contact email for most families. Only fill this in if
@@ -49,7 +49,7 @@
     <p><button id="submit" type="submit">Continue</button></p>
   </form>
 
-  <div id="done" class="card" hidden>
+  <div id="done" class="card plain" hidden>
     <h2 id="doneTitle">You're registered</h2>
     <p id="doneWho" class="muted"></p>
     <p id="doneMsg"></p>

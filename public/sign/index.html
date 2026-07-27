@@ -33,18 +33,21 @@
     <h1>Read and sign the syllabus</h1>
     <p class="muted">Use the student ID and access code from your teacher's email.</p>
 
-    <form id="loginForm" class="card" novalidate>
-      <label for="sid">Student ID number</label>
-      <input id="sid" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+    <form id="loginForm" class="card plain" novalidate>
+      <label for="sid">Student ID number
+        <span class="hint">The number on your student's school ID card.</span></label>
+      <input id="sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
 
-      <label for="code">Access code</label>
-      <input id="code" name="code" type="text" autocomplete="off" spellcheck="false" required
-             style="text-transform:uppercase;letter-spacing:.15em;font-weight:700">
+      <label for="code">Access code
+        <span class="hint">Eight characters, from your teacher's email.</span></label>
+      <input id="code" class="blank-code" name="code" type="text" autocomplete="off" spellcheck="false" required>
 
       <fieldset>
         <legend>I am</legend>
-        <label class="choice"><input type="radio" name="role" value="parent" checked> the parent or guardian</label>
-        <label class="choice"><input type="radio" name="role" value="student"> the student</label>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="role" value="parent" checked> the parent or guardian</label>
+          <label class="choice"><input type="radio" name="role" value="student"> the student</label>
+        </div>
       </fieldset>
 
       <div id="loginMsg" hidden></div>
