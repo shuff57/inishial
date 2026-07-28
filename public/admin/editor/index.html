@@ -189,6 +189,17 @@
     .pages button.arming { animation: none; background-size: 100% 100%; opacity: .85; }
   }
   .pages button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .pages button.lifting { opacity: .35; }
+  /* The tab in flight, and the gap it will drop into. */
+  .tab-ghost {
+    position: fixed; z-index: 45; pointer-events: none; margin: 0;
+    box-shadow: 0 6px 16px rgba(0,0,0,.32);
+    opacity: .92;
+  }
+  .tab-gap {
+    border: 1px dashed var(--mark-deep); border-radius: 3px;
+    background: color-mix(in srgb, var(--mark) 40%, transparent);
+  }
   /* The empty tab at the end of the rail: a page that does not exist yet,
      drawn as one. Outline rather than fill, because it is a place for a page
      rather than a page -- the same reason the drop zone above is dashed. */
@@ -1232,7 +1243,8 @@ function renderPageRail(ranges) {
     // whole thing and the state.
     tab.title = `Page ${i + 1}: ${label}${needs ? ' — asks for initials' : ''}`;
     tab.setAttribute('aria-label', tab.title);
-    tab.addEventListener('click', () => goPage(i));
+    tab.addEventListener('click', () => { if (!tabDragged) goPage(i); });
+    tab.addEventListener('pointerdown', (ev) => startTabDrag(ev, i, tab, rail));
     rail.appendChild(tab);
   }
 
@@ -1252,6 +1264,106 @@ function renderPageRail(ranges) {
   rail.appendChild(add);
 
   $('blocks').before(rail);
+}
+
+// Whether the press that is finishing was a drag. A tab is both a button and a
+// handle, so the click that follows a drag has to be swallowed or reordering a
+// page would also navigate to wherever the tab happened to be released.
+let tabDragged = false;
+
+/**
+ * Drag a tab to reorder the pages.
+ *
+ * The whole section moves, and it lands BETWEEN sections, never inside one --
+ * sectionDest guarantees that, and it matters here more than tidiness: a
+ * section is the unit a signature attests to, so splitting one changes what an
+ * already-initialed prompt covers.
+ */
+function startTabDrag(ev, index, tab, rail) {
+  if (ev.button !== 0) return;
+  const ranges = sectionRanges(state.blocks);
+  if (ranges.length < 2 || !ranges[index]) return;
+  const [from, to] = ranges[index];
+
+  const x0 = ev.clientX, y0 = ev.clientY;
+  let live = false, ghost = null, gap = null, dx = 0, dy = 0;
+  tabDragged = false;
+
+  const siblings = () => [...rail.querySelectorAll('button:not(.ghost)')].filter((el) => el !== tab);
+
+  function begin() {
+    live = true;
+    tabDragged = true;
+    const box = tab.getBoundingClientRect();
+    dx = x0 - box.left;
+    dy = y0 - box.top;
+
+    ghost = tab.cloneNode(true);
+    ghost.className = tab.className + ' tab-ghost';
+    ghost.style.width = Math.round(box.width) + 'px';
+    document.body.appendChild(ghost);
+
+    gap = document.createElement('div');
+    gap.className = 'tab-gap';
+    gap.style.height = Math.round(box.height) + 'px';
+    tab.classList.add('lifting');
+    tab.style.display = 'none';
+  }
+
+  function move(e) {
+    if (!live) {
+      if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) < 4) return;
+      begin();
+    }
+    ghost.style.left = (e.clientX - dx) + 'px';
+    ghost.style.top = (e.clientY - dy) + 'px';
+    // Measured with the gap OUT, so the reading is of the resting rail rather
+    // than of the space the gap itself just opened -- otherwise the target
+    // oscillates as the list grows and shrinks under the cursor.
+    gap.remove();
+    const rest = siblings();
+    const at = insertionIndex(e.clientY, rest.map((el) => el.getBoundingClientRect()));
+    rail.insertBefore(gap, rest[at] ?? rail.querySelector('.ghost'));
+  }
+
+  function finish(commit) {
+    document.removeEventListener('pointermove', move);
+    document.removeEventListener('pointerup', up);
+    document.removeEventListener('keydown', onKey, true);
+    if (!live) return;
+
+    let slot = null;
+    if (commit) {
+      const rest = siblings();
+      let ref = gap.nextElementSibling;
+      while (ref && !rest.includes(ref)) ref = ref.nextElementSibling;
+      slot = ref ? rest.indexOf(ref) : rest.length;
+    }
+    gap.remove();
+    ghost.remove();
+    tab.classList.remove('lifting');
+    tab.style.display = '';
+
+    if (slot === null) return;
+    if (applyMove(from, to, sectionDest(state.blocks, from, to, slot))) {
+      // Follow the page that moved. It is at `slot` now, and leaving the view
+      // where it was would show whatever slid into the vacated position.
+      page = slot;
+      render();
+      scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }
+
+  const up = () => finish(true);
+  const onKey = (e) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    finish(false);
+  };
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', up);
+  document.addEventListener('keydown', onKey, true);
 }
 
 function renderPageBar(ranges) {
