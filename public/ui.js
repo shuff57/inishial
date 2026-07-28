@@ -1,12 +1,15 @@
 /* Shared chrome: theme, nav state, and the marker swipe.
  *
- * Loaded RENDER-BLOCKING from <head> on every page. That is deliberate and it
- * is the only reason to do it: the stored theme has to be on <html> before the
- * first paint, or a teacher who picked dark gets a full-brightness flash of
- * cream on every navigation. It is ~2KB and cached, so the cost is one hit.
+ * DEFERRED on every page. It used to be render-blocking so the stored theme
+ * landed before first paint, but that cost ~36ms of first contentful paint and
+ * a cross-document view transition cannot start until the new page paints --
+ * the delay showed up as a pause-then-flash on every page turn. The six lines
+ * that genuinely must run before paint are inlined in each page's <head>
+ * instead; everything here waits for DOMContentLoaded.
  *
- * Everything that touches the DOM waits for DOMContentLoaded; only the theme
- * runs at parse time.
+ * applyTheme() still runs at module scope. It is idempotent with the inline
+ * bootstrap, and it keeps this file correct on its own if a page ever forgets
+ * the inline copy.
  */
 
 // ---- theme ----
