@@ -33,8 +33,11 @@ export async function onRequestGet({ request, env }) {
     return json({ error: 'Your teacher has not published a syllabus yet.' }, 404);
   }
 
+  // `level` is not decoration here. The page splits on it, and a heading whose
+  // level does not arrive defaults to 2 -- which turned every subheading into
+  // its own page, and the parent's syllabus into 15 pages instead of 9.
   const { results: blocks } = await env.DB.prepare(
-    `SELECT id, ord, type, html, needs_initials
+    `SELECT id, ord, type, html, needs_initials, level
        FROM blocks WHERE version_id = ?1 ORDER BY ord`,
   ).bind(version.id).all();
 
@@ -59,6 +62,11 @@ export async function onRequestGet({ request, env }) {
       id: b.id,
       type: b.type,
       html: b.html,
+      // The page splits on this. Selecting it in SQL was not enough -- this
+      // list is a whitelist, and a field missing from it arrives as undefined,
+      // which startsSection reads as level 2. Every subheading then became its
+      // own page: 15 for a 9-section syllabus, while the editor showed 9.
+      level: b.level ?? 2,
       needs_initials: !!b.needs_initials,
       signed: signedBy.get(b.id) ?? null,
     })),

@@ -62,7 +62,7 @@ export async function onRequestGet({ request, env }) {
   if (!version) return badRequest('No published syllabus for this student yet.');
 
   const { results: blocks } = await env.DB.prepare(
-    'SELECT id, type, html, needs_initials FROM blocks WHERE version_id = ?1 ORDER BY ord',
+    'SELECT id, type, html, needs_initials, level FROM blocks WHERE version_id = ?1 ORDER BY ord',
   ).bind(version.id).all();
 
   const { results: sigs } = await env.DB.prepare(

@@ -109,3 +109,85 @@ test('a prompt is never retagged, at either level', () => {
       'retagging a prompt would drop a signature obligation from the document');
   }
 });
+
+// ---- the level has to survive the whole way to the reader ----
+//
+// This is the test that should have existed first. Adding `level` to the SQL
+// was not enough: the sign endpoint shapes its response through a field
+// whitelist, so the column arrived and was then dropped on the way out. The
+// parent's syllabus served 15 pages of a 9-section document while the editor
+// showed 9, and nothing failed.
+//
+// So it is asserted end to end -- seed a syllabus with subheadings, call the
+// real handler, and count the pages the way the page itself does.
+
+import { freshEnv, seedStudent, seedAccount, jsonRequest, cookieFrom } from './helpers.mjs';
+import { onRequestPost as signLogin } from '../functions/api/sign/login.js';
+import { onRequestGet as parentView } from '../functions/api/sign/syllabus.js';
+
+/** A published syllabus: two sections, three subheadings inside the first. */
+function seedLevelled(db, courseId) {
+  const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')
+    .run(courseId, 'Levels', 'levels').lastInsertRowid);
+  const versionId = Number(db.prepare('INSERT INTO versions (syllabus_id, num, published_at) VALUES (?, 1, 2000)')
+    .run(syllabusId).lastInsertRowid);
+  const rows = [
+    ['heading', '<h2>Grading Policy</h2>', 0, 2],
+    ['heading', '<h3>Daily work</h3>', 0, 3],
+    ['text', '<p>Completion.</p>', 0, 2],
+    ['heading', '<h3>Late work</h3>', 0, 3],
+    ['text', '<p>Ten percent.</p>', 0, 2],
+    ['initial', 'I have read the grading policy.', 1, 2],
+    ['heading', '<h2>Attendance</h2>', 0, 2],
+    ['text', '<p>Daily.</p>', 0, 2],
+    ['initial', 'I have read the attendance policy.', 1, 2],
+  ];
+  rows.forEach(([type, html, needs, level], i) => {
+    db.prepare('INSERT INTO blocks (version_id, ord, type, html, needs_initials, level) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(versionId, i, type, html, needs, level);
+  });
+}
+
+test('the parent view receives the level, and pages on it', async () => {
+  const env = freshEnv();
+  const { rosterId, courseId } = seedStudent(env._raw);
+  const { code } = await seedAccount(env._raw, rosterId);
+  seedLevelled(env._raw, courseId);
+
+  const cookie = cookieFrom(await signLogin({
+    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code, role: 'parent' }), env,
+  }));
+  const body = await (await parentView({
+    request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookie } }), env,
+  })).json();
+
+  const heads = body.blocks.filter((b) => b.type === 'heading');
+  assert.equal(heads.length, 4, 'two section headings and two subheadings');
+  assert.deepEqual(heads.map((h) => h.level), [2, 3, 3, 2],
+    'a level dropped anywhere between the table and the page turns every subheading into a page');
+
+  // Counted exactly as the signing page counts it.
+  assert.equal(sections(body.blocks).length, 2,
+    'three subheadings must not become three extra pages for the parent');
+  assert.equal(sectionTitle(sections(body.blocks)[0]), 'Grading Policy');
+});
+
+test('each signing prompt stays in the section it attests to', async () => {
+  const env = freshEnv();
+  const { rosterId, courseId } = seedStudent(env._raw);
+  const { code } = await seedAccount(env._raw, rosterId);
+  seedLevelled(env._raw, courseId);
+
+  const cookie = cookieFrom(await signLogin({
+    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code, role: 'parent' }), env,
+  }));
+  const body = await (await parentView({
+    request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookie } }), env,
+  })).json();
+
+  for (const section of sections(body.blocks)) {
+    const prompts = section.filter((b) => b.needs_initials);
+    assert.equal(prompts.length, 1, 'one prompt per section');
+    assert.equal(section.at(-1), prompts[0], 'and it is the last thing on the page');
+  }
+});

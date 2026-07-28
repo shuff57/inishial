@@ -18,6 +18,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { d1 } from '../tests/helpers.mjs';
 import { hashCode } from '../functions/_lib/codes.js';
+import { seedDemo } from './demo.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = join(ROOT, 'public');
@@ -273,6 +274,24 @@ function serveStatic(res, urlPath) {
 
 await seed();
 
+// A fake class to click around in, added beside whatever is already here
+// rather than instead of it -- a real imported syllabus in this database must
+// survive a dev restart. DEMO_RESET=1 rebuilds it.
+const demo = await seedDemo(db, { hashCode, reset: process.env.DEMO_RESET === '1' });
+
+// Built as lines rather than inline in the banner: nesting a .map().join() with
+// its own newline inside a template literal is how the last two escaping bugs
+// in this file happened.
+const demoLines = (demo.added
+  ? [
+    `    ${demo.active} active students, ${demo.dropped} dropped, ${demo.codes} with codes, ${demo.signatures} signatures`,
+    '    version 1 is PUBLISHED; version 2 is an open draft, ready to publish',
+    '    sign in as a parent with:',
+    ...demo.sample.map((s) => `      ${s.extId} / ${s.code}   (${s.who})`),
+  ]
+  : ['    already present — DEMO_RESET=1 npm run local  to rebuild it']
+).join('\n');
+
 // Local admin password. Obvious on purpose -- production uses a generated one
 // held in the ADMIN_PASSWORD_HASH secret.
 const DEV_PASSWORD = process.env.DEV_PASSWORD || 'localdev';
@@ -307,6 +326,9 @@ createServer(async (req, res) => {
   http://localhost:${PORT}/sign/         parent signing    (ID 904511, code ${DEMO_CODE})
   http://localhost:${PORT}/admin/login/  teacher sign-in   (password ${DEV_PASSWORD})
   http://localhost:${PORT}/admin/signup/ teacher sign-up   (any @school.edu address)
+
+  Demo class: ${demo.course}
+${demoLines}
 
   Database: .dev.sqlite  (delete it to reseed)
   Ollama:   ${env.OLLAMA_API_KEY ? 'key loaded from .secrets.local (' + (env.OLLAMA_MODEL || 'default model') + ')' : 'no key — AI steps stay disabled, everything else works'}
