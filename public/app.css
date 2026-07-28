@@ -751,6 +751,18 @@ button[disabled] { opacity: .5; cursor: not-allowed; }
  * and a raster that goes soft on a wide button. clip-path draws the same rip
  * at any size in either theme for nothing.
  *
+ * EVERY button in the reading flow, not just the quiet ones. A page had a
+ * yellow one and a beige one side by side and the highlighter was doing two
+ * jobs -- "this is a button" and "you are about to press this". It now only
+ * does the second. What makes an action primary is that it is the one at the
+ * bottom of the form, which is how it reads on paper.
+ *
+ * .danger is out: red means something the tape cannot say.
+ *
+ * Compact chrome -- filter chips, tab strips, the editor's block tools -- opts
+ * out in its own stylesheet with `::before, ::after { content: none }`. Those
+ * are one rule tall and are the page's furniture, not actions in the flow.
+ *
  * Three variants, one definition, two knobs:
  *
  *   --tape-rest    1  the strip is stuck down already   (on the paper; Publish)
@@ -759,7 +771,7 @@ button[disabled] { opacity: .5; cursor: not-allowed; }
  *                     horizontal padding, so the band covers the WORDS and not
  *                     the whole piece of tape.
  */
-main .secondary, .toolbar button {
+main :is(button, .button):not(.danger), .toolbar button {
   --tape-rest: 1;
   --tape-inset: 1.1rem;
   position: relative; isolation: isolate;
@@ -767,7 +779,7 @@ main .secondary, .toolbar button {
 }
 /* The generic `button:hover` fill is (0,2,1) and would paint --accent-soft
    straight over the strip. These beat it and leave the tape to do the talking. */
-main .secondary:hover:not([disabled]), .toolbar button:hover:not([disabled]) { background: transparent; }
+main :is(button, .button):not(.danger):hover:not([disabled]), .toolbar button:hover:not([disabled]) { background: transparent; }
 
 /* The strip itself.
  *
@@ -775,7 +787,7 @@ main .secondary:hover:not([disabled]), .toolbar button:hover:not([disabled]) { b
  * opacity -- the ruled line ghosts faintly THROUGH the strip rather than being
  * cut by it, which is what tape over a line actually looks like -- and a 3px
  * fibre gradient at about 2% contrast. */
-main .secondary::before, .toolbar button::before {
+main :is(button, .button):not(.danger)::before, .toolbar button::before {
   content: ''; position: absolute; z-index: -1; inset: 0;
   background:
     repeating-linear-gradient(90deg,
@@ -804,8 +816,8 @@ main .secondary::before, .toolbar button::before {
   opacity: var(--tape-rest);
   transition: opacity 140ms ease-out;
 }
-main .secondary:hover:not([disabled])::before,
-main .secondary:focus-visible::before,
+main :is(button, .button):not(.danger):hover:not([disabled])::before,
+main :is(button, .button):not(.danger):focus-visible::before,
 .toolbar button:hover:not([disabled])::before,
 .toolbar button:focus-visible::before { opacity: 1; }
 
@@ -822,7 +834,7 @@ main .secondary:focus-visible::before,
  * The transition is `transform` only, on the compositor; the global
  * prefers-reduced-motion rule further down turns the swipe into a straight
  * appearance. */
-main .secondary::after, .toolbar button::after {
+main :is(button, .button):not(.danger)::after, .toolbar button::after {
   content: ''; position: absolute; z-index: -1;
   left: var(--tape-inset); right: var(--tape-inset);
   top: calc(50% - var(--rule) / 2 + 3px);
@@ -834,16 +846,34 @@ main .secondary::after, .toolbar button::after {
   transform-origin: left center;
   transition: transform var(--swipe);
 }
-main .secondary:hover:not([disabled])::after, main .secondary:focus-visible::after,
+main :is(button, .button):not(.danger):hover:not([disabled])::after, main :is(button, .button):not(.danger):focus-visible::after,
 .toolbar button:hover:not([disabled])::after, .toolbar button:focus-visible::after {
   transform: scaleX(1) rotate(-.5deg);
 }
+/* What does NOT get taped.
+ *
+ * Chrome: rails, tab strips, filter chips, the editor's block tools. All one
+ * rule tall, all furniture for the page rather than actions in the reading
+ * flow -- a torn strip behind every ⤒ and ✕ would bury the document under
+ * stationery, and the flag rail has a shape and a colour of its own.
+ *
+ * The list lives here, next to the rule it cancels, and not in each page's own
+ * stylesheet -- which is where it started, and where it silently did nothing:
+ * `.filters button::before` is (0,1,3) and the tape rule is (0,2,2), because
+ * `:is(button, .button)` is scored as the CLASS in it. Matching the tape's own
+ * shape is what makes this land; being one line below it is what makes it win
+ * the tie. */
+main :is(.flags, .filters, .tabs, .pages, .adders, .tools, .page-tools, .sec-tools, .compact)
+  :is(button, .button)::before,
+main :is(.flags, .filters, .tabs, .pages, .adders, .tools, .page-tools, .sec-tools, .compact)
+  :is(button, .button)::after { content: none; }
+
 /* Under forced colours both pseudo-elements are discarded and only the box is
    left, so the box has to still be a button. The border is transparent rather
    than absent for exactly this: forced-colors repaints it, and keeping it
    costs no height. */
 @media (forced-colors: active) {
-  main .secondary, .toolbar button { border-color: currentColor; }
+  main :is(button, .button):not(.danger), .toolbar button { border-color: currentColor; }
 }
 .danger { background: transparent; color: var(--danger); border-color: var(--danger); }
 .danger:hover:not([disabled]) { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
@@ -1125,6 +1155,10 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
   gap: .3rem;
   z-index: 3;
 }
+/* The rail is not a row of buttons on the paper; it is the sticky-note markers
+   down the edge, with a shape and a colour of their own. It sits inside main,
+   so it has to say no to the tape explicitly. */
+main .flags button::before, main .flags button::after { content: none; }
 .flags button {
   /* display:block so text-overflow works -- as a flex item it does not, and a
      long section name is cut mid-word with no ellipsis. */

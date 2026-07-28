@@ -83,10 +83,11 @@
       <label for="reg-last">Last name</label>
       <input id="reg-last" class="blank-name" name="last" type="text" autocomplete="family-name" required>
 
-      <label for="reg-username">Pick a username <span class="hint">— first time only</span>
-        <span class="hint">3–32 characters. Letters, numbers, dot, dash, underscore.
+      <label for="reg-username">School email <span class="hint">— first time only</span>
+        <span class="hint">The address your school gave you.
           Leave blank if you already have an account.</span></label>
-      <input id="reg-username" class="blank-name" name="username" type="text" autocomplete="off">
+      <input id="reg-username" class="blank-name" name="username" type="email"
+             inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false">
 
       <label for="reg-email">Parent or guardian's email <span class="hint">— optional</span>
         <span class="hint">Your school already has a contact email for most families. Only fill this in if

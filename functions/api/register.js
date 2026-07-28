@@ -5,6 +5,13 @@
 //        username and parent_email are for first-time sign-up only; a returning
 //        student sends just the ID and last name.
 //
+// `username` carries the student's SCHOOL EMAIL. It kept its name -- the column
+// is `accounts.username` and is read by the credentials export and the admin
+// tables -- because renaming it is a migration and six query sites for a word.
+// Nothing signs in with it: /api/sign/login is student ID plus access code. It
+// is an identifier the teacher can recognise on a roster, and it is UNIQUE, so
+// two students cannot claim the same address.
+//
 // Gated on the student already existing in the teacher's uploaded roster, so
 // only real students in real classes can create an account.
 //
@@ -24,9 +31,14 @@ import { json, badRequest, serverMisconfigured, readJson } from '../_lib/http.js
 import { hit, reset, clientIp } from '../_lib/ratelimit.js';
 import { signSession, sessionCookie } from '../_lib/session.js';
 
-const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,31}$/i;
 // Deliberately permissive. Strict RFC-5322 validation rejects addresses that
-// work; the real check is whether the parent receives the mail.
+// work; the real check is whether the mail arrives.
+//
+// Not restricted to the school's domain. Locking the field to one domain locks
+// out every student the district put on a different one, and that failure is
+// silent from here -- the student simply cannot register. The teacher sees the
+// address in the credentials export either way. If every student really is on
+// one domain, `domainAllowed` in _lib/teachers.js is the check to reuse.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export async function onRequestPost({ request, env }) {
@@ -40,7 +52,9 @@ export async function onRequestPost({ request, env }) {
 
   const studentExtId = String(body.student_ext_id ?? '').trim();
   const last = String(body.last ?? '').trim();
-  const username = String(body.username ?? '').trim();
+  // Lowercased: an address is case-insensitive, and without this Sam@ and sam@
+  // are two accounts as far as UNIQUE is concerned.
+  const username = String(body.username ?? '').trim().toLowerCase();
   const parentEmail = String(body.parent_email ?? '').trim();
 
   if (!studentExtId || !last) return badRequest('Enter your student ID and last name.');
@@ -99,8 +113,8 @@ export async function onRequestPost({ request, env }) {
     }, 200, { 'Set-Cookie': sessionCookie(token) });
   }
 
-  if (!USERNAME_RE.test(username)) {
-    return badRequest('Username must be 3-32 characters: letters, numbers, dot, dash, underscore.');
+  if (!EMAIL_RE.test(username)) {
+    return badRequest('Enter your school email address.');
   }
   // Optional: the roster export already carries a contact address for most
   // families. This is the escape hatch for the ones where it is missing or
@@ -118,7 +132,7 @@ export async function onRequestPost({ request, env }) {
   } catch (err) {
     // UNIQUE(username) is the only constraint a well-formed request can trip.
     if (String(err?.message || '').includes('UNIQUE')) {
-      return json({ error: 'That username is taken. Pick another.' }, 409);
+      return json({ error: 'That school email is already registered to another student.' }, 409);
     }
     throw err;
   }

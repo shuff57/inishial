@@ -66,7 +66,7 @@ export function seedStudent(db, { course = 'Algebra I', extId = '904511', first 
 }
 
 /** Register the student and issue them a known access code. */
-export async function seedAccount(db, rosterId, { username = 'malvarez', code = 'ABCD2345', parentEmail = 'parent@example.com' } = {}) {
+export async function seedAccount(db, rosterId, { username = 'malvarez@chicousd.org', code = 'ABCD2345', parentEmail = 'parent@example.com' } = {}) {
   const accountId = Number(
     db.prepare(
       'INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at) VALUES (?, ?, ?, ?, ?, ?)',
