@@ -171,7 +171,31 @@
      reads as a box the paper is cutting through. See --lift in app.css. */
   .drop { border: 2px dashed var(--ring); border-radius: var(--radius-md); padding: calc(var(--rule) - 2px) 1rem; text-align: center; color: var(--ink-stone); position: relative; top: calc(-1 * var(--lift)); }
   .drop.over { border-color: var(--accent); background: var(--sand); color: var(--accent); }
-  textarea { width: 100%; min-height: calc(var(--rule) * 5); font: 13px/var(--rule) var(--font-mono); }
+  /* Pasted text lands ON the ruled lines, line by line, the way it will once
+     it is blocks. That needs two things: the page's own font, because --baseline
+     is a metric for THAT font at THAT size (13px mono in a 32px line box puts
+     its baseline ~4px high, and the amount depends on which mono the machine
+     has), and a top padding of --lift - 1px so the first line box opens 6px
+     past a rule -- which is where a line box has to start for the rule to land
+     under its baseline. The bottom padding is the remainder of that rule, so
+     the box is still a whole number of them.
+
+     The roster importer's textarea keeps its monospace: that one is columns,
+     and reading them beats riding the lines. */
+  textarea {
+    width: 100%; min-height: calc(var(--rule) * 5);
+    font: inherit; line-height: var(--rule);
+    padding: calc(var(--lift) - 1px) .75rem calc(var(--rule) - var(--lift) - 1px);
+    /* It grows to whatever is pasted in (see grow(), below), so there is
+       nothing to scroll and no handle to drag. */
+    overflow: hidden; resize: none;
+  }
+
+  /* The native "Choose File" widget is an inline-block that sits on the line
+     box's baseline. Given a whole rule to sit in and no padding of its own, it
+     lands on the rule like a word does. The 9.2px padding it had squashed the
+     content box to 13.6px and the widget spilled out of it across the line. */
+  .drop input[type=file] { height: var(--rule); line-height: var(--rule); padding: 0; }
   .diff li { margin: .2rem 0; }
 
   .adders-label { font-size: .85rem; color: var(--ink-stone); line-height: var(--rule); }
@@ -378,17 +402,24 @@
     of a minute, and a button that sits disabled that long is indistinguishable
     from a broken one.
 
-    A <details> because it is optional: it opens itself when a run starts and
-    stays however the teacher last left it, so watching is available without
-    being imposed. Everything in here is DISPLAY ONLY -- the decision that
-    reaches the document is the whitelisted `done` line, never this text.
+    Hidden until a run starts. A log of nothing is two rules of the page spent
+    on a box that has never had anything in it, sitting above the document on
+    every visit -- and the setting it used to hold has moved to the gear menu,
+    so there is no longer any reason to reach it before running something.
+    aiOpen() reveals it; it stays for the rest of the session so the last run
+    can be re-read.
 
-    Opening it must cost a WHOLE number of rules, or every block below shifts
+    A <details> because watching is optional: it opens itself when a run
+    starts and can be folded away. Everything in here is DISPLAY ONLY -- the
+    decision that reaches the document is the whitelisted `done` line, never
+    this text.
+
+    Appearing must cost a WHOLE number of rules, or every block below shifts
     off the ruled lines the moment a run starts. That is why there is nothing
     in here but the summary and a pre of a fixed 8 rules -- the model picker
     used to sit between them and contributed half a rule.
   -->
-  <details class="ai-log" id="aiLog">
+  <details class="ai-log" id="aiLog" hidden>
     <summary><span id="aiTitle">AI — live log</span><span class="ai-meta" id="aiMeta"></span></summary>
     <!-- aria-live is off deliberately: a token-by-token live region reads the
          same sentence back a dozen times. The result is announced by notice(). -->
@@ -1254,6 +1285,28 @@ for (const t of ['dragenter', 'dragover']) drop.addEventListener(t, (e) => { e.p
 for (const t of ['dragleave', 'drop']) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); });
 drop.addEventListener('drop', (e) => takeDocx(e.dataTransfer.files[0]));
 
+/**
+ * Grow the paste box to whatever is in it, so a pasted syllabus is read on the
+ * page rather than through a five-line window.
+ *
+ * `height: auto` first, or scrollHeight only ever reports the height it
+ * already has and the box never shrinks back. The borders are added because
+ * scrollHeight excludes them and the box is border-box: setting height to a
+ * bare scrollHeight takes those two pixels out of the content, which brings
+ * the scrollbar straight back.
+ *
+ * Whole rules fall out of the arithmetic rather than being rounded to: a line
+ * is one rule, and the padding pair is one more.
+ */
+const pasteBox = $('paste');
+function grow() {
+  pasteBox.style.height = 'auto';
+  const cs = getComputedStyle(pasteBox);
+  const edges = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  pasteBox.style.height = `${pasteBox.scrollHeight + edges}px`;
+}
+pasteBox.addEventListener('input', grow);
+
 $('pasteBtn').addEventListener('click', () => {
   const text = $('paste').value.trim();
   if (!text) { notice('Paste something first.', 'error'); return; }
@@ -1533,6 +1586,7 @@ const aiStream = $('aiStream');
 const aiMeta = $('aiMeta');
 
 function aiOpen(what) {
+  aiLog.hidden = false;
   aiLog.open = true;
   $('aiTitle').textContent = what;
   aiStream.textContent = '';

@@ -311,6 +311,12 @@ header.site nav {
   transform: scaleX(1);
 }
 .nav-main a[aria-current="page"] { color: var(--ink); }
+/* The marker band is the WHOLE hover, for Sign out as much as for a nav link.
+   `button:hover:not([disabled])` up in the button section is (0,2,1) and out-
+   specifies the `background: transparent` above it at (0,1,1), so Sign out was
+   painting an accent panel UNDER the band -- two hover languages on one
+   control. Same specificity trap that once turned the flags mustard. */
+.nav-end button:hover:not([disabled]) { background: transparent; }
 
 .nav-end { display: flex; align-items: center; gap: .2rem; flex: 0 0 auto; }
 
