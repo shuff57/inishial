@@ -745,14 +745,61 @@ button[disabled] { opacity: .5; cursor: not-allowed; }
  *
  * Only inside main: in the toolbar and the nav the background is the desk, not
  * the page, and there is no rule to hide. */
-main .secondary { background: var(--tape); }
+/* A torn strip, not a beige rectangle. Same trick as .tape above -- the strip
+ * is a pseudo-element BEHIND the label, so the button's own box keeps its
+ * square edges for the focus ring, the hit area and the two rules it owes the
+ * grid, while the thing you see is ragged.
+ *
+ * No image. A downloaded tape PNG would be one more file to ship, a licence to
+ * record in ATTRIBUTION.md, a fixed colour that cannot follow the dark theme,
+ * and a raster that goes soft on a wide button. clip-path draws the same rip
+ * at any size in either theme for nothing.
+ *
+ * Real masking tape is slightly translucent and has a fine grain, so: 94%
+ * opacity (the ruled line ghosts faintly THROUGH the strip rather than being
+ * cut by it, which is what tape over a line actually looks like) and a 3px
+ * fibre gradient at about 2% contrast.
+ */
+main .secondary { background: transparent; border-color: transparent; position: relative; isolation: isolate; }
+main .secondary::before {
+  content: ''; position: absolute; z-index: -1; inset: 0;
+  background:
+    repeating-linear-gradient(90deg,
+      rgb(0 0 0 / .022) 0 1px, transparent 1px 3px),
+    color-mix(in srgb, var(--tape) 94%, transparent);
+  /* Torn short ends. Traced as one closed path: down the left edge, along the
+     bottom, up the right edge, back across the top. The long edges stay
+     straight -- those are the width of the roll, not a tear.
+   *
+   * The steps are deliberately uneven in BOTH axes and the two ends do not
+   * match. Evenly spaced teeth of equal depth read as a perforation -- a
+   * stamp, not something torn by hand.
+   *
+   * Percentages, so the rip scales with the button. That holds while these
+   * buttons are all 90-150px wide; a much wider one would get teeth to match,
+   * and would want a fixed-width mask instead. */
+  clip-path: polygon(
+    3% 0%, 0% 9%, 4% 19%, 1% 28%, 2% 41%, 5% 52%, 1% 61%, 3% 73%, 0% 84%, 2% 93%, 1% 100%,
+    99% 100%, 96% 91%, 100% 81%, 97% 70%, 99% 58%, 95% 47%, 100% 36%, 97% 26%, 99% 14%, 96% 5%, 98% 0%
+  );
+  /* drop-shadow, not box-shadow: clip-path would cut a box-shadow off with the
+     box, and this one has to follow the ragged silhouette to read as a strip
+     lying ON the page. */
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / .18));
+  transform: rotate(-.7deg);
+}
 /* Hover moves the tape TOWARDS --ink, which darkens it on the cream sheet and
    lightens it on the dark one -- the press reads the same either way because
-   --ink flips with the theme and the mix follows it. Needed at this
-   specificity because the generic .secondary:hover is (0,3,0) and would
-   otherwise repaint this --sand, which is LIGHTER than the tape, so the button
-   appeared to lift off the page when the pointer landed on it. */
-main .secondary:hover:not([disabled]) { background: color-mix(in srgb, var(--tape) 86%, var(--ink)); }
+   --ink flips with the theme and the mix follows it. Colour only, no movement:
+   the strip is already sitting a little crooked, and rotating it under the
+   pointer reads as a wobble rather than a press. */
+main .secondary:hover:not([disabled])::before {
+  background: color-mix(in srgb, var(--tape) 86%, var(--ink));
+}
+/* Under forced colours the strip is discarded and only the box is left, so the
+   box has to still be a button. The border is transparent rather than absent
+   for exactly this: forced-colors repaints it, and keeping it costs no height. */
+@media (forced-colors: active) { main .secondary { border-color: currentColor; } }
 .secondary:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
 .danger { background: transparent; color: var(--danger); border-color: var(--danger); }
 .danger:hover:not([disabled]) { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
