@@ -206,10 +206,14 @@ function render() {
   }
 
   book = createBook(host, {
-    onTurn: (i, n) => {
-      $('where').textContent = `Page ${i + 1} of ${n}`;
+    onTurn: (i, n, step) => {
+      // "Pages 3-4 of 9" when the spread is open, "Page 3 of 9" when it is not.
+      const last = Math.min(i + step, n);
+      $('where').textContent = step === 2 && last > i + 1
+        ? `Pages ${i + 1}–${last} of ${n}`
+        : `Page ${i + 1} of ${n}`;
       $('prevPage').disabled = i === 0;
-      $('nextPage').disabled = i === n - 1;
+      $('nextPage').disabled = last >= n;
     },
   });
   $('bookBar').hidden = !book;
@@ -300,8 +304,8 @@ function updateProgress() {
 
 // ---- turning the notebook ----
 
-$('prevPage').addEventListener('click', () => book?.go(book.at() - 1));
-$('nextPage').addEventListener('click', () => book?.go(book.at() + 1));
+$('prevPage').addEventListener('click', () => book?.go(book.at() - book.perSpread()));
+$('nextPage').addEventListener('click', () => book?.go(book.at() + book.perSpread()));
 
 $('readAll').addEventListener('click', () => {
   paged = !paged;

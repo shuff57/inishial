@@ -725,7 +725,11 @@ button[disabled] { opacity: .5; cursor: not-allowed; }
    a ledger ruled by the same lines as everything else. Zero vertical padding --
    the line-height IS the row height. */
 table { border-collapse: collapse; }
-th, td { line-height: calc(var(--rule) - 1px); padding-top: 0; padding-bottom: 0; }
+/* A full rule per row. The 1px that a bottom border steals is compensated by
+   whoever draws that border -- see the admin pages. Subtracting it here instead
+   cost every table a pixel per row, including the one inside an imported
+   syllabus, and the drift accumulated down the rest of the document. */
+th, td { line-height: var(--rule); padding-top: 0; padding-bottom: 0; }
 
 /* Compact controls (tab strips, filter chips, block adders) are exactly one
    rule tall. They opt out of the two-rule sizing on the main button because
@@ -865,59 +869,129 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
  */
 .book {
   position: relative;
-  perspective: 2400px;
+  perspective: 2600px;
   margin: var(--rule) 0;
 }
 
+/* When the notebook is open, the LEAVES are the paper -- so <main> stops being
+   a sheet. Otherwise you get paper on paper: two sets of ruled lines, two sets
+   of binder holes and two margin rules, which is what made the spread look
+   like a mistake.
+   It also widens, because a 42rem measure is right for one column of prose and
+   far too narrow split in half. */
+main:has(.book[data-paged]) {
+  max-width: min(72rem, 96vw);
+  background-color: transparent;
+  background-image: none;
+  box-shadow: none;
+  padding-left: 1.6rem;
+}
+main:has(.book[data-paged])::before,
+main:has(.book[data-paged])::after { display: none; }
+
+/* Each sheet is its OWN piece of paper: cream ground, ruled lines, margin rule.
+   The paper used to live on <main>, which is why two stacked sheets showed
+   through each other -- there was nothing opaque between them, so the section
+   underneath collided with the one on top. */
 .sheet {
   position: relative;
+  background-color: var(--paper);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--rule) - 1px),
+    color-mix(in srgb, var(--ring) 55%, transparent) calc(var(--rule) - 1px),
+    color-mix(in srgb, var(--ring) 55%, transparent) var(--rule));
+  background-position: 0 calc(var(--baseline) + var(--sit));
+  padding: var(--rule) 1.5rem calc(var(--rule) * 2);
   transform-origin: left center;
   backface-visibility: hidden;
 }
-/* Sheets behind the current one are stacked, not shown. They stay in the DOM so
-   print, find-in-page and "read as one page" all still see the whole document. */
-.book[data-paged] .sheet { position: absolute; inset: 0; visibility: hidden; }
-.book[data-paged] .sheet[data-current] { position: relative; visibility: visible; z-index: 2; }
-/* The next sheet is rendered UNDERNEATH the current one, so turning reveals the
-   real thing rather than a placeholder. */
-.book[data-paged] .sheet[data-next] { visibility: visible; z-index: 1; }
+/* The red-pen margin rule, on the outside edge of each page the way it is in a
+   real notebook -- left page rules on its left, right page on its left too. */
+.sheet::after {
+  content: ''; position: absolute; left: 1.1rem; top: 0; bottom: 0; width: 1px;
+  background: color-mix(in srgb, var(--mark-deep) 40%, transparent);
+  pointer-events: none;
+}
 
-/* Mid-turn: shaded across the fold, lifted off the sheet below. */
+/* ---- the open spread ----
+ *
+ * Two pages side by side, hinged down the middle, so turning the right one over
+ * is the motion an actual notebook makes. Sections are laid out as a book is:
+ * pages 1|2, turn, 3|4.
+ */
+.book[data-paged] {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  box-shadow: var(--shadow-paper);
+  border-radius: 2px;
+}
+.book[data-paged] .sheet { display: none; }
+.book[data-paged] .sheet[data-slot] { display: block; grid-row: 1; }
+.book[data-paged] .sheet[data-slot="left"]  { grid-column: 1; }
+.book[data-paged] .sheet[data-slot="right"] { grid-column: 2; z-index: 2; }
+
+/* Wider margins at the spine than at the outer edge, the way a bound book is
+   set. Text that runs right up to the gutter is the thing that makes a spread
+   read as two columns instead of two pages. */
+.book[data-paged] .sheet[data-slot="left"],
+.book[data-paged] .sheet[data-beneath="left"] { padding-right: 2.6rem; }
+.book[data-paged] .sheet[data-slot="right"],
+.book[data-paged] .sheet[data-beneath="right"] { padding-left: 2.8rem; }
+.book[data-paged] .sheet[data-slot="right"]::after,
+.book[data-paged] .sheet[data-beneath="right"]::after { left: 2.2rem; }
+/* The spread that is being turned to, sitting underneath. */
+.book[data-paged] .sheet[data-beneath] { display: block; grid-row: 1; z-index: 0; }
+.book[data-paged] .sheet[data-beneath="left"]  { grid-column: 1; }
+.book[data-paged] .sheet[data-beneath="right"] { grid-column: 2; }
+
+/* The gutter: two pages meeting at a spine, shaded into the fold. */
+.book[data-paged]::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 34px; margin-left: -17px; z-index: 3; pointer-events: none;
+  background: linear-gradient(to right,
+    transparent 0%,
+    color-mix(in srgb, var(--ink) 9%, transparent) 38%,
+    color-mix(in srgb, var(--ink) 14%, transparent) 50%,
+    color-mix(in srgb, var(--ink) 9%, transparent) 62%,
+    transparent 100%);
+}
+/* Binder holes down the spine rather than the outer edge, because the pages are
+   bound in the middle now. */
+.book[data-paged]::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 14px; margin-left: -7px; z-index: 4; pointer-events: none;
+  background-image: radial-gradient(circle at 7px 7px,
+    color-mix(in srgb, var(--ink) 22%, transparent) 4px, transparent 4.5px);
+  background-size: 14px 96px; background-repeat: repeat-y; background-position: 0 2rem;
+  opacity: .5;
+}
+
+/* Mid-turn: the right page swings over the spine, shaded across the fold. */
 .sheet[data-turning] {
-  z-index: 3;
+  z-index: 5;
   box-shadow: -14px 8px 30px rgba(0,0,0,.24);
 }
-.sheet[data-turning]::after {
-  content: '';
-  position: absolute; inset: 0;
+.sheet[data-turning]::before {
+  content: ''; position: absolute; inset: 0; z-index: 1;
   pointer-events: none;
   background: linear-gradient(96deg,
-    color-mix(in srgb, var(--ink) 20%, transparent) 0%,
-    color-mix(in srgb, var(--ink) 7%, transparent) 12%,
-    transparent 34%);
+    color-mix(in srgb, var(--ink) 18%, transparent) 0%,
+    color-mix(in srgb, var(--ink) 6%, transparent) 14%,
+    transparent 36%);
 }
-.sheet[data-settling] { transition: transform 380ms cubic-bezier(.3, 0, .2, 1); }
+.sheet[data-settling] { transition: transform 460ms cubic-bezier(.36, 0, .22, 1); }
 
-/* The stacked page edge. Thickness tracks how many sheets are left, so the
-   notebook visibly thins out as you work through it. */
-.page-edge {
-  position: absolute; top: 0; bottom: 0;
-  right: calc(var(--edge, 0px) * -1);
-  width: var(--edge, 0px);
-  z-index: 4;
-  cursor: grab;
-  touch-action: none;
-  background:
-    repeating-linear-gradient(to right,
-      var(--paper) 0 2px,
-      color-mix(in srgb, var(--ring) 60%, transparent) 2px 3px);
-  border-radius: 0 3px 3px 0;
-  box-shadow: 2px 0 6px rgba(0,0,0,.10);
-}
-.page-edge:hover { filter: brightness(.97); }
-.page-edge[data-grabbing] { cursor: grabbing; }
-.page-edge::before {                 /* a wider hit area than the visible edge */
-  content: ''; position: absolute; top: 0; bottom: 0; left: -10px; right: -14px;
+/* One page at a time when there is no room for two. A spread on a phone is two
+   unreadable columns. */
+@media (max-width: 52rem) {
+  .book[data-paged] { grid-template-columns: 1fr; }
+  .book[data-paged] .sheet[data-slot="right"],
+  .book[data-paged] .sheet[data-beneath="right"] { display: none; }
+  .book[data-paged] .sheet[data-slot="left"] { grid-column: 1; }
+  .book[data-paged]::before, .book[data-paged]::after { display: none; }
 }
 
 .book-bar {
@@ -927,15 +1001,15 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
 .book-bar .spacer { flex: 1; }
 .book-bar .where { font-size: .95rem; color: var(--ink-stone); line-height: var(--rule); }
 
-/* Print, and "read as one page", are the same thing: no stacking, no edge. */
-.book:not([data-paged]) .sheet { position: relative; visibility: visible; }
+/* Read as one page, and print, are the same thing: every sheet in flow, no
+   spread, no gutter. The whole document is what is being attested to. */
+.book:not([data-paged]) .sheet { display: block; margin-bottom: var(--rule); }
 @media print {
-  .book .sheet { position: relative !important; visibility: visible !important;
-                 transform: none !important; break-inside: auto; }
-  .page-edge, .book-bar { display: none !important; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sheet[data-settling] { transition: none; }
+  .book { display: block !important; box-shadow: none !important; }
+  .book .sheet { display: block !important; transform: none !important;
+                 box-shadow: none !important; break-inside: auto; }
+  .book::before, .book::after { display: none !important; }
+  .book-bar { display: none !important; }
 }
 
 /* ---- syllabus blocks ---- */

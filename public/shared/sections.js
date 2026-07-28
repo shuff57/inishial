@@ -27,9 +27,23 @@ export function sections(blocks) {
 }
 
 /** The visible title of a section, or null for a run of blocks that opens the
- *  document without a heading of its own. */
+ *  document without a heading of its own.
+ *
+ *  Entities are decoded, not just tags stripped. This becomes a sheet's
+ *  aria-label, and "Required Texts &amp; Materials" is what a screen reader
+ *  would have read out -- letter by letter. */
 export function sectionTitle(section) {
   const head = section[0];
   if (!head || head.type !== 'heading') return null;
-  return String(head.html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || null;
+  const text = String(head.html)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')          // last, or &amp;lt; would become <
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text || null;
 }
