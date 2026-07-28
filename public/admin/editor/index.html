@@ -25,29 +25,69 @@
   .toolbar button { min-height: 0; height: var(--rule); padding: 0 .8rem; font-size: .88rem; line-height: calc(var(--rule) - 2px); }
   .toolbar .status { font-size: .82rem; color: var(--ink-silver); }
 
-  .blk { position: relative; display: flex; gap: .5rem; align-items: flex-start; margin: .35rem 0; }
+  /* Settings menu, right of Sign out. The panel is absolutely positioned so
+     opening it cannot move the page under the reader -- the header sits above
+     the ruled paper, and a menu that pushed the paper down would take every
+     block off its line. */
+  .settings { position: relative; }
+  .settings summary {
+    list-style: none; cursor: pointer;
+    width: 2.1rem; height: 2.1rem; display: grid; place-items: center;
+    border-radius: var(--radius-sm); color: inherit;
+  }
+  .settings summary::-webkit-details-marker { display: none; }
+  .settings summary svg { width: 1.05rem; height: 1.05rem; }
+  .settings summary:hover, .settings[open] summary { background: color-mix(in srgb, var(--desk-ink) 12%, transparent); }
+  .settings .menu {
+    position: absolute; right: 0; top: calc(100% + .35rem); z-index: 30;
+    width: 17rem; padding: .7rem .8rem;
+    background: var(--paper); color: var(--ink);
+    border: 1px solid var(--border-warm); border-radius: var(--radius-md);
+    box-shadow: 0 10px 30px rgb(0 0 0 / .18);
+  }
+  .settings .menu label { display: block; padding: 0; font-size: .8rem; font-weight: 600; color: var(--ink-stone); }
+  .settings .menu select {
+    width: 100%; height: var(--rule); margin: .25rem 0 .35rem; padding: 0 .35rem;
+    font: inherit; font-size: .86rem; color: var(--ink); background: var(--paper);
+    border: 1px solid var(--ring); border-radius: var(--radius-sm);
+  }
+  .settings .menu .hint { margin: 0; font-size: .76rem; line-height: 1.35; color: var(--ink-silver); }
+
+  /* The editing surface rides the ruled lines, the same as the parent's copy.
+     That is the whole claim this editor makes -- "these are the pages they
+     see" -- and a block whose box is 1.59 rules tall breaks it on the first
+     line. So: no fractional margins or padding anywhere in the stack, and
+     every state that draws an edge uses OUTLINE, which paints outside the box
+     instead of adding two pixels to it. */
+  .blk { position: relative; display: flex; gap: .5rem; align-items: flex-start; margin: 0; }
   .blk .body { flex: 1; min-width: 0; }
   .blk .edit {
-    padding: .3rem .5rem; border-radius: var(--radius-sm); border: 1px solid transparent;
-    outline: none; min-height: 1.6rem;
+    padding: 0 .5rem; border-radius: var(--radius-sm); border: 0;
+    outline: none; min-height: var(--rule);
     /* A press picks the block up rather than placing a caret, so it must not
        read as a text field until a double-click actually opens it for typing. */
     user-select: none;
   }
-  .blk .edit.typing { cursor: text; user-select: text; border-color: var(--accent); background: var(--ivory); }
-  .blk .edit :is(h1,h2,h3) { margin: .2rem 0; font-family: var(--font-display); }
-  .blk .edit ul, .blk .edit ol { margin: .2rem 0; padding-left: 1.2rem; }
-  .blk .edit p { margin: .2rem 0; }
+  .blk .edit.typing { cursor: text; user-select: text; outline: 1px solid var(--accent); background: var(--ivory); }
+  .blk .edit :is(h1,h2,h3) { margin: 0; line-height: var(--rule); font-family: var(--font-display); }
+  .blk .edit ul, .blk .edit ol { margin: 0; padding-left: 1.2rem; }
+  .blk .edit li { line-height: var(--rule); }
+  .blk .edit p { margin: 0; }
 
   .tools { display: flex; gap: .25rem; flex: 0 0 auto; opacity: 0; transition: opacity .15s; }
   .blk:hover .tools, .blk:focus-within .tools { opacity: 1; }
-  .tools button { min-height: 0; line-height: 1.2; padding: .2rem .45rem; font-size: .75rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
+  /* Exactly one rule tall, so a row of tools beside a one-line block occupies
+     that block's line rather than three quarters of it. */
+  .tools button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .45rem; font-size: .75rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm);
+                  /* Lifted onto the lines, so an outlined chip sits in the band
+                     its block occupies rather than with a rule across it. */
+                  position: relative; top: calc(-1 * var(--lift)); }
   .tools button:hover { background: var(--sand); color: var(--ink); }
   .tools button.on { background: var(--tab-3); color: var(--ink); border-color: var(--tab-3); }
 
   .blk[data-type=initial] .body, .blk[data-type=agree] .body {
     border-left: 4px solid var(--tab-3); background: var(--ivory);
-    border-radius: var(--radius-sm); padding: .35rem .3rem;
+    border-radius: var(--radius-sm); padding: 0 .3rem;
   }
   .blk[data-type=heading] .edit { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; }
   /* A subheading is visibly smaller and indented, so "starts a new page a
@@ -60,8 +100,11 @@
   /* A section is ONE box you click and move, the way a div.callout is one
      draggable unit in bookSHelf -- not a heading plus a pile of loose rows. */
   .sec {
-    position: relative; border: 1px solid transparent; border-radius: var(--radius-md);
-    padding: .35rem .5rem; margin: .5rem 0;
+    /* outline, not border: a 1px border top and bottom is 2px the ruled grid
+       does not have, and it would appear only on hover -- so the page would
+       jump off the lines under the cursor. */
+    position: relative; outline: 1px solid transparent; border-radius: var(--radius-md);
+    padding: 0 .5rem; margin: 0;
   }
   .sec-body { min-width: 0; }
 
@@ -75,7 +118,7 @@
 
   /* Selection. One press picks a thing up; the outline is the whole feedback,
      since there is no handle to point at. */
-  .sec.picked { border-color: var(--accent); background: var(--ivory); box-shadow: 0 0 0 3px var(--sand); }
+  .sec.picked { outline-color: var(--accent); background: var(--ivory); box-shadow: 0 0 0 3px var(--sand); }
   .blk.picked .body { box-shadow: 0 0 0 2px var(--accent); border-radius: var(--radius-sm); }
   .sec.picked, .blk.picked { cursor: move; }
 
@@ -119,10 +162,14 @@
     background: var(--sand); pointer-events: none;
   }
 
-  .adders { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1.2rem 0; }
+  /* A whole rule of air, not 1.2rem. At a 17px root that was 20.4px, and the
+     5.6px left over put this row -- and its buttons -- off the lines. */
+  .adders { display: flex; gap: .4rem; flex-wrap: wrap; margin: var(--rule) 0; }
   .adders button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .85rem; }
   .adders button:hover { background: var(--sand); color: var(--ink); }
-  .drop { border: 2px dashed var(--ring); border-radius: var(--radius-md); padding: calc(var(--rule) - 2px) 1rem; text-align: center; color: var(--ink-stone); }
+  /* Lifted onto the lines: a dashed box whose edges land 6px below a rule
+     reads as a box the paper is cutting through. See --lift in app.css. */
+  .drop { border: 2px dashed var(--ring); border-radius: var(--radius-md); padding: calc(var(--rule) - 2px) 1rem; text-align: center; color: var(--ink-stone); position: relative; top: calc(-1 * var(--lift)); }
   .drop.over { border-color: var(--accent); background: var(--sand); color: var(--accent); }
   textarea { width: 100%; min-height: calc(var(--rule) * 5); font: 13px/var(--rule) var(--font-mono); }
   .diff li { margin: .2rem 0; }
@@ -237,7 +284,12 @@
   }
 
   /* The page's own controls, on the section card. */
-  .page-tools { display: flex; gap: .3rem; align-items: center; margin: 0 0 .4rem; }
+  /* Exactly one rule, and no margin. The .4rem that used to sit under this bar
+     was 6.8px, which put every block on the page -- and the page bar and the
+     adders below them -- off the ruled lines. The chips inside are shorter
+     than a rule and centre in it. */
+  .page-tools { display: flex; gap: .3rem; align-items: center; height: var(--rule); margin: 0;
+                position: relative; top: calc(-1 * var(--lift)); }
   .page-tools .name { flex: 1; font-size: .82rem; color: var(--ink-stone); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .page-tools button { min-height: 0; height: calc(var(--rule) - 6px); line-height: calc(var(--rule) - 8px); padding: 0 .5rem; font-size: .75rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
   .page-tools button:hover { background: var(--sand); color: var(--ink); }
@@ -266,20 +318,14 @@
     background: var(--paper);
     border: 1px solid var(--border-warm);
     border-radius: 8px;
+    /* Filled, so it sits between two rules rather than 6px past them. */
+    position: relative;
+    top: calc(-1 * var(--lift));
   }
   .ai-log pre b { color: var(--ink); font-weight: 600; }
   /* Reasoning, where the model exposes any. Dimmer than the answer: it is the
      model thinking aloud, not what it decided. */
   .ai-log pre i { color: var(--border-warm); font-style: normal; }
-  /* The model picker lives with the log rather than in the toolbar: it belongs
-     next to the thing whose speed and answers it changes. */
-  .ai-model { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; font-size: .85rem; line-height: var(--rule); padding: 0; margin: 0 0 calc(var(--rule) / 2); }
-  .ai-model select {
-    height: var(--rule); line-height: var(--rule); padding: 0 .4rem; font: inherit;
-    color: var(--ink); background: var(--paper);
-    border: 1px solid var(--border-warm); border-radius: 6px; max-width: 18rem;
-  }
-  .ai-model .hint { font-size: .78rem; color: var(--ink-silver); }
 </style>
 </head>
 <body>
@@ -294,6 +340,22 @@
   <div class="nav-end">
     <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
     <button type="button" class="secondary" id="navSignout">Sign out</button>
+    <!--
+      Settings. A <details> rather than a scripted menu: open/close, Escape,
+      and the focus order are the browser's job, and the only thing in here is
+      one setting. It sits in the header, not the toolbar, because it is a
+      preference for this computer rather than an action on this document.
+    -->
+    <details class="settings" id="settings">
+      <summary aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>
+      </summary>
+      <div class="menu">
+        <label for="aiModel">AI model</label>
+        <select id="aiModel"><option value="">default</option></select>
+        <p class="hint">Answers <b>Fix headings</b> and <b>Suggest initials</b>. Remembered on this computer.</p>
+      </div>
+    </details>
   </div>
 </nav></header>
 
@@ -302,8 +364,8 @@
   <span class="spacer"></span>
   <span class="status" id="status"></span>
   <button class="secondary" id="importBtn" title="Start over from a .docx or pasted text">Import…</button>
-  <button class="secondary" id="structureBtn" title="Ask Ollama which lines are really headings. Retags only — never changes a word.">Fix headings</button>
-  <button class="secondary" id="suggestBtn" title="Ask Ollama which sections should need initials">Suggest initials</button>
+  <button class="secondary" id="structureBtn" title="Ask the AI which lines are really headings. Retags only — never changes a word.">Fix headings</button>
+  <button class="secondary" id="suggestBtn" title="Ask the AI which sections should need initials">Suggest initials</button>
   <button class="secondary" id="saveBtn">Save draft</button>
   <button id="publishBtn">Publish…</button>
 </div></div>
@@ -320,13 +382,14 @@
     stays however the teacher last left it, so watching is available without
     being imposed. Everything in here is DISPLAY ONLY -- the decision that
     reaches the document is the whitelisted `done` line, never this text.
+
+    Opening it must cost a WHOLE number of rules, or every block below shifts
+    off the ruled lines the moment a run starts. That is why there is nothing
+    in here but the summary and a pre of a fixed 8 rules -- the model picker
+    used to sit between them and contributed half a rule.
   -->
   <details class="ai-log" id="aiLog">
-    <summary><span id="aiTitle">Ollama — model &amp; live log</span><span class="ai-meta" id="aiMeta"></span></summary>
-    <label class="ai-model" for="aiModel">Model
-      <select id="aiModel"><option value="">default</option></select>
-      <span class="hint">Applies to both AI buttons. Remembered on this computer.</span>
-    </label>
+    <summary><span id="aiTitle">AI — live log</span><span class="ai-meta" id="aiMeta"></span></summary>
     <!-- aria-live is off deliberately: a token-by-token live region reads the
          same sentence back a dozen times. The result is announced by notice(). -->
     <pre id="aiStream" aria-live="off" tabindex="0"></pre>
@@ -339,7 +402,7 @@
     Nothing is live until you publish.</p>
 
 
-  <div id="importCard" class="card">
+  <div id="importCard" class="card plain">
     <h2>Start from a document</h2>
     <div class="drop" id="drop">
       <p>Drop a <code>.docx</code> here, or paste the text below</p>
@@ -1418,7 +1481,7 @@ for (const btn of document.querySelectorAll('[data-add]')) {
 }
 
 
-// ---- watching Ollama work ----
+// ---- watching the model work ----
 //
 // Both AI endpoints answer with newline-delimited JSON when asked with
 // ?stream=1: `open`, then `think`/`token` lines as the model produces them, and
@@ -1430,6 +1493,16 @@ for (const btn of document.querySelectorAll('[data-add]')) {
 
 const AI_MODEL_KEY = 'inishial:ollama-model';
 const aiModel = $('aiModel');
+
+// A <details> menu stays open until something closes it, and neither a click
+// elsewhere nor Escape is one of those things for free.
+const settings = $('settings');
+document.addEventListener('pointerdown', (e) => {
+  if (settings.open && !settings.contains(e.target)) settings.open = false;
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && settings.open) { settings.open = false; settings.querySelector('summary').focus(); }
+});
 
 /** Offer whatever this host will run. Fails soft to the default-only list --
  *  losing the picker must not cost the feature it configures. */
@@ -1460,8 +1533,6 @@ const aiStream = $('aiStream');
 const aiMeta = $('aiMeta');
 
 function aiOpen(what) {
-  // Always present, not revealed on first run: the model picker lives in here,
-  // and a control you can only reach AFTER running is the wrong way round.
   aiLog.open = true;
   $('aiTitle').textContent = what;
   aiStream.textContent = '';
@@ -1601,7 +1672,7 @@ function offerStructureIfFlat(imported) {
 $('suggestBtn').addEventListener('click', async () => {
   if (!state.blocks.length) { notice('Nothing to look at yet.', 'error'); return; }
   $('suggestBtn').disabled = true;
-  status('Asking Ollama…');
+  status('Asking the model…');
   try {
     const body = await aiRun('/api/admin/suggest', { blocks: state.blocks }, 'Suggesting initials');
     if (!body.available) { notice(body.reason || 'Suggestions are not available.', 'error'); return; }

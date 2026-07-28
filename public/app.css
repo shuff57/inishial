@@ -112,6 +112,20 @@
      on the line rather than floating. */
   --sit: 3px;
 
+  /* The gap between the box grid and the DRAWN rules -- 6px.
+   *
+   * The ruled background is pushed down by --baseline + --sit so text baselines
+   * land on it. That is right for text and wrong for anything with a fill: a
+   * banner, a drop zone, a log box aligned to the box grid has its edges drawn
+   * 6px BELOW the rules, so a line appears to cut across it just short of the
+   * bottom. Lift such a box by this and its edges land on the lines.
+   *
+   * Use it as `position: relative; top: calc(-1 * var(--lift))` -- that moves
+   * the paint without moving the box, so nothing below shifts off the grid.
+   * Where there is a WRAPPER to put it on instead, prefer .on-rules: padding
+   * costs no positioning and keeps the wrapper a whole number of rules. */
+  --lift: calc(var(--rule) - var(--baseline) - var(--sit));
+
   --swipe: 420ms cubic-bezier(.22, 1, .36, 1);
 
   /* Overwritten by ui.js with the nav's measured height. The 0 fallback is what
@@ -713,6 +727,13 @@ button[disabled] { opacity: .5; cursor: not-allowed; }
 /* .secondary / .danger apply to both a <button> and an <a class="button">, so
    a link that navigates never has to be faked with a nested control. */
 .secondary { background: transparent; color: var(--ink); border-color: var(--ring); }
+/* On the paper, though, it needs a fill. A secondary button is two rules tall,
+   and transparent means a ruled line is drawn straight through it -- which
+   reads as a mistake rather than as paper showing through. Paper-coloured, so
+   it still looks like an outline; it just stops the line at its edge. Only
+   inside main: in the toolbar and the nav the background is the desk, not the
+   page, and there is no rule to hide. */
+main .secondary { background: var(--paper); }
 .secondary:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
 .danger { background: transparent; color: var(--danger); border-color: var(--danger); }
 .danger:hover:not([disabled]) { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
@@ -834,6 +855,10 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
   margin: var(--rule) 0;
   font-size: .92rem;
   line-height: var(--rule);
+  /* Two rules tall and filled, so it has to sit BETWEEN two lines rather than
+     have one drawn 6px above its bottom edge. See --lift. */
+  position: relative;
+  top: calc(-1 * var(--lift));
 }
 .notice.error {
   background: color-mix(in srgb, var(--danger) 12%, var(--paper));
@@ -892,9 +917,13 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
    margin from JS. Content that already fits is not touched at all, which is
    the normal case. */
 
+/* Same offsets as .on-rules, so the two-rule buttons in here sit BETWEEN two
+   lines instead of having one drawn across them. Padding on the bar rather
+   than a lift on each button: the bar stays a whole number of rules. */
 .book-bar {
   display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
   margin: var(--rule) 0 0;
+  padding: calc(var(--baseline) + var(--sit)) 0 var(--lift);
 }
 .book-bar .spacer { flex: 1; }
 .book-bar .where { font-size: .95rem; color: var(--ink-stone); line-height: var(--rule); }
