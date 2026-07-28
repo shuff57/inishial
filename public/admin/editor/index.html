@@ -119,6 +119,80 @@
      reading aids for someone working through the document, and here they would
      be two more things between a teacher and the words being checked. */
   #blocks .flags, #blocks .initial-box::before { display: none; }
+  /* Every page in the syllabus, down the fore-edge. The parent's rail marks
+     only the sections that ask for something; this one shows them ALL, because
+     here the question is "what pages exist" rather than "what do I still owe".
+     Same tongue shape, so the two read as the same object. */
+  .pages {
+    position: sticky; top: calc(var(--nav-h) + var(--rule) * 3);
+    float: right; width: 8.4rem;
+    margin: 0 calc(-8.4rem - 1.6rem + 1.5rem) var(--rule) 1rem;
+    display: flex; flex-direction: column; gap: .3rem; z-index: 3;
+  }
+  .pages button {
+    display: block; width: 100%; min-height: 0; height: 1.35rem; line-height: 1.35rem;
+    padding: 0 .4rem 0 0; text-indent: 1.1rem; text-align: left;
+    border: 0; border-radius: 0 3px 3px 0;
+    clip-path: polygon(0 50%, .6rem 0, 100% 0, 100% 100%, .6rem 100%);
+    background: var(--sand); color: var(--ink-stone);
+    font-size: .62rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    box-shadow: 2px 2px 4px rgba(0,0,0,.14);
+    transform: translateX(-4px);
+    transition: transform .16s ease-out;
+    cursor: pointer;
+  }
+  /* A page that asks for initials, so the rail doubles as the answer to "which
+     of these will a parent have to sign". Same rose as the parent's flags. */
+  .pages button[data-needs="1"] { background: var(--tab-3); color: #1a1a1a; }
+  .pages button:hover:not([disabled]) { background: var(--sand); transform: translateX(0); }
+  .pages button[data-needs="1"]:hover:not([disabled]) { background: var(--tab-3); }
+  .pages button[aria-current="true"] {
+    transform: translateX(2px); color: var(--ink);
+    background: var(--ivory); box-shadow: 3px 3px 6px rgba(0,0,0,.22);
+    outline: 1px solid var(--ink-stone);
+  }
+  .pages button[aria-current="true"][data-needs="1"] { background: var(--tab-3); }
+  /* Drop target during a drag. Nothing else on the page changes colour, so the
+     one that does is unambiguous. */
+  .pages button.drop-to { background: var(--mark); color: #1a1a1a; transform: translateX(6px); outline: 2px solid var(--mark-deep); }
+  .pages button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* The empty tab at the end of the rail: a page that does not exist yet,
+     drawn as one. Outline rather than fill, because it is a place for a page
+     rather than a page -- the same reason the drop zone above is dashed. */
+  .pages button.ghost {
+    background: transparent;
+    color: var(--ink-stone);
+    border: 1px dashed var(--ring);
+    border-left-width: 1px;
+    box-shadow: none;
+    /* No clip-path: a dashed outline through a polygon clip loses the two
+       edges the clip cuts, and the tab reads as a broken box rather than an
+       empty one. Square, dashed, and unmistakably not yet a tab. */
+    clip-path: none;
+    border-radius: 3px;
+    text-indent: 0;
+    padding: 0 .4rem;
+    text-align: center;
+    opacity: .8;
+  }
+  .pages button.ghost:hover:not([disabled]) {
+    background: var(--sand);
+    border-style: solid;
+    border-color: var(--mark-deep);
+    color: var(--ink);
+    opacity: 1;
+    transform: translateX(0);
+  }
+  @media (prefers-reduced-motion: reduce) { .pages button { transition: none; } }
+  @media (max-width: 68rem) {
+    .pages { position: static; float: none; width: auto; margin: 0 0 var(--rule);
+             flex-direction: row; flex-wrap: wrap; }
+    .pages button { width: auto; max-width: 9rem; clip-path: none; border-radius: 3px;
+                    text-indent: 0; padding: 0 .5rem; transform: none; }
+    .pages button:hover, .pages button[aria-current="true"] { transform: none; }
+  }
+
   /* The page's own controls, on the section card. */
   .page-tools { display: flex; gap: .3rem; align-items: center; margin: 0 0 .4rem; }
   .page-tools .name { flex: 1; font-size: .82rem; color: var(--ink-stone); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -747,14 +821,19 @@ function startDrag(ev, index, kind) {
     setHover(null);
     // `units` are the things the placeholder can sit between; `moved` are the
     // DOM nodes to hide. For a section they are the same card.
+    // `rows[from]` was right when every block was on screen. One page at a
+    // time, `rows` holds only THIS page, so a global index into it is either
+    // the wrong row or undefined -- which is what it was on every page but the
+    // first. Look the row up by the index it carries instead.
     const rows = [...host.querySelectorAll('.blk')];
     if (kind === 'section') {
       units = [...host.querySelectorAll('.sec')];
-      moved = [units.find((s) => Number(s.dataset.from) === from)];
+      moved = [units.find((el) => Number(el.dataset.from) === from)];
     } else {
       units = rows;
-      moved = [rows[from]];
+      moved = [rows.find((r) => Number(r.dataset.index) === from)];
     }
+    if (!moved[0]) { live = false; dragging = false; return; }
     const first = moved[0].getBoundingClientRect();
     const last = moved[moved.length - 1].getBoundingClientRect();
     grabDX = x0 - first.left;
@@ -775,6 +854,17 @@ function startDrag(ev, index, kind) {
   /** Candidate units the placeholder may precede, excluding what is moving. */
   const others = () => units.filter((el) => !moved.includes(el));
 
+  // The page tab the cursor is over, if any. Dropping on one sends the block to
+  // that page -- the only way to move it somewhere not on screen, since the
+  // placeholder can only land between rows that are rendered.
+  let overTab = null;
+  function setTabTarget(el) {
+    if (overTab === el) return;
+    overTab?.classList.remove('drop-to');
+    overTab = el;
+    overTab?.classList.add('drop-to');
+  }
+
   function move(e) {
     if (!live) {
       if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) < 4) return;
@@ -782,6 +872,15 @@ function startDrag(ev, index, kind) {
     }
     ghost.style.left = (e.clientX - grabDX) + 'px';
     ghost.style.top = (e.clientY - grabDY) + 'px';
+
+    // The ghost is pointer-events:none, so this reads what is actually under
+    // the cursor rather than the thing being dragged.
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const tab = under?.closest?.('.pages button');
+    // Never the page you are already on: "move it to here" would be a no-op
+    // that still looked like it did something.
+    setTabTarget(tab && Number(tab.dataset.page) !== page ? tab : null);
+    if (overTab) { ph.remove(); return; }
     // Detach before measuring, so the drop math always sees the resting layout
     // rather than the gap the placeholder itself just opened. Without this the
     // placeholder chases the cursor and the target oscillates.
@@ -798,22 +897,53 @@ function startDrag(ev, index, kind) {
     document.removeEventListener('keydown', onKey, true);
     if (!live) return;
 
+    // Dropped on a page tab: send the whole dragged range to the end of that
+    // page and go there, so the move is visible rather than reported.
+    const tabTarget = commit && overTab ? Number(overTab.dataset.page) : null;
+    setTabTarget(null);
+
     let dest = null;
-    if (commit) {
+    if (commit && tabTarget === null) {
       // Read the drop off the placeholder's RESTING position rather than
       // re-running the hit test, so the drop always matches what was shown.
       const cand = others();
       let ref = ph.nextElementSibling;
       while (ref && !cand.includes(ref)) ref = ref.nextElementSibling;
-      const at = ref ? cand.indexOf(ref) : cand.length;
-      // A section's position among sections has to be converted back to a
-      // position among blocks before the array move can use it.
-      dest = kind === 'section' ? sectionDest(state.blocks, from, to, at) : at;
+      if (kind === 'section') {
+        const at = ref ? cand.indexOf(ref) : cand.length;
+        dest = sectionDest(state.blocks, from, to, at);
+      } else {
+        // A GLOBAL block index, taken from the row itself. Its position among
+        // the rendered rows is a position within one page, and moveRange works
+        // on the whole document -- passing the first would move the block to
+        // wherever that offset happens to land near the top of the syllabus.
+        //
+        // Then converted to moveRange's frame, which counts among the blocks
+        // that are NOT moving. Skipping that step overshoots by the size of
+        // the range, and a block dropped at the end of its own page landed on
+        // the NEXT one -- it simply vanished from the page you were looking at.
+        const target = ref ? Number(ref.dataset.index) : pages()[page][1];
+        dest = target >= to ? target - (to - from) : target;
+      }
     }
     ph.remove();
     ghost.remove();
     dragging = false;
     moved.forEach((el, i) => { el.style.display = hidden[i] || ''; });
+
+    if (tabTarget !== null) {
+      const carried = state.blocks.splice(from, to - from);
+      // Ranges are recomputed AFTER the removal: taking blocks out can change
+      // where every later page starts, and using the old numbers would drop the
+      // line into whatever happens to be there now.
+      const after = sectionRanges(state.blocks);
+      const idx = Math.max(0, Math.min(tabTarget, after.length - 1));
+      state.blocks.splice(after[idx][1], 0, ...carried);
+      selected = null;
+      markDirty();
+      goPage(idx);
+      return;
+    }
     if (dest !== null) applyMove(from, to, dest);
   }
 
@@ -911,7 +1041,66 @@ $('pasteBtn').addEventListener('click', () => {
 
 // ---- moving between pages ----
 
+/**
+ * Every page in the syllabus, as a tab down the edge.
+ *
+ * The parent's rail marks only sections that ask for something; this one shows
+ * them ALL, because the question here is "what pages exist and what is on
+ * them", not "what do I still owe". Rose still means "this one asks for
+ * initials", so the two rails agree about that much.
+ *
+ * Also the drop target for a block drag -- see dragBlock(). Dropping a line on
+ * a tab is the only way to move it to a page that is not on screen.
+ */
+function renderPageRail(ranges) {
+  document.querySelector('.pages')?.remove();
+  // Shown even for a single page: the rail carries "+ Page", and hiding it
+  // until there were two would hide the only way to make the second.
+  if (!ranges.length) return;
+
+  const rail = document.createElement('nav');
+  rail.className = 'pages';
+  rail.setAttribute('aria-label', 'Pages');
+
+  for (const [i, [from, to]] of ranges.entries()) {
+    const headed = startsSection(state.blocks[from]);
+    const label = headed ? (blockText(state.blocks[from].html) || 'Untitled') : 'Opening';
+    const needs = sectionSigns(state.blocks, from, to);
+
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.textContent = label;
+    tab.dataset.page = String(i);
+    if (needs) tab.dataset.needs = '1';
+    tab.setAttribute('aria-current', String(i === page));
+    // The visible label is clipped by CSS, so the accessible name carries the
+    // whole thing and the state.
+    tab.title = `Page ${i + 1}: ${label}${needs ? ' — asks for initials' : ''}`;
+    tab.setAttribute('aria-label', tab.title);
+    tab.addEventListener('click', () => goPage(i));
+    rail.appendChild(tab);
+  }
+
+  // A tab for the page that does not exist yet. The adder below the sheet puts
+  // a page after the one you are on; this one puts it at the END, which is
+  // what "add another page" means when you are looking at the whole rail.
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'ghost';
+  add.textContent = '+ Page';
+  add.title = 'Add a new page at the end of the syllabus';
+  add.addEventListener('click', () => {
+    state.blocks.push({ type: 'heading', level: 2, html: '<h2>New page</h2>' });
+    markDirty();
+    goPage(sectionRanges(state.blocks).length - 1);
+  });
+  rail.appendChild(add);
+
+  $('blocks').before(rail);
+}
+
 function renderPageBar(ranges) {
+  renderPageRail(ranges);
   const n = ranges.length;
   $('pageBar').hidden = !n;
   $('pgWhere').textContent = n ? `Page ${page + 1} of ${n}` : '';
