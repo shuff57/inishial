@@ -191,3 +191,52 @@ test('each signing prompt stays in the section it attests to', async () => {
     assert.equal(section.at(-1), prompts[0], 'and it is the last thing on the page');
   }
 });
+
+// ---- dragging still moves whole sections ----
+//
+// A section is the unit a signature is hashed against, so it has to move whole.
+// dragRange bounded itself with `type === 'heading'`, which stopped at the
+// first SUBHEADING the moment those existed: picking up "Grading Policy"
+// carried the heading alone and left four subsections and an initials prompt
+// behind. Nothing failed; the document just quietly came apart.
+
+import { dragRange, unitStartBefore } from '../public/admin/editor/reorder.js';
+
+const policy = () => [
+  h2('Grading Policy'),
+  h3('Daily work'), p('Completion.'),
+  h3('Late work'), p('Ten percent.'),
+  prompt('I have read the grading policy.'),
+  h2('Attendance'), p('Daily.'),
+];
+
+test('dragging a section carries its subheadings and its prompt', () => {
+  const blocks = policy();
+  assert.deepEqual(dragRange(blocks, 0), [0, 6]);
+  const carried = blocks.slice(...dragRange(blocks, 0));
+  assert.equal(carried.length, 6);
+  assert.ok(carried.some((b) => b.needs_initials), 'the prompt must travel with its policy');
+});
+
+test('dragging a subheading carries only itself', () => {
+  // A subheading is a line inside a section, so it moves like one. Carrying
+  // the paragraphs under it would be a second, invisible grouping rule.
+  assert.deepEqual(dragRange(policy(), 1), [1, 2]);
+  assert.deepEqual(dragRange(policy(), 2), [2, 3]);
+});
+
+test('the unit before a section starts at its own heading, not a subheading', () => {
+  // This is what "move up" lands against. Returning the subheading index would
+  // drop a whole section into the middle of the one above it.
+  assert.equal(unitStartBefore(policy(), 6), 0);
+});
+
+test('dragRange never splits what sections() would keep together', () => {
+  // The two must agree, or a drag produces a document whose pages are not the
+  // ones the editor was showing.
+  const blocks = policy();
+  const starts = blocks.map((_, i) => i).filter((i) => startsSection(blocks[i]));
+  const fromDrag = starts.map((i) => dragRange(blocks, i));
+  const fromSections = sectionRanges(blocks);
+  assert.deepEqual(fromDrag, fromSections);
+});

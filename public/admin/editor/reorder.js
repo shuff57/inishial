@@ -8,11 +8,17 @@
 // it, and the same grouping is what functions/_lib/syllabus.js hashes a
 // signature against. The two definitions must agree.
 
-/** Half-open [from, to) range a drag starting at `index` carries. */
+/** Half-open [from, to) range a drag starting at `index` carries.
+ *
+ *  Bounded by startsSection, NOT by `type === 'heading'`. Once subheadings
+ *  existed, the second test stopped a drag at the first one -- so picking up
+ *  "Grading Policy" carried the heading alone and left its four subsections and
+ *  its initials prompt sitting where they were. A section has to move whole:
+ *  it is the unit a signature is hashed against. */
 export function dragRange(blocks, index) {
-  if (blocks[index]?.type !== 'heading') return [index, index + 1];
+  if (!startsSection(blocks[index])) return [index, index + 1];
   let end = index + 1;
-  while (end < blocks.length && blocks[end].type !== 'heading') end++;
+  while (end < blocks.length && !startsSection(blocks[end])) end++;
   return [index, end];
 }
 
@@ -31,15 +37,15 @@ export function insertionIndex(y, bands) {
  *  heading, or 0 when there is no heading above it. */
 export function unitStartBefore(blocks, from) {
   let i = from - 1;
-  while (i > 0 && blocks[i].type !== 'heading') i--;
+  while (i > 0 && !startsSection(blocks[i])) i--;
   return i;
 }
 
 // The section split moved to shared/sections.js when the signing page started
 // paging by section too. Re-exported so this module still reads as the editor's
 // complete model, but there is exactly one definition and it is over there.
-export { sectionRanges } from '../../shared/sections.js';
-import { sectionRanges } from '../../shared/sections.js';
+export { sectionRanges, startsSection } from '../../shared/sections.js';
+import { sectionRanges, startsSection } from '../../shared/sections.js';
 
 const PROMPT_TYPES = new Set(['initial', 'agree']);
 // The vocabulary the AI pass answers in. 'subheading' is not a stored type --
