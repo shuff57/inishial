@@ -190,10 +190,12 @@ async function send(res, response) {
   res.end(body);
 }
 
-// The same rewrites public/_redirects declares for Cloudflare Pages. Kept in
-// step by hand, which is the cost of a dev server that is not the real runtime
-// -- if a public URL is ever added, it goes in both places or it 404s in one of
-// them.
+// The same rewrites functions/sign/index.js and functions/register/index.js do
+// in production. This server routes /api/* to the Functions but serves
+// everything else off disk, so a Function whose whole job is to serve an asset
+// has to be mirrored here. If a public URL is ever added it goes in both places
+// or it 404s in one of them -- which is exactly how the _redirects version got
+// as far as a deploy before anyone noticed it did not work.
 const REWRITES = new Map([
   ['/register', '/index.html'], ['/register/', '/index.html'],
   ['/sign', '/index.html'], ['/sign/', '/index.html'],
