@@ -50,6 +50,11 @@
     border-radius: var(--radius-sm); padding: .35rem .3rem;
   }
   .blk[data-type=heading] .edit { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; }
+  /* A subheading is visibly smaller and indented, so "starts a new page a
+     parent initials" and "is a title inside this one" are told apart at a
+     glance rather than by hovering for the tooltip. */
+  .blk[data-level="3"] .edit { font-size: 1.02rem; padding-left: 1.1rem; }
+  .blk[data-level="3"] .body { border-left: 2px solid var(--border-warm); }
   .blk .why { font-family: var(--font-hand); font-size: 1.05rem; color: var(--accent); padding-left: .5rem; }
 
   /* A section is ONE box you click and move, the way a div.callout is one
@@ -135,6 +140,15 @@
   /* Reasoning, where the model exposes any. Dimmer than the answer: it is the
      model thinking aloud, not what it decided. */
   .ai-log pre i { color: var(--border-warm); font-style: normal; }
+  /* The model picker lives with the log rather than in the toolbar: it belongs
+     next to the thing whose speed and answers it changes. */
+  .ai-model { display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; font-size: .85rem; line-height: var(--rule); padding: 0; margin: 0 0 calc(var(--rule) / 2); }
+  .ai-model select {
+    height: var(--rule); line-height: var(--rule); padding: 0 .4rem; font: inherit;
+    color: var(--ink); background: var(--paper);
+    border: 1px solid var(--border-warm); border-radius: 6px; max-width: 18rem;
+  }
+  .ai-model .hint { font-size: .78rem; color: var(--ink-silver); }
 </style>
 </head>
 <body>
@@ -176,8 +190,12 @@
     being imposed. Everything in here is DISPLAY ONLY -- the decision that
     reaches the document is the whitelisted `done` line, never this text.
   -->
-  <details class="ai-log" id="aiLog" hidden>
-    <summary><span id="aiTitle">Ollama</span><span class="ai-meta" id="aiMeta"></span></summary>
+  <details class="ai-log" id="aiLog">
+    <summary><span id="aiTitle">Ollama — model &amp; live log</span><span class="ai-meta" id="aiMeta"></span></summary>
+    <label class="ai-model" for="aiModel">Model
+      <select id="aiModel"><option value="">default</option></select>
+      <span class="hint">Applies to both AI buttons. Remembered on this computer.</span>
+    </label>
     <!-- aria-live is off deliberately: a token-by-token live region reads the
          same sentence back a dozen times. The result is announced by notice(). -->
     <pre id="aiStream" aria-live="off" tabindex="0"></pre>
@@ -256,7 +274,13 @@ function htmlToBlocks(html) {
     const tag = el.tagName.toLowerCase();
     const text = el.textContent.trim();
     if (!text && tag !== 'hr') continue;
-    if (/^h[1-6]$/.test(tag)) out.push({ type: 'heading', html: `<h2>${esc(text)}</h2>` });
+    if (/^h[1-6]$/.test(tag)) {
+      // Word's own outline levels are respected rather than flattened. h1/h2
+      // start a section; h3 and below are subheadings inside it. Flattening
+      // everything to h2 is what turned one grading policy into six pages.
+      const level = Number(tag[1]) <= 2 ? 2 : 3;
+      out.push({ type: 'heading', level, html: `<h${level}>${esc(text)}</h${level}>` });
+    }
     else if (tag === 'ul' || tag === 'ol') out.push({ type: 'list', html: el.outerHTML });
     else if (tag === 'table') out.push({ type: 'text', html: el.outerHTML });
     else out.push({ type: 'text', html: `<p>${el.innerHTML}</p>` });
@@ -346,6 +370,7 @@ function blockRow(block, index) {
   const row = document.createElement('div');
   row.className = 'blk';
   row.dataset.type = block.type;
+  if (block.type === 'heading') row.dataset.level = String(block.level ?? 2);
   row.dataset.index = index;
   if (selected && selected.kind === 'block' && selected.at === index) row.classList.add('picked');
 
@@ -377,6 +402,26 @@ function blockRow(block, index) {
   // section is what a prompt attests to. Deleting is still per-block.
   const tools = document.createElement('div');
   tools.className = 'tools';
+
+  // Heading level. A section heading starts a page a parent initials; a
+  // subheading only looks like one. That difference decides what a signature
+  // covers, so it is a visible, deliberate toggle rather than a font choice.
+  if (block.type === 'heading') {
+    const lvl = document.createElement('button');
+    const isSub = Number(block.level ?? 2) === 3;
+    lvl.textContent = isSub ? 'sub' : 'SEC';
+    lvl.title = isSub
+      ? 'A subheading: sits inside the section above it. Click to make it start its own page.'
+      : 'A section heading: starts a new page a parent initials. Click to make it a subheading.';
+    if (!isSub) lvl.className = 'on';
+    lvl.addEventListener('click', () => {
+      block.level = isSub ? 2 : 3;
+      block.html = `<h${block.level}>${blockText(block.html)}</h${block.level}>`;
+      markDirty();
+      render();
+    });
+    tools.append(lvl);
+  }
 
   const del = document.createElement('button');
   del.textContent = '✕';
@@ -756,12 +801,40 @@ for (const btn of document.querySelectorAll('[data-add]')) {
 // box and nowhere else -- the model's words are for the teacher to watch, never
 // for the document to absorb.
 
+const AI_MODEL_KEY = 'inishial:ollama-model';
+const aiModel = $('aiModel');
+
+/** Offer whatever this host will run. Fails soft to the default-only list --
+ *  losing the picker must not cost the feature it configures. */
+(async () => {
+  const chosen = localStorage.getItem(AI_MODEL_KEY) || '';
+  try {
+    const body = await (await fetch('/api/admin/models')).json();
+    for (const name of body.models || []) {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name === body.configured ? `${name} (default)` : name;
+      aiModel.appendChild(opt);
+    }
+    aiModel.firstChild.textContent = body.available ? 'default' : `${body.configured} (default)`;
+  } catch { /* the single default option is already there */ }
+  // Only re-select a remembered model the host still offers; one that has gone
+  // away would otherwise sit selected and fail on every run.
+  if (chosen && [...aiModel.options].some((o) => o.value === chosen)) aiModel.value = chosen;
+})();
+
+aiModel.addEventListener('change', () => {
+  if (aiModel.value) localStorage.setItem(AI_MODEL_KEY, aiModel.value);
+  else localStorage.removeItem(AI_MODEL_KEY);
+});
+
 const aiLog = $('aiLog');
 const aiStream = $('aiStream');
 const aiMeta = $('aiMeta');
 
 function aiOpen(what) {
-  aiLog.hidden = false;
+  // Always present, not revealed on first run: the model picker lives in here,
+  // and a control you can only reach AFTER running is the wrong way round.
   aiLog.open = true;
   $('aiTitle').textContent = what;
   aiStream.textContent = '';
@@ -807,7 +880,8 @@ async function aiRun(path, payload, label) {
 
   try {
     const res = await fetch(`${path}?stream=1`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, model: aiModel.value || undefined }),
     });
     if (!res.ok || !res.body) throw new Error('no stream');
 
@@ -838,7 +912,8 @@ async function aiRun(path, payload, label) {
     aiWrite(`\nStreaming unavailable (${err.message}) — asking the plain way.\n`, 'note');
     try {
       const res = await fetch(path, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, model: aiModel.value || undefined }),
       });
       return finish(await res.json());
     } catch {
@@ -869,9 +944,16 @@ async function runStructure() {
     selected = null;
     markDirty();
     render();
-    const promoted = body.retag.filter((r) => r.tag === 'heading').length;
-    notice(`Retagged ${body.retag.length} line(s) — ${promoted} promoted to headings, `
-      + `${body.retag.length - promoted} back to body text. Wording unchanged.`, 'ok');
+    // Counted three ways, not two. Lumping subheadings in with "back to body
+    // text" would report the one change that splits pages as the one that
+    // does not.
+    const n = (tag) => body.retag.filter((r) => r.tag === tag).length;
+    const parts = [
+      n('heading') && `${n('heading')} now start their own page`,
+      n('subheading') && `${n('subheading')} tucked in as subheadings`,
+      n('text') && `${n('text')} back to body text`,
+    ].filter(Boolean);
+    notice(`Retagged ${body.retag.length} line(s) — ${parts.join(', ')}. Wording unchanged.`, 'ok');
   } catch {
     notice('Could not reach the server.', 'error');
   } finally { $('structureBtn').disabled = false; status(''); }

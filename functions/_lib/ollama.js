@@ -20,8 +20,8 @@ export function ollamaBase(env) {
   return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
 }
 
-const body = (env, content, stream) => JSON.stringify({
-  model: env.OLLAMA_MODEL || MODEL,
+const body = (env, content, stream, model) => JSON.stringify({
+  model: model || env.OLLAMA_MODEL || MODEL,
   stream,
   format: 'json',
   options: { temperature: 0 },
@@ -34,11 +34,11 @@ const headers = (env) => ({
 });
 
 /** One request, one answer. Returns the assistant's raw text, or throws. */
-export async function chat(env, content) {
+export async function chat(env, content, model) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const res = await fetch(`${ollamaBase(env)}/api/chat`, {
-    method: 'POST', signal: controller.signal, headers: headers(env), body: body(env, content, false),
+    method: 'POST', signal: controller.signal, headers: headers(env), body: body(env, content, false, model),
   }).finally(() => clearTimeout(timer));
   if (!res.ok) throw Object.assign(new Error(`Ollama returned ${res.status}.`), { status: res.status });
   return (await res.json())?.message?.content ?? '';
@@ -62,7 +62,7 @@ export async function chat(env, content) {
  * way, and SSE would add a framing format for a stream that is already one
  * object per line.
  */
-export function streamChat(env, content, finish) {
+export function streamChat(env, content, finish, model) {
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
@@ -76,11 +76,11 @@ export function streamChat(env, content, finish) {
     let answer = '';
     try {
       const res = await fetch(`${ollamaBase(env)}/api/chat`, {
-        method: 'POST', signal: controller.signal, headers: headers(env), body: body(env, content, true),
+        method: 'POST', signal: controller.signal, headers: headers(env), body: body(env, content, true, model),
       });
       if (!res.ok) throw Object.assign(new Error(`Ollama returned ${res.status}.`), { status: res.status });
 
-      await send({ type: 'open', model: env.OLLAMA_MODEL || MODEL });
+      await send({ type: 'open', model: model || env.OLLAMA_MODEL || MODEL });
 
       // Ollama streams one JSON object per line, but a chunk boundary can fall
       // anywhere -- including mid-line. `carry` holds the incomplete tail.
@@ -122,6 +122,33 @@ export function streamChat(env, content, finish) {
       'X-Accel-Buffering': 'no',
     },
   });
+}
+
+/**
+ * The JSON object in a model's answer, however it chose to present it.
+ *
+ * `format: 'json'` is a request, not a guarantee, and it is honoured unevenly:
+ * gpt-oss:120b puts its reasoning in `thinking` and returns clean JSON, while
+ * gpt-oss:20b writes "We need to identify which lines…" and then the object.
+ * Parsing the whole string rejects the second one outright -- which made every
+ * smaller model look broken the moment the picker let anyone choose it.
+ *
+ * The braces are located, not the prose stripped: taking the outermost {...}
+ * cannot invent a field, and anything malformed still throws and is still
+ * reported. This widens what is READ, never what is trusted -- the endpoint's
+ * whitelist runs on the result exactly as before.
+ */
+export function parseJsonAnswer(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { /* fall through to the braces */ }
+
+  const open = raw.indexOf('{');
+  const close = raw.lastIndexOf('}');
+  if (open === -1 || close <= open) throw new SyntaxError('no JSON object in the reply');
+  // Throws on its own if the slice is still malformed, which is correct: an
+  // unreadable answer must be reported, not quietly turned into an empty one.
+  return JSON.parse(raw.slice(open, close + 1));
 }
 
 /** The shape both endpoints report a failure in. Never throws past here: a

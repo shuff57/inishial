@@ -43,9 +43,9 @@ export async function latestPublished(db, syllabusId) {
 
 export async function blocksOf(db, versionId) {
   const { results } = await db.prepare(
-    'SELECT id, ord, type, html, needs_initials FROM blocks WHERE version_id = ?1 ORDER BY ord',
+    'SELECT id, ord, type, html, needs_initials, level FROM blocks WHERE version_id = ?1 ORDER BY ord',
   ).bind(versionId).all();
-  return (results ?? []).map((b) => ({ ...b, needs_initials: !!b.needs_initials }));
+  return (results ?? []).map((b) => ({ ...b, needs_initials: !!b.needs_initials, level: b.level ?? 2 }));
 }
 
 const TYPES = new Set(['heading', 'text', 'list', 'initial', 'agree']);
@@ -65,9 +65,14 @@ export async function replaceDraftBlocks(db, versionId, blocks) {
     // Only prompts can carry initials -- a heading or a bare paragraph asking
     // for initials would render without anything to sign against.
     const needs = (type === 'initial' || type === 'agree') ? 1 : 0;
+    // Only a heading has a level, and only 2 or 3. Anything else is 2, because
+    // a stray level on a paragraph would be silently meaningless -- and a bad
+    // level on a heading changes where a section starts, which changes what a
+    // parent is held to have agreed to.
+    const level = type === 'heading' && Number(raw.level) === 3 ? 3 : 2;
     await db.prepare(
-      'INSERT INTO blocks (version_id, ord, type, html, needs_initials) VALUES (?1, ?2, ?3, ?4, ?5)',
-    ).bind(versionId, ord++, type, String(raw.html ?? ''), needs).run();
+      'INSERT INTO blocks (version_id, ord, type, html, needs_initials, level) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+    ).bind(versionId, ord++, type, String(raw.html ?? ''), needs, level).run();
   }
   return ord;
 }

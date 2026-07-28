@@ -188,11 +188,59 @@ async function loadSyllabus() {
 // initial exactly the span of text they were shown.
 let stopSnapping = null;
 
+/**
+ * The dividers down the edge of the binder: one tab per section.
+ *
+ * Built from the sheets that already exist rather than from state.blocks, so
+ * there is no second place that has to agree about what a section is. The
+ * colour of a tab's spine says whether that section wants initials and whether
+ * it has them -- so the strip doubles as the progress bar it sits next to.
+ *
+ * A toolbar, not a tablist: the panels are pages of one document rather than
+ * alternative views of the same thing, and announcing them as tabs would
+ * promise a reader that Left/Right moves between siblings, which here means
+ * turning the page. Arrow keys already do that, globally, from book.js.
+ */
+function buildTabs(host) {
+  const rail = document.createElement('nav');
+  rail.className = 'tabs-side';
+  rail.setAttribute('aria-label', 'Sections');
+
+  const tabs = [...host.querySelectorAll('.sheet')].map((sheet, i) => {
+    const label = sheet.getAttribute('aria-label') || `Page ${i + 1}`;
+    const prompts = [...sheet.querySelectorAll('.initial-box')];
+
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'secondary';
+    tab.textContent = label;
+    // The visible text is truncated by CSS at this width, so the accessible
+    // name has to carry the whole thing -- a screen reader must not be handed
+    // "Course Objectives/Student Learning…".
+    tab.title = label;
+    tab.setAttribute('aria-label', `${label}, page ${i + 1} of ${host.querySelectorAll('.sheet').length}`);
+    if (prompts.length) tab.dataset.needs = '1';
+    if (prompts.length && prompts.every((p) => p.classList.contains('done'))) tab.dataset.signed = '1';
+    tab.addEventListener('click', () => book?.go(i));
+    rail.appendChild(tab);
+    return tab;
+  });
+
+  // Before the paper, so a tab is reachable by Tab before the page it opens --
+  // and so the float clears against the sheets rather than the other way round.
+  host.before(rail);
+  return tabs;
+}
+
 function render() {
   const wasOn = book?.at() ?? 0;
   const host = $('blocks');
   host.textContent = '';
   host.className = 'book';
+  // The rail is a SIBLING of #blocks, so emptying #blocks does not take it with
+  // it. Initialling re-renders, and without this every signature left another
+  // strip of tabs down the page.
+  document.querySelector('.tabs-side')?.remove();
 
   for (const section of sections(state.blocks)) {
     const sheet = document.createElement('section');
@@ -205,11 +253,20 @@ function render() {
     host.appendChild(sheet);
   }
 
+  const tabs = buildTabs(host);
+
   book = createBook(host, {
     onTurn: (i, n) => {
       $('where').textContent = `Page ${i + 1} of ${n}`;
       $('prevPage').disabled = i === 0;
       $('nextPage').disabled = i === n - 1;
+      // One source of truth for which page is showing: the book. The tabs
+      // report it, they do not keep their own idea of it -- which is what
+      // stops "Next page" and a tab click from ever disagreeing.
+      for (const [at, tab] of tabs.entries()) {
+        tab.setAttribute('aria-current', String(at === i));
+        tab.tabIndex = at === i ? 0 : -1;
+      }
     },
   });
   $('bookBar').hidden = !book;

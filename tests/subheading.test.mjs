@@ -1,0 +1,111 @@
+// Heading level, and the thing it protects.
+//
+// A section is a page, a signing unit, and the exact span a signature is hashed
+// against, all at once. Before levels, every heading started one -- so marking
+// "Group Assessment:" as a heading, which is typographically correct and what
+// the AI pass proposed, cut the grading policy into six pages and left the
+// parent initialling the last fragment.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { sections, sectionRanges, sectionTitle, startsSection } from '../public/shared/sections.js';
+import { retag } from '../public/admin/editor/reorder.js';
+
+const h2 = (t) => ({ type: 'heading', level: 2, html: `<h2>${t}</h2>` });
+const h3 = (t) => ({ type: 'heading', level: 3, html: `<h3>${t}</h3>` });
+const p = (t) => ({ type: 'text', html: `<p>${t}</p>` });
+const prompt = (t) => ({ type: 'initial', html: t, needs_initials: true });
+
+test('a subheading does not start a section', () => {
+  assert.equal(startsSection(h2('Grading Policy')), true);
+  assert.equal(startsSection(h3('Late Work')), false);
+  assert.equal(startsSection(p('anything')), false);
+});
+
+test('a heading with no level is a section heading', () => {
+  // Every heading written before levels existed was a section heading; that was
+  // the only kind there was. Reading a missing level as 3 would silently merge
+  // every existing syllabus into one page.
+  assert.equal(startsSection({ type: 'heading', html: '<h2>Old</h2>' }), true);
+});
+
+test('subheadings keep one policy as one signing unit', () => {
+  const blocks = [
+    h2('Grading Policy'),
+    h3('Daily Classwork:'), p('Assigned in Google Classroom.'),
+    h3('Group Assessment:'), p('A group test each unit.'),
+    h3('Late Work'), p('Ten percent per day.'),
+    prompt('I have read the grading policy.'),
+    h2('Use of AI'), p('Yellow level.'), prompt('I have read the AI policy.'),
+  ];
+
+  const secs = sections(blocks);
+  assert.equal(secs.length, 2, 'three subheadings must not make four pages');
+  assert.equal(sectionTitle(secs[0]), 'Grading Policy');
+  assert.equal(sectionTitle(secs[1]), 'Use of AI');
+
+  // The point of all of it: the prompt still sits in the policy it attests to.
+  assert.ok(secs[0].some((b) => b.needs_initials));
+  assert.equal(secs[0].filter((b) => b.type === 'heading').length, 4,
+    'the subheadings are still IN the section, not dropped');
+});
+
+test('promoting a subheading to a heading does split the section', () => {
+  // The behaviour is not being removed, only made deliberate.
+  const blocks = [h2('Grading'), h3('Late Work'), p('Ten percent.')];
+  assert.equal(sections(blocks).length, 1);
+  assert.equal(sections(blocks.map((b) => (b === blocks[1] ? h2('Late Work') : b))).length, 2);
+});
+
+test('sectionRanges and sections agree about the split', () => {
+  const blocks = [h2('A'), h3('a1'), p('x'), h2('B'), p('y')];
+  assert.deepEqual(sectionRanges(blocks), [[0, 3], [3, 5]]);
+  assert.deepEqual(sections(blocks).map((s) => s.length), [3, 2]);
+});
+
+test('a section titled by a subheading has no title of its own', () => {
+  // Blocks before the first level-2 heading are a leading section. A level-3
+  // heading at the top must not be mistaken for the document's first section.
+  assert.equal(sectionTitle([h3('Late Work'), p('x')]), null);
+});
+
+// ---- the AI pass speaks in three tags ----
+
+test('retag can nest a line instead of only promoting it', () => {
+  const blocks = [h2('Grading'), p('Late Work'), p('Ten percent.')];
+  const out = retag(blocks, [{ index: 1, tag: 'subheading' }]);
+  assert.equal(out[1].type, 'heading');
+  assert.equal(out[1].level, 3);
+  assert.match(out[1].html, /^<h3>/);
+  assert.equal(sections(out).length, 1, 'nesting must not create a page');
+});
+
+test('retag can move a line between the two heading levels', () => {
+  const asSub = retag([h2('Late Work')], [{ index: 0, tag: 'subheading' }]);
+  assert.equal(asSub[0].level, 3);
+  const backUp = retag(asSub, [{ index: 0, tag: 'heading' }]);
+  assert.equal(backUp[0].level, 2);
+  assert.match(backUp[0].html, /^<h2>/);
+});
+
+test('retagging still cannot change a single word', () => {
+  const blocks = [p('Late Work &amp; Make-ups')];
+  const out = retag(blocks, [{ index: 0, tag: 'subheading' }]);
+  assert.match(out[0].html, /Late Work &amp; Make-ups/,
+    'the words are re-escaped, never rewritten');
+});
+
+test('a no-op retag returns the block untouched', () => {
+  // Asking for the tag a line already has must not rebuild its html -- that
+  // would strip any inline markup the document arrived with.
+  const rich = { type: 'heading', level: 3, html: '<h3>Late <em>Work</em></h3>' };
+  assert.equal(retag([rich], [{ index: 0, tag: 'subheading' }])[0], rich);
+});
+
+test('a prompt is never retagged, at either level', () => {
+  const blocks = [prompt('I agree.')];
+  for (const tag of ['heading', 'subheading', 'text']) {
+    assert.equal(retag(blocks, [{ index: 0, tag }])[0].type, 'initial',
+      'retagging a prompt would drop a signature obligation from the document');
+  }
+});

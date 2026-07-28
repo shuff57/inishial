@@ -42,7 +42,20 @@ export { sectionRanges } from '../../shared/sections.js';
 import { sectionRanges } from '../../shared/sections.js';
 
 const PROMPT_TYPES = new Set(['initial', 'agree']);
-const RETAGGABLE = new Set(['text', 'heading']);
+// The vocabulary the AI pass answers in. 'subheading' is not a stored type --
+// it is a heading at level 3 -- but it is a distinct ANSWER, because the two
+// differ in whether they split a section, which is what a parent signs.
+const RETAGGABLE = new Set(['text', 'heading', 'subheading']);
+
+/** Storage shape for one of those answers. */
+function shapeFor(tag, words) {
+  if (tag === 'heading') return { type: 'heading', level: 2, html: `<h2>${escapeHtml(words)}</h2>` };
+  if (tag === 'subheading') return { type: 'heading', level: 3, html: `<h3>${escapeHtml(words)}</h3>` };
+  return { type: 'text', level: 2, html: `<p>${escapeHtml(words)}</p>` };
+}
+
+/** What tag a stored block already has, in that same vocabulary. */
+const tagOf = (b) => (b.type === 'heading' ? (Number(b.level ?? 2) === 3 ? 'subheading' : 'heading') : b.type);
 
 /** Visible words of a block, with markup removed. */
 export function blockText(html) {
@@ -79,14 +92,11 @@ export function retag(blocks, changes) {
 
   return blocks.map((block, i) => {
     const tag = want.get(i);
-    if (!tag || tag === block.type || !RETAGGABLE.has(block.type)) return block;
+    const was = tagOf(block);
+    if (!tag || tag === was || !RETAGGABLE.has(was)) return block;
     const words = blockText(block.html);
     if (!words) return block;
-    return {
-      ...block,
-      type: tag,
-      html: tag === 'heading' ? `<h2>${escapeHtml(words)}</h2>` : `<p>${escapeHtml(words)}</p>`,
-    };
+    return { ...block, ...shapeFor(tag, words) };
   });
 }
 

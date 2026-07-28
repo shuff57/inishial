@@ -19,12 +19,13 @@
 //   - It is authoring-time only. No parent or student request reaches a model.
 
 import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, readJson } from '../../_lib/http.js';
-import { MODEL, chat, streamChat, failure } from '../../_lib/ollama.js';
+import { MODEL, chat, streamChat, failure, parseJsonAnswer } from '../../_lib/ollama.js';
+import { isModelName } from './models.js';
 
 // Only these two can be reinterpreted. A prompt, a list or a table is never
 // silently retagged -- an `initial` block carries a signature obligation, and
 // turning one into a heading would drop it from the document without a trace.
-const RETAGGABLE = new Set(['text', 'heading']);
+const RETAGGABLE = new Set(['text', 'heading', 'subheading']);
 
 const PROMPT = `Below are the numbered lines of a course syllabus, in order.
 
@@ -45,8 +46,13 @@ export async function onRequestPost({ request, env }) {
     return json({ available: false, reason: 'No OLLAMA_API_KEY is configured.', retag: [] });
   }
 
+  // `type` here is the vocabulary the MODEL uses, not the storage one: a
+  // heading is stored as type 'heading' with a level, and flattening both into
+  // "heading" would ask the model to choose between two words it cannot see
+  // the difference between.
+  const asTag = (b) => (b?.type === 'heading' ? (Number(b.level ?? 2) === 3 ? 'subheading' : 'heading') : b?.type);
   const candidates = body.blocks
-    .map((b, i) => ({ i, type: b?.type, text: stripHtml(b?.html).slice(0, 200) }))
+    .map((b, i) => ({ i, type: asTag(b), text: stripHtml(b?.html).slice(0, 200) }))
     .filter((b) => RETAGGABLE.has(b.type) && b.text.length > 0);
 
   if (!candidates.length) return json({ available: true, retag: [] });
@@ -58,7 +64,7 @@ export async function onRequestPost({ request, env }) {
   // the document -- so there is exactly one, and both callers go through it.
   const decide = (text) => {
     try {
-      const parsed = JSON.parse(text || '{}');
+      const parsed = parseJsonAnswer(text);
 
       // A whitelist, not a parse: an index must be one we actually sent, a tag
       // must be one of two literals, and the change must be a real change.
@@ -72,7 +78,7 @@ export async function onRequestPost({ request, env }) {
         .filter((r) => r.tag !== byIndex.get(r.index))
         .filter((r) => (seen.has(r.index) ? false : seen.add(r.index)));
 
-      return { available: true, model: env.OLLAMA_MODEL || MODEL, retag };
+      return { available: true, model: picked || env.OLLAMA_MODEL || MODEL, retag };
     } catch (err) {
       return {
         available: false,
@@ -82,6 +88,9 @@ export async function onRequestPost({ request, env }) {
     }
   };
 
+  // The editor may name a model. Validated, never trusted: an unrecognised
+  // shape falls back to the configured default rather than being sent onward.
+  const picked = isModelName(String(body.model ?? '')) ? String(body.model) : null;
   const prompt = `${PROMPT}
 
 ${listing}`;
@@ -89,11 +98,11 @@ ${listing}`;
   // ?stream=1 reports the model as it works. Same request, same whitelist; the
   // only difference is that the teacher gets to watch a slow one.
   if (new URL(request.url).searchParams.get('stream') === '1') {
-    return streamChat(env, prompt, decide);
+    return streamChat(env, prompt, decide, picked);
   }
 
   try {
-    return json(decide(await chat(env, prompt)));
+    return json(decide(await chat(env, prompt, picked)));
   } catch (err) {
     return json({ ...failure(err), retag: [] });
   }

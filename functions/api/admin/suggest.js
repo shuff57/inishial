@@ -13,7 +13,8 @@
 //   - It is authoring-time only. No parent or student request reaches a model.
 
 import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, readJson } from '../../_lib/http.js';
-import { MODEL, chat, streamChat, failure } from '../../_lib/ollama.js';
+import { MODEL, chat, streamChat, failure, parseJsonAnswer } from '../../_lib/ollama.js';
+import { isModelName } from './models.js';
 
 const PROMPT = `You are helping a teacher prepare a course syllabus that parents must read and initial.
 
@@ -50,7 +51,7 @@ export async function onRequestPost({ request, env }) {
   // the document -- so there is exactly one, and both callers go through it.
   const decide = (text) => {
     try {
-      const parsed = JSON.parse(text || '{}');
+      const parsed = parseJsonAnswer(text);
       const valid = new Set(candidates.map((c) => c.i));
 
       // Indices are validated against the blocks actually sent. A hallucinated
@@ -59,7 +60,7 @@ export async function onRequestPost({ request, env }) {
         .map((s) => ({ index: Number(s?.index), reason: String(s?.reason ?? '').slice(0, 60) }))
         .filter((s) => valid.has(s.index));
 
-      return { available: true, model: env.OLLAMA_MODEL || MODEL, suggestions };
+      return { available: true, model: picked || env.OLLAMA_MODEL || MODEL, suggestions };
     } catch (err) {
       return {
         available: false,
@@ -69,6 +70,9 @@ export async function onRequestPost({ request, env }) {
     }
   };
 
+  // The editor may name a model. Validated, never trusted: an unrecognised
+  // shape falls back to the configured default rather than being sent onward.
+  const picked = isModelName(String(body.model ?? '')) ? String(body.model) : null;
   const prompt = `${PROMPT}
 
 ${listing}`;
@@ -76,11 +80,11 @@ ${listing}`;
   // ?stream=1 reports the model as it works. Same request, same whitelist; the
   // only difference is that the teacher gets to watch a slow one.
   if (new URL(request.url).searchParams.get('stream') === '1') {
-    return streamChat(env, prompt, decide);
+    return streamChat(env, prompt, decide, picked);
   }
 
   try {
-    return json(decide(await chat(env, prompt)));
+    return json(decide(await chat(env, prompt, picked)));
   } catch (err) {
     return json({ ...failure(err), suggestions: [] });
   }

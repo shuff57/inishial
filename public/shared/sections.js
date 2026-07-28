@@ -8,13 +8,28 @@
 // If these ever disagree, a parent initials a span of text different from the
 // one they were shown. That is the bug this file exists to prevent.
 
+/**
+ * Does this block begin a new section?
+ *
+ * Only a level-2 heading. A level-3 subheading renders as a heading and splits
+ * nothing, which is the whole reason it exists: "Group Assessment:" deserves
+ * visual weight inside the grading policy without becoming a separate page a
+ * parent initials separately. Before levels, marking it as a heading cut one
+ * policy into six and moved the signature onto the last fragment.
+ *
+ * Missing level reads as 2, because every heading written before levels existed
+ * was a section heading -- that was the only kind there was.
+ */
+export const startsSection = (block) =>
+  block?.type === 'heading' && Number(block.level ?? 2) <= 2;
+
 /** [from, to) for each section: a heading and everything under it. Blocks before
  *  the first heading form a leading section with no heading of its own. */
 export function sectionRanges(blocks) {
   const out = [];
   let start = 0;
   for (let i = 0; i < blocks.length; i++) {
-    if (blocks[i].type === 'heading' && i > start) { out.push([start, i]); start = i; }
+    if (startsSection(blocks[i]) && i > start) { out.push([start, i]); start = i; }
   }
   if (blocks.length) out.push([start, blocks.length]);
   return out;
@@ -34,7 +49,7 @@ export function sections(blocks) {
  *  would have read out -- letter by letter. */
 export function sectionTitle(section) {
   const head = section[0];
-  if (!head || head.type !== 'heading') return null;
+  if (!startsSection(head)) return null;
   const text = String(head.html)
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')

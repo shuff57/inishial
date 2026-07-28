@@ -133,3 +133,45 @@ test('an HTTP status is reported verbatim rather than as unreachable', () => {
     'Ollama returned 503.');
   assert.match(failure(new Error('socket hang up')).reason, /Could not reach Ollama/);
 });
+
+// ---- reading a model's answer ----
+//
+// `format: 'json'` is a request, not a guarantee. gpt-oss:120b honours it;
+// gpt-oss:20b writes a paragraph of reasoning and then the object. Parsing the
+// whole string made every smaller model look broken the moment the editor's
+// model picker let anyone choose one.
+
+test('clean JSON parses as JSON', async () => {
+  const { parseJsonAnswer } = await import('../functions/_lib/ollama.js');
+  assert.deepEqual(parseJsonAnswer('{"retag":[{"index":3,"tag":"heading"}]}'),
+    { retag: [{ index: 3, tag: 'heading' }] });
+  assert.deepEqual(parseJsonAnswer('  \n {"a":1}\n '), { a: 1 });
+});
+
+test('JSON wrapped in prose is still read', async () => {
+  const { parseJsonAnswer } = await import('../functions/_lib/ollama.js');
+  const real = 'We need to identify which lines need a tag change.\n\n{"retag":[{"index":9,"tag":"subheading"}]}\n\nDone.';
+  assert.deepEqual(parseJsonAnswer(real), { retag: [{ index: 9, tag: 'subheading' }] });
+});
+
+test('a nested object does not truncate the outer one', async () => {
+  // First-brace-to-LAST-brace, not first-to-first: stopping at the first close
+  // would cut the object off at its first nested value.
+  const { parseJsonAnswer } = await import('../functions/_lib/ollama.js');
+  assert.deepEqual(parseJsonAnswer('note {"a":{"b":2},"c":3} end'), { a: { b: 2 }, c: 3 });
+});
+
+test('an empty answer is an empty object, not a crash', async () => {
+  const { parseJsonAnswer } = await import('../functions/_lib/ollama.js');
+  assert.deepEqual(parseJsonAnswer(''), {});
+  assert.deepEqual(parseJsonAnswer(null), {});
+});
+
+test('an answer with no JSON in it still fails loudly', async () => {
+  // Widening what is READ must not turn an unreadable reply into a silent
+  // success -- "no suggestions" and "the model did not answer" are different
+  // things and the teacher has to be able to tell them apart.
+  const { parseJsonAnswer } = await import('../functions/_lib/ollama.js');
+  assert.throws(() => parseJsonAnswer('I cannot help with that.'));
+  assert.throws(() => parseJsonAnswer('prose {not json at all} more'));
+});

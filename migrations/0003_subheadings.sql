@@ -1,0 +1,20 @@
+-- Heading level, so a subheading can look like one without becoming one.
+--
+-- Until now every heading started a new section, and a section is three things
+-- at once: a page a parent turns to, a unit they initial, and the exact span a
+-- signature is hashed against. So marking "Group Assessment:" as a heading --
+-- typographically correct, and what the AI pass proposed -- silently cut the
+-- Grading Policy into six pieces and left the parent initialling the last
+-- fragment instead of the policy. Measured on a real syllabus: 9 pages became
+-- 17, and three of five signature points moved onto a fragment.
+--
+--   level 2  a section heading. Starts a page and a signing unit.
+--   level 3  a subheading. Renders as a heading, splits nothing.
+--
+-- A column rather than reading the <h2>/<h3> back out of `html`: what begins a
+-- section decides what a parent legally agreed to, and deriving that from a
+-- regex over markup is not a thing to be clever about.
+--
+-- Default 2 because every heading that already exists is a section heading --
+-- that is the only kind there was.
+ALTER TABLE blocks ADD COLUMN level INTEGER NOT NULL DEFAULT 2;

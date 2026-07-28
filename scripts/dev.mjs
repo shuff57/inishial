@@ -179,6 +179,7 @@ const ROUTES = {
   '/api/admin/progress': () => import('../functions/api/admin/progress.js'),
   '/api/admin/login': () => import('../functions/api/admin/login.js'),
   '/api/admin/signup': () => import('../functions/api/admin/signup.js'),
+  '/api/admin/models': () => import('../functions/api/admin/models.js'),
   '/admin/signed': () => import('../functions/admin/signed.js'),
 };
 
