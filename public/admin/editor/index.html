@@ -112,27 +112,19 @@
   textarea { width: 100%; min-height: calc(var(--rule) * 5); font: 13px/var(--rule) var(--font-mono); }
   .diff li { margin: .2rem 0; }
 
-  /* The parent preview. No flags rail and no "initial here" margin tab in the
-     editor -- they are reading aids for someone working through the document,
-     and in here they would be two more things between a teacher and the words
-     they are checking. The page controls below the sheet do the same job.
-     Everything else is exactly what a parent gets. */
-  #parentView .flags { display: none; }
-  #parentView .initial-box::before { display: none; }
-  /* Inert. It looks like the parent's box because that is the point; it cannot
-     be used, because a teacher signing on a parent's behalf is the one thing
-     this whole app exists to make impossible. */
-  #parentView .initial-box input,
-  #parentView .initial-box button { opacity: .5; pointer-events: none; }
-  /* The editing surface, while previewing. Two copies of the document on one
-     page would mean a drag landing in the one you are not looking at. */
-  main.previewing #blocks,
-  main.previewing .adders,
-  main.previewing #importCard,
-  main.previewing .ai-log,
-  /* The drag-and-drop instructions. They describe a surface that is not on
-     screen while previewing, and a parent is not told how to reorder blocks. */
-  main.previewing > p.muted { display: none; }
+  .adders-label { font-size: .85rem; color: var(--ink-stone); line-height: var(--rule); }
+  .adders .spacer { flex: 1; }
+  #newPageBtn { border-color: var(--mark-deep); color: var(--ink); }
+  /* No flags rail and no "initial here" margin tab on this side: they are
+     reading aids for someone working through the document, and here they would
+     be two more things between a teacher and the words being checked. */
+  #blocks .flags, #blocks .initial-box::before { display: none; }
+  /* The page's own controls, on the section card. */
+  .page-tools { display: flex; gap: .3rem; align-items: center; margin: 0 0 .4rem; }
+  .page-tools .name { flex: 1; font-size: .82rem; color: var(--ink-stone); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page-tools button { min-height: 0; height: calc(var(--rule) - 6px); line-height: calc(var(--rule) - 8px); padding: 0 .5rem; font-size: .75rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
+  .page-tools button:hover { background: var(--sand); color: var(--ink); }
+  .page-tools button.on { background: var(--tab-3); color: var(--ink); border-color: var(--tab-3); }
 
   /* The Ollama log. Sized in whole rules like everything else, so opening it
      does not knock the blocks below off the ruled lines. */
@@ -195,7 +187,6 @@
   <button class="secondary" id="importBtn" title="Start over from a .docx or pasted text">Import…</button>
   <button class="secondary" id="structureBtn" title="Ask Ollama which lines are really headings. Retags only — never changes a word.">Fix headings</button>
   <button class="secondary" id="suggestBtn" title="Ask Ollama which sections should need initials">Suggest initials</button>
-  <button class="secondary" id="parentBtn" aria-pressed="false" title="See the pages exactly as a parent will">Preview as parent</button>
   <button class="secondary" id="saveBtn">Save draft</button>
   <button id="publishBtn">Publish…</button>
 </div></div>
@@ -225,29 +216,11 @@
   </details>
 
   <h1 id="title" contenteditable="true" spellcheck="false">Course Syllabus</h1>
-  <p class="muted small"><b>Click</b> a block to pick it up, then drag it where it goes — or use
-    ↑ / ↓. Clicking a heading picks up its whole section. <b>Double-click</b> to type.
-    Use <b>✍</b> on a section to require a parent's initials on it. Nothing is live
-    until you publish.</p>
+  <p class="muted small">You are editing <b>one page at a time</b> — the same pages a parent turns
+    through. <b>Double-click</b> to type. <b>Click</b> a block to pick it up and drag it, or use ↑ / ↓.
+    <b>⤒</b> starts a new page at that line; <b>↑ ↓</b> on a block send it to the page before or after.
+    Nothing is live until you publish.</p>
 
-  <!--
-    The syllabus as a parent will page through it. Same section split, same
-    block rendering, same page controls -- it exists to be checked against, so
-    anything it does differently is a lie it can tell later.
-
-    Read-only: the initials boxes are shown because a parent sees them, but
-    their controls are inert. Nothing here can sign anything.
-  -->
-  <div id="parentView" hidden>
-    <p class="muted small" id="parentNote"></p>
-    <div class="book" id="parentBlocks"></div>
-    <div class="book-bar">
-      <button class="secondary" id="pvPrev">← Back</button>
-      <button class="secondary" id="pvNext">Next page →</button>
-      <span class="spacer"></span>
-      <span class="where" id="pvWhere" role="status"></span>
-    </div>
-  </div>
 
   <div id="importCard" class="card">
     <h2>Start from a document</h2>
@@ -265,13 +238,29 @@
     <p class="small muted">Replaces the draft below.</p>
   </div>
 
+  <!--
+    One page on screen, the same page a parent turns to. The editor used to be
+    every section stacked in one scroll, which answered "what is in the
+    document" and never "what will they actually see" -- and those are
+    different questions once a section is also a signing unit.
+  -->
   <div id="blocks"></div>
 
+  <div class="book-bar" id="pageBar">
+    <button class="secondary" id="pgPrev">← Back</button>
+    <button class="secondary" id="pgNext">Next page →</button>
+    <span class="spacer"></span>
+    <span class="where" id="pgWhere" role="status"></span>
+  </div>
+
   <div class="adders on-rules">
-    <button data-add="heading">+ Heading</button>
+    <span class="adders-label">Add to this page:</span>
     <button data-add="text">+ Paragraph</button>
     <button data-add="list">+ List</button>
-    <button data-add="agree">+ Agree to terms</button>
+    <button data-add="subheading">+ Subheading</button>
+    <button data-add="initial">+ Initials box</button>
+    <span class="spacer"></span>
+    <button data-add="heading" id="newPageBtn">+ New page</button>
   </div>
 </main>
 
@@ -279,8 +268,11 @@
 <script type="module">
 import { dragRange, insertionIndex, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget,
          sectionSigns, toggleSigning, retag, blockText, structureProblem, structureAdvice } from './reorder.js';
-import { sections, sectionTitle } from '../../shared/sections.js';
-import { createBook } from '../../book.js';
+import { startsSection } from '../../shared/sections.js';
+
+/** Escape for interpolation into the markup a block stores. */
+const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const $ = (id) => document.getElementById(id);
 const courseId = Number(new URLSearchParams(location.search).get('course_id'));
@@ -356,12 +348,31 @@ function textToBlocks(text) {
 // The grouping is not just cosmetic: it is the same section attestedBlocks()
 // hashes a signature against, so what you drag as one thing is what a parent
 // initials as one thing.
+// Which page is on screen. A page is a section, which is also the unit a
+// parent initials and the span a signature is hashed against -- so editing
+// one page at a time is not a view preference, it is editing the thing that
+// actually gets signed.
+let page = 0;
+
+/** Page ranges, and `page` clamped to one that exists. */
+function pages() {
+  const ranges = sectionRanges(state.blocks);
+  page = ranges.length ? Math.max(0, Math.min(page, ranges.length - 1)) : 0;
+  return ranges;
+}
+
 function render() {
   const host = $('blocks');
   host.textContent = '';
-  for (const [from, to] of sectionRanges(state.blocks)) {
+  const ranges = pages();
+  // One section, not all of them. Rendering the rest would put a second copy
+  // of the document under this one and let a drag land in the page you are not
+  // looking at.
+  if (ranges.length) {
+    const [from, to] = ranges[page];
     host.appendChild(sectionCard(from, to));
   }
+  renderPageBar(ranges);
   // Every row was just replaced, so any open typing session is on a detached
   // node. Drop the reference rather than leave a stale one holding the keyboard.
   if (caretIn && !host.contains(caretIn)) caretIn = null;
@@ -376,37 +387,64 @@ function sectionCard(from, to) {
   sec.dataset.from = from;
   if (selected && selected.kind === 'section' && selected.at === from) sec.classList.add('picked');
 
-  const body = document.createElement('div');
-  body.className = 'sec-body';
-  for (let i = from; i < to; i++) body.appendChild(blockRow(state.blocks[i], i));
-  sec.appendChild(body);
+  // What this PAGE can do, said in words. The block tools below are for lines;
+  // these are for the page a parent turns to and initials as one thing.
+  const bar = document.createElement('div');
+  bar.className = 'page-tools';
 
-  // Asking for initials is a SECTION decision, not a per-line one. A parent
-  // initials "I have read the late work policy" -- that attests to the whole
-  // section, which is exactly what attestationHash() covers. Offering the
-  // toggle on every paragraph would invite marking a stray line and produce a
-  // prompt attesting to a section nobody meant to bound.
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = headed ? (blockText(state.blocks[from].html) || 'Untitled page') : 'Opening page (no heading)';
+  bar.appendChild(name);
+
   if (headed) {
     const signed = sectionSigns(state.blocks, from, to);
-    const tools = document.createElement('div');
-    tools.className = 'tools sec-tools';
-
-    const btn = document.createElement('button');
-    btn.textContent = '✍';
-    btn.title = signed ? 'Stop asking for initials on this section' : 'Ask for initials on this section';
-    btn.setAttribute('aria-pressed', String(signed));
-    if (signed) btn.classList.add('on');
-    btn.addEventListener('click', () => {
+    const ini = document.createElement('button');
+    ini.type = 'button';
+    ini.textContent = signed ? '✍ Initials required' : '✍ Require initials';
+    ini.title = signed
+      ? 'Stop asking for initials on this page'
+      : 'Ask the parent to initial this page';
+    ini.setAttribute('aria-pressed', String(signed));
+    if (signed) ini.className = 'on';
+    ini.addEventListener('click', () => {
       state.blocks = toggleSigning(state.blocks, from, to);
       selected = null;
       markDirty();
       render();
     });
+    bar.appendChild(ini);
 
-    tools.appendChild(btn);
-    sec.appendChild(tools);
-    if (signed) sec.classList.add('signs');
+    // Merge. Demoting the heading to level 3 is exactly what folds this page
+    // into the one before it -- the page stops existing, its title stays as a
+    // subheading, and nothing it holds moves. Only offered when there IS a
+    // page before it to fold into.
+    if (page > 0) {
+      const merge = document.createElement('button');
+      merge.type = 'button';
+      merge.textContent = '↰ Merge into previous page';
+      merge.title = 'Keep the words, stop this being its own page. Its title becomes a subheading.';
+      merge.addEventListener('click', () => {
+        const b = state.blocks[from];
+        b.level = 3;
+        b.html = `<h3>${escapeHtml(blockText(b.html))}</h3>`;
+        selected = null;
+        markDirty();
+        goPage(page - 1);
+      });
+      bar.appendChild(merge);
+    }
   }
+  sec.appendChild(bar);
+
+  const body = document.createElement('div');
+  body.className = 'sec-body';
+  for (let i = from; i < to; i++) body.appendChild(blockRow(state.blocks[i], i));
+  sec.appendChild(body);
+
+  // The initials toggle used to float in the card's top-right corner. It is on
+  // the page bar now -- one control, labelled in words, next to the other thing
+  // that changes what this page IS.
   return sec;
 }
 
@@ -465,6 +503,53 @@ function blockRow(block, index) {
       render();
     });
     tools.append(lvl);
+  }
+
+  // Start a new page here. The line becomes this page's heading and everything
+  // below it on the current page comes with it -- which is what sectionRanges
+  // does anyway; nothing is moved, the boundary is.
+  if (block.type !== 'heading' && block.type !== 'initial' && block.type !== 'agree') {
+    const split = document.createElement('button');
+    split.type = 'button';
+    split.textContent = '⤒';
+    split.title = 'Start a new page here — this line becomes its heading';
+    split.addEventListener('click', () => {
+      const words = blockText(block.html);
+      if (!words) return;
+      state.blocks[index] = { ...block, type: 'heading', level: 2, html: `<h2>${escapeHtml(words)}</h2>` };
+      selected = null;
+      markDirty();
+      goPage(page + 1);
+    });
+    tools.append(split);
+  }
+
+  // Send this line to the next or previous page. Dragging cannot do it: the
+  // page you would drop on is not on screen.
+  for (const [glyph, delta, why] of [['↑', -1, 'previous'], ['↓', 1, 'next']]) {
+    const ranges = sectionRanges(state.blocks);
+    const target = page + delta;
+    if (target < 0 || target >= ranges.length) continue;
+    // Never the heading itself: moving a page's title to another page would
+    // leave the page it titled with no name and merge it upward by surprise.
+    if (startsSection(block)) continue;
+
+    const send = document.createElement('button');
+    send.type = 'button';
+    send.textContent = glyph;
+    send.title = `Move this line to the ${why} page`;
+    send.addEventListener('click', () => {
+      const [b] = state.blocks.splice(index, 1);
+      const after = sectionRanges(state.blocks);
+      const [tf, tt] = after[Math.max(0, Math.min(target, after.length - 1))];
+      // Onto the end of the previous page, or the top of the next one --
+      // whichever end the reader would meet it at.
+      state.blocks.splice(delta < 0 ? tt : tf + 1, 0, b);
+      selected = null;
+      markDirty();
+      goPage(target);
+    });
+    tools.append(send);
   }
 
   const del = document.createElement('button');
@@ -552,7 +637,12 @@ $('blocks').addEventListener('mouseleave', () => setHover(null));
 
 $('blocks').addEventListener('mousedown', (e) => {
   if (e.button !== 0) return;
-  if (e.target.closest('.tools')) return;              // the ✍ / ✕ buttons are their own thing
+  // Both tool strips: the per-block .tools and the per-page .page-tools. Miss
+  // one and its buttons stop working ENTIRELY -- the press falls through to the
+  // drag gesture, which re-renders on selection and destroys the button before
+  // mouseup, so no click event is ever delivered. Nothing errors; the button
+  // just quietly does nothing.
+  if (e.target.closest('.tools, .page-tools')) return;
   if (e.detail >= 2) return;                           // second press of a double-click: let the caret land
   if (caretIn && caretIn.contains(e.target)) return;   // already typing in this box, keep typing
 
@@ -819,18 +909,55 @@ $('pasteBtn').addEventListener('click', () => {
   offerStructureIfFlat(pasted);
 });
 
+// ---- moving between pages ----
+
+function renderPageBar(ranges) {
+  const n = ranges.length;
+  $('pageBar').hidden = !n;
+  $('pgWhere').textContent = n ? `Page ${page + 1} of ${n}` : '';
+  $('pgPrev').disabled = page === 0;
+  $('pgNext').disabled = page >= n - 1;
+}
+
+function goPage(to) {
+  const n = sectionRanges(state.blocks).length;
+  page = Math.max(0, Math.min(to, n - 1));
+  selected = null;
+  render();
+  // Every page starts at its first line, the same as the parent's side.
+  scrollTo({ top: 0, behavior: 'auto' });
+}
+
+$('pgPrev').addEventListener('click', () => goPage(page - 1));
+$('pgNext').addEventListener('click', () => goPage(page + 1));
+
+/** Index of the block a new one should be inserted after: the end of the
+ *  current page, so "add to this page" means this page and not the document. */
+function endOfPage() {
+  const ranges = pages();
+  return ranges.length ? ranges[page][1] : state.blocks.length;
+}
+
 for (const btn of document.querySelectorAll('[data-add]')) {
   btn.addEventListener('click', () => {
-    const type = btn.dataset.add;
-    const defaults = {
-      heading: '<h2>New section</h2>',
-      text: '<p>New paragraph.</p>',
-      list: '<ul><li>First item</li></ul>',
-      agree: 'I have read this syllabus in full and agree to its terms.',
-    };
-    state.blocks.push({ type, html: defaults[type] });
+    const kind = btn.dataset.add;
+    // 'subheading' is not a stored type -- it is a heading at level 3. The
+    // adder speaks the vocabulary a teacher thinks in; storage keeps its own.
+    const made = {
+      heading: { type: 'heading', level: 2, html: '<h2>New page</h2>' },
+      subheading: { type: 'heading', level: 3, html: '<h3>New subheading</h3>' },
+      text: { type: 'text', html: '<p>New paragraph.</p>' },
+      list: { type: 'list', html: '<ul><li>First item</li></ul>' },
+      initial: { type: 'initial', html: 'I have read and understand this section.', needs_initials: true },
+      agree: { type: 'agree', html: 'I have read this syllabus in full and agree to its terms.', needs_initials: true },
+    }[kind];
+
+    const at = endOfPage();
+    state.blocks.splice(at, 0, made);
     markDirty();
-    render();
+    // A new page is somewhere to go, so go there. Anything else lands on the
+    // page you are already on and stays put.
+    if (kind === 'heading') { page += 1; goPage(page); } else render();
   });
 }
 
@@ -965,103 +1092,6 @@ async function aiRun(path, payload, label) {
     }
   }
 }
-
-// ---- the syllabus as a parent sees it ----
-//
-// The same section split, the same block markup, the same page controls. It is
-// built from state.blocks -- the draft in front of you, not the published
-// version -- so it answers "is this what they will get" about the thing you are
-// actually editing.
-//
-// Deliberately NOT a second renderer's idea of the document: sections() is the
-// function the signing page pages by and the function a signature is hashed
-// against, imported rather than reimplemented. A preview that draws the
-// document its own way is a preview that can quietly stop being true.
-
-let parentBook = null;
-
-function previewBlock(block) {
-  if (block.needs_initials) {
-    const box = document.createElement('div');
-    box.className = 'initial-box';
-
-    const p = document.createElement('p');
-    p.className = 'prompt';
-    // Prompts are plain text on both sides -- not markup.
-    p.textContent = block.html;
-    box.appendChild(p);
-
-    const row = document.createElement('div');
-    row.className = 'row';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.placeholder = 'ABC';
-    input.disabled = true;
-    input.setAttribute('aria-label', 'Where a parent types their initials');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = 'Initial';
-    button.disabled = true;
-    row.append(input, button);
-    box.appendChild(row);
-    return box;
-  }
-  const div = document.createElement('div');
-  div.className = 'block';
-  div.innerHTML = block.html;              // teacher-authored, same as the parent side
-  return div;
-}
-
-function renderParentView() {
-  const host = $('parentBlocks');
-  host.textContent = '';
-  host.className = 'book';
-  parentBook?.destroy();
-
-  const groups = sections(state.blocks);
-  for (const section of groups) {
-    const sheet = document.createElement('section');
-    sheet.className = 'sheet';
-    const title = sectionTitle(section);
-    if (title) sheet.setAttribute('aria-label', title);
-    for (const block of section) sheet.appendChild(previewBlock(block));
-    host.appendChild(sheet);
-  }
-
-  const needing = groups.filter((sec) => sec.some((b) => b.needs_initials)).length;
-  $('parentNote').textContent =
-    `${groups.length} page${groups.length === 1 ? '' : 's'}, ${needing} needing initials. `
-    + 'This is the draft in front of you, not what is published.';
-
-  parentBook = createBook(host, {
-    onTurn: (i, n) => {
-      $('pvWhere').textContent = `Page ${i + 1} of ${n}`;
-      $('pvPrev').disabled = i === 0;
-      $('pvNext').disabled = i === n - 1;
-    },
-  });
-}
-
-function setParentView(on) {
-  $('parentBtn').setAttribute('aria-pressed', String(on));
-  $('parentBtn').textContent = on ? 'Back to editing' : 'Preview as parent';
-  $('parentView').hidden = !on;
-  // One class, not a list of ids to hide and un-hide. render() already owns
-  // whether the import card is showing, and toggling `hidden` underneath it
-  // would mean two things deciding the same thing and disagreeing on the third
-  // preview. CSS hides the editing surface; nothing else has to remember.
-  $('main').classList.toggle('previewing', on);
-  // The title stays visible, because a parent sees it. It must not stay
-  // EDITABLE: a preview you can type into is not a preview, and a stray
-  // keystroke here would edit the document while claiming to be showing it.
-  $('title').contentEditable = String(!on);
-  if (on) renderParentView(); else { parentBook?.destroy(); parentBook = null; }
-  scrollTo({ top: 0, behavior: 'auto' });
-}
-
-$('parentBtn').addEventListener('click', () => setParentView($('parentView').hidden));
-$('pvPrev').addEventListener('click', () => parentBook?.go(parentBook.at() - 1));
-$('pvNext').addEventListener('click', () => parentBook?.go(parentBook.at() + 1));
 
 // ---- suggest / save / publish ----
 
