@@ -41,7 +41,6 @@ function swap(target) {
   document.title = TITLES[pathOf(location.pathname)] || 'iniSHial';
   // The progress spine belongs to the syllabus and nothing else.
   $('progress').hidden = target.id !== 'view-sign' || !state;
-  refreshCorner?.();
   for (const a of document.querySelectorAll('header.site .nav-main a')) {
     const here = pathOf(new URL(a.getAttribute('href'), location.origin).pathname);
     a.toggleAttribute('aria-current', here === pathOf(location.pathname));
@@ -55,21 +54,15 @@ function show(path, { push = true } = {}) {
     history.pushState({}, '', path);
   }
 
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!document.startViewTransition || reduced) { swap(target); focusMain(); return; }
-
-  // The crease has to be painted BEFORE startViewTransition photographs the old
-  // view, and removed inside the callback -- which runs after that photograph
-  // and before the new one. Same-document is what makes that timing available;
-  // cross-document only offered `pageswap`, which is one snapshot earlier and a
-  // whole document away.
-  document.documentElement.classList.add('turning');
-  const transition = document.startViewTransition(() => {
-    document.documentElement.classList.remove('turning');
-    swap(target);
-  });
-  transition.finished.finally(() => document.documentElement.classList.remove('turning'));
-  transition.ready.then(focusMain, focusMain);
+  // No animation between views. A page turn belongs where there is a sequence
+  // to turn through, and these three are not one -- they are separate tasks a
+  // reader arrives at directly. Turning between them was motion for its own
+  // sake, and it read as a glitch rather than a page.
+  //
+  // The syllabus itself still turns section by section; see book.js. That IS a
+  // sequence, and it is the one a parent actually works through.
+  swap(target);
+  focusMain();
 }
 
 /** Move focus to the page after a view change, the way a real navigation would.
@@ -78,83 +71,6 @@ function show(path, { push = true } = {}) {
 function focusMain() { $('main')?.focus({ preventScroll: true }); scrollTo(0, 0); }
 
 addEventListener('popstate', () => show(location.pathname, { push: false }));
-
-/**
- * Grab the top-right corner and turn the page.
- *
- * Two ways in, both explicit: the tabs at the top, or this. Nothing is
- * triggered by hovering — a control that only appears once the pointer is
- * already on it teaches nobody it exists, and a touch user never hovers.
- *
- * The drag itself only peels the corner; releasing past the halfway mark hands
- * off to the same show() every tab click uses, so the page turns exactly one
- * way no matter how you asked for it. Turning the corner into a full-page
- * rotation that then had to hand over to the view transition would mean two
- * different animations meeting in the middle, and the seam always shows.
- */
-function wireCorner() {
-  const sheet = $('main');
-  const REST = 20;
-
-  const corner = document.createElement('div');
-  corner.className = 'corner';
-  corner.setAttribute('aria-hidden', 'true');   // the tabs are the real control
-  corner.innerHTML = '<div class="corner-under"></div><div class="corner-flap"></div>';
-  sheet.appendChild(corner);
-
-  const size = (px) => corner.style.setProperty('--peel', `${Math.round(px)}px`);
-  const limit = () => Math.min(sheet.clientWidth, 420) * 0.55;
-  let drag = null;
-
-  /** Where the corner turns to: the next view along, or nothing on the last. */
-  function next() {
-    const order = views();
-    const here = order.findIndex((v) => !v.hidden);
-    return order[here + 1] ?? null;
-  }
-  function refresh() {
-    corner.hidden = !next();
-    size(REST);
-  }
-
-  corner.addEventListener('pointerdown', (event) => {
-    if (!next()) return;
-    const box = sheet.getBoundingClientRect();
-    drag = { x: box.right, y: box.top, at: 0 };
-    corner.dataset.grabbing = '1';
-    corner.setPointerCapture(event.pointerId);
-    event.preventDefault();
-  });
-
-  corner.addEventListener('pointermove', (event) => {
-    if (!drag) return;
-    // Projected onto the diagonal running down-left from the corner, so the
-    // fold stays square however the pointer wanders.
-    const pulled = ((drag.x - event.clientX) + (event.clientY - drag.y)) / 2;
-    drag.at = Math.max(REST, Math.min(pulled, limit()));
-    size(drag.at);
-  });
-
-  const release = (event) => {
-    if (!drag) return;
-    const { at } = drag;
-    drag = null;
-    delete corner.dataset.grabbing;
-    try { corner.releasePointerCapture(event.pointerId); } catch { /* gone */ }
-
-    const target = next();
-    if (at >= limit() * 0.45 && target) {
-      size(REST);
-      show(target.dataset.path);
-    } else {
-      size(REST);        // short of the threshold: the corner just drops back
-    }
-  };
-  corner.addEventListener('pointerup', release);
-  corner.addEventListener('pointercancel', release);
-
-  return refresh;
-}
 
 document.addEventListener('click', (event) => {
   const link = event.target.closest('a[href]');
@@ -174,7 +90,6 @@ document.addEventListener('click', (event) => {
 
 let state = null;
 let book = null;
-let refreshCorner = null;
 
 const PAGED_KEY = 'inishial:paged';
 let paged = (() => { try { return localStorage.getItem(PAGED_KEY) !== 'off'; } catch { return true; } })();
@@ -398,6 +313,5 @@ $('readAll').addEventListener('click', () => {
 
 // ---- start ----
 
-refreshCorner = wireCorner();
 swap(viewFor(location.pathname));   // no transition on first paint
 loadSyllabus();                     // an existing session skips the sign-in form
