@@ -189,47 +189,51 @@ async function loadSyllabus() {
 let stopSnapping = null;
 
 /**
- * The dividers down the edge of the binder: one tab per section.
+ * The sign-here flags: one per section that asks for initials.
  *
  * Built from the sheets that already exist rather than from state.blocks, so
- * there is no second place that has to agree about what a section is. The
- * colour of a tab's spine says whether that section wants initials and whether
- * it has them -- so the strip doubles as the progress bar it sits next to.
+ * there is no second place that has to agree about what a section is or which
+ * ones want something.
  *
- * A toolbar, not a tablist: the panels are pages of one document rather than
- * alternative views of the same thing, and announcing them as tabs would
- * promise a reader that Left/Right moves between siblings, which here means
- * turning the page. Arrow keys already do that, globally, from book.js.
+ * Only sections with a prompt get one. A flag on every section was the version
+ * before this, and the four that wanted nothing were the loudest thing on the
+ * page -- a marker means "here", and marking everywhere marks nothing.
+ *
+ * Returned as [pageIndex, button] pairs so the caller can light the current one
+ * without keeping a second idea of which page is showing.
  */
-function buildTabs(host) {
+function buildFlags(host) {
+  const sheets = [...host.querySelectorAll('.sheet')];
   const rail = document.createElement('nav');
-  rail.className = 'tabs-side';
-  rail.setAttribute('aria-label', 'Sections');
+  rail.className = 'flags';
+  rail.setAttribute('aria-label', 'Sections needing initials');
 
-  const tabs = [...host.querySelectorAll('.sheet')].map((sheet, i) => {
-    const label = sheet.getAttribute('aria-label') || `Page ${i + 1}`;
+  const flags = [];
+  for (const [i, sheet] of sheets.entries()) {
     const prompts = [...sheet.querySelectorAll('.initial-box')];
+    if (!prompts.length) continue;
 
-    const tab = document.createElement('button');
-    tab.type = 'button';
-    tab.className = 'secondary';
-    tab.textContent = label;
-    // The visible text is truncated by CSS at this width, so the accessible
-    // name has to carry the whole thing -- a screen reader must not be handed
-    // "Course Objectives/Student Learning…".
-    tab.title = label;
-    tab.setAttribute('aria-label', `${label}, page ${i + 1} of ${host.querySelectorAll('.sheet').length}`);
-    if (prompts.length) tab.dataset.needs = '1';
-    if (prompts.length && prompts.every((p) => p.classList.contains('done'))) tab.dataset.signed = '1';
-    tab.addEventListener('click', () => book?.go(i));
-    rail.appendChild(tab);
-    return tab;
-  });
+    const label = sheet.getAttribute('aria-label') || `Page ${i + 1}`;
+    const done = prompts.every((p) => p.classList.contains('done'));
 
-  // Before the paper, so a tab is reachable by Tab before the page it opens --
-  // and so the float clears against the sheets rather than the other way round.
+    const flag = document.createElement('button');
+    flag.type = 'button';
+    flag.textContent = label;
+    // The visible label is clipped by CSS at this width, so the accessible
+    // name carries the whole thing plus the state -- a screen reader must not
+    // be handed "Academic Honesty and Use…" with no idea whether it is done.
+    flag.title = `${label} — ${done ? 'initialled' : 'needs initials'}`;
+    flag.setAttribute('aria-label', `${label}, page ${i + 1}, ${done ? 'initialled' : 'needs initials'}`);
+    if (done) flag.dataset.signed = '1';
+    flag.addEventListener('click', () => book?.go(i));
+    rail.appendChild(flag);
+    flags.push([i, flag]);
+  }
+
+  // Nothing to sign: no rail at all rather than an empty strip of nothing.
+  if (!flags.length) return [];
   host.before(rail);
-  return tabs;
+  return flags;
 }
 
 function render() {
@@ -238,9 +242,9 @@ function render() {
   host.textContent = '';
   host.className = 'book';
   // The rail is a SIBLING of #blocks, so emptying #blocks does not take it with
-  // it. Initialling re-renders, and without this every signature left another
-  // strip of tabs down the page.
-  document.querySelector('.tabs-side')?.remove();
+  // it. Initialling re-renders, and without this every signature would leave
+  // another strip of flags down the page.
+  document.querySelector('.flags')?.remove();
 
   for (const section of sections(state.blocks)) {
     const sheet = document.createElement('section');
@@ -253,20 +257,17 @@ function render() {
     host.appendChild(sheet);
   }
 
-  const tabs = buildTabs(host);
+  const flags = buildFlags(host);
 
   book = createBook(host, {
     onTurn: (i, n) => {
       $('where').textContent = `Page ${i + 1} of ${n}`;
       $('prevPage').disabled = i === 0;
       $('nextPage').disabled = i === n - 1;
-      // One source of truth for which page is showing: the book. The tabs
-      // report it, they do not keep their own idea of it -- which is what
-      // stops "Next page" and a tab click from ever disagreeing.
-      for (const [at, tab] of tabs.entries()) {
-        tab.setAttribute('aria-current', String(at === i));
-        tab.tabIndex = at === i ? 0 : -1;
-      }
+      // One source of truth for which page is showing: the book. The flags
+      // report it, they do not keep their own idea of it -- which is what stops
+      // "Next page" and a flag click from ever disagreeing.
+      for (const [at, flag] of flags) flag.setAttribute('aria-current', String(at === i));
     },
   });
   $('bookBar').hidden = !book;

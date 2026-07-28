@@ -899,91 +899,114 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
 .book-bar .spacer { flex: 1; }
 .book-bar .where { font-size: .95rem; color: var(--ink-stone); line-height: var(--rule); }
 
-/* ---- section tabs, down the right edge ----
+/* ---- sign-here flags ----
  *
- * The dividers in a ring binder. Every section is one tab, always visible, and
- * the current one juts out and joins the page. That is the affordance the
- * corner-peel never had: a tab says where you are, how much is left, and what
- * is coming, without being read.
+ * The thin arrow stickers a contract comes back with, stuck down the fore-edge
+ * at every line that needs a signature -- and, like the real thing, what you
+ * grab to get to one. Each flag jumps to its section.
  *
- * position: sticky, not fixed. Fixed tabs sit over the text on a narrow window
- * and follow the reader down a 2500px section like a toolbar; sticky keeps them
- * beside the paper, which is where a divider lives.
+ * One per section that ASKS FOR SOMETHING, not one per section. That is the
+ * whole difference from the tab rail this replaces: nine tabs down the edge to
+ * say "five of these need you" is nine things to read to find five, and the
+ * four that wanted nothing were the loudest thing on the page.
+ *
+ * Horizontal text, unlike the notebook deck's vertical index tabs. These are
+ * thin tongues rather than card dividers, and a rotated label in 20px of height
+ * would be one letter wide.
  */
-.tabs-side {
+.flags {
   position: sticky;
-  top: calc(var(--nav-h) + var(--rule));
+  top: calc(var(--nav-h) + var(--rule) * 2);
   float: right;
-  width: 11rem;
-  margin: 0 -12.4rem var(--rule) 1rem;
+  width: 7.2rem;
+  /* Out past the paper's edge, less a little so each flag's square end meets
+     the page rather than floating beside it. */
+  margin: 0 calc(-7.2rem - 1.6rem + 1.5rem) var(--rule) 1rem;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  /* The list scrolls rather than the page growing a tab at a time: a syllabus
-     with twenty sections must not push the paper down the screen. */
-  max-height: calc(100vh - var(--nav-h) - var(--rule) * 4);
-  overflow-y: auto;
+  gap: .3rem;
+  z-index: 3;
 }
-.tabs-side button {
-  /* display:block, not the inherited inline-flex. A flex container CENTRES its
-     single text child and clips both ends of it, so a long section title lost
-     its first words as well as its last -- "…lley High School Math Dept. 2…" --
-     and text-overflow never applied. As a block it starts at the left and
-     ellipses at the right, which is how a label reads.
-     Vertical centring is not lost: height and line-height are both one rule. */
+.flags button {
+  /* display:block so text-overflow works -- as a flex item it does not, and a
+     long section name is cut mid-word with no ellipsis. */
   display: block;
+  width: 100%;
   min-height: 0;
-  height: var(--rule);
-  line-height: var(--rule);
-  padding: 0 .55rem;
-  border: 1px solid var(--border-warm);
-  border-left-width: 5px;
-  border-radius: 0 6px 6px 0;
-  background: var(--paper);
-  color: var(--ink-stone);
-  font-size: .78rem;
-  font-weight: 600;
+  height: 1.35rem;
+  line-height: 1.35rem;
+  padding: 0 .5rem 0 0;
+  text-indent: 1.15rem;
   text-align: left;
+  border: 0;
+  border-radius: 0 3px 3px 0;
+  /* The point. A notch cut from the left end aims the flag at the page it
+     belongs to, the way the sticker's arrow does. */
+  clip-path: polygon(0 50%, .62rem 0, 100% 0, 100% 100%, .62rem 100%);
+  background: var(--tab-3);
+  /* Fixed dark ink: the pastels are accents sitting ON the page, not the page
+     surface, so they do not flip for dark mode and a theme-following label
+     would go white on rose. */
+  color: #1a1a1a;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Only the offset moves, and only a few pixels. A tab is a piece of card,
-     not a control that grows when looked at. */
-  transition: transform .16s ease-out, color .16s ease-out;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, .18);
+  opacity: .88;
+  transform: translateX(-4px);
+  transition: transform .18s ease-out, opacity .18s ease-out;
+  cursor: pointer;
 }
-.tabs-side button:hover { transform: translateX(-4px); color: var(--ink); }
-/* The current tab joins the page: no left rounding, no gap, and it sits proud
-   of the others. */
-.tabs-side button[aria-current="true"] {
-  transform: translateX(-10px);
-  color: var(--ink);
-  background: var(--ivory);
-  border-color: var(--ink-stone);
-  border-left-color: currentColor;
+/* :not([disabled]) is not decoration -- it is specificity. The base
+   `button:hover:not([disabled])` rule repaints every button --accent-soft, and
+   it outranks a plain `.flags button:hover`, so hovering a flag turned it
+   mustard. On a touch screen the state sticks after a tap, which is how it was
+   spotted: the flag you had just pressed was the wrong colour thereafter. */
+.flags button:hover:not([disabled]) {
+  background: var(--tab-3);
+  opacity: 1;
+  transform: translateX(0);
 }
-/* A section already initialled. Colour rather than a tick: the tick would need
-   a column of its own at this width, and the whole strip is a progress bar. */
-.tabs-side button[data-signed="1"] { border-left-color: var(--tab-1); }
-.tabs-side button[data-needs="1"]:not([data-signed="1"]) { border-left-color: var(--tab-3); }
+.flags button[data-signed="1"]:hover:not([disabled]) { background: var(--tab-1); opacity: .85; }
+/* Already initialled: green, ticked, and quieter. The flag has stopped being a
+   job and become a receipt, so it stops competing with the ones still owed. */
+.flags button[data-signed="1"] { background: var(--tab-1); opacity: .6; }
+/* The section being read. Slid fully out and given its shadow back, so "where
+   am I" and "what is left" are the same glance. */
+.flags button[aria-current="true"] {
+  opacity: 1;
+  transform: translateX(2px);
+  box-shadow: 3px 3px 6px rgba(0, 0, 0, .26);
+}
+.flags button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; opacity: 1; }
 
 @media (prefers-reduced-motion: reduce) {
-  .tabs-side button { transition: none; }
+  .flags button { transition: none; }
 }
 
-/* Beside the paper is a luxury of a wide window. Below ~64rem there is no
-   margin to put them in, so they become a strip above the page rather than
-   overlapping the text -- which is what a fixed rail would have done. */
-@media (max-width: 64rem) {
-  .tabs-side {
+/* No margin to put them in on a narrow window, and a flag over the text is
+   worse than no flag. They lie down into a strip above the page instead. */
+@media (max-width: 62rem) {
+  .flags {
     position: static; float: none; width: auto; margin: 0 0 var(--rule);
-    flex-direction: row; flex-wrap: wrap; max-height: none;
+    flex-direction: row; flex-wrap: wrap; gap: .3rem;
   }
-  .tabs-side button { border-radius: 6px; border-left-width: 5px; max-width: 11rem; }
-  .tabs-side button:hover,
-  .tabs-side button[aria-current="true"] { transform: none; }
+  .flags button {
+    width: auto; max-width: 9rem; height: var(--rule); line-height: var(--rule);
+    clip-path: none; border-radius: 3px; text-indent: 0; padding: 0 .6rem;
+    transform: none;
+  }
+  .flags button:hover, .flags button[aria-current="true"] { transform: none; }
 }
 
-@media print { .tabs-side { display: none !important; } }
+@media print {
+  /* A flag is an instruction, not part of the record. */
+  .flags { display: none !important; }
+}
 
 /* Print is the whole document in order. Every sheet is in the DOM for exactly
    this: what a parent signs is the syllabus entire, not the page they happen to
