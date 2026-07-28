@@ -39,7 +39,7 @@ ADMIN_EMAILS = ""
 # This is not identity verification: nothing emails the address, so it narrows
 # who can sign up rather than proving who they are. What it does guarantee is
 # that each account sees only its own courses.
-TEACHER_DOMAINS = ""
+TEACHER_DOMAINS = "chicousd.org"
 # Ollama host for the authoring-time AI pass. Secret set out of band:
 #   npx wrangler pages secret put OLLAMA_API_KEY --project-name inishial
 OLLAMA_HOST = "https://ollama.com"
@@ -51,5 +51,5 @@ database_id = "26a2ff24-a632-4b74-9034-3b40622b15fa"
 
 [env.production.vars]
 ADMIN_EMAILS = ""
-TEACHER_DOMAINS = ""
+TEACHER_DOMAINS = "chicousd.org"
 OLLAMA_HOST = "https://ollama.com"
