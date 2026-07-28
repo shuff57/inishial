@@ -13,9 +13,13 @@
 import { serveApp } from './_lib/spa.js';
 
 const SHELL_PATHS = new Set(['/sign', '/register']);
+// HEAD as well as GET. Gating on GET alone made HEAD /sign a 404, which is the
+// request link checkers, previews and crawlers actually send -- so the URL in a
+// teacher's email would have looked broken to everything except a browser.
+const PAGE_METHODS = new Set(['GET', 'HEAD']);
 
 export async function onRequest(context) {
   const path = new URL(context.request.url).pathname.replace(/\/+$/, '') || '/';
-  if (context.request.method === 'GET' && SHELL_PATHS.has(path)) return serveApp(context);
+  if (PAGE_METHODS.has(context.request.method) && SHELL_PATHS.has(path)) return serveApp(context);
   return context.next();
 }

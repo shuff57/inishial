@@ -75,6 +75,14 @@ for (const path of ['/', '/404.html', '/app.css', '/admin/', '/admin/login/',
   });
 }
 
+test('HEAD gets the same answer as GET', async () => {
+  // Link checkers, chat previews and crawlers send HEAD. Gating the rewrite on
+  // GET alone made HEAD /sign a 404, so the link in a teacher's email looked
+  // broken to everything except a browser.
+  const { res } = await run('https://x/sign/', 'HEAD');
+  assert.equal(res.status, 200);
+});
+
 test('a POST to /sign/ is not rewritten', async () => {
   // Only GET renders a page. Rewriting a POST would silently turn a form
   // submission into a 200 HTML response and lose the request.
