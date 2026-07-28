@@ -99,6 +99,21 @@
     padding: .35rem .6rem; border-radius: var(--radius-sm); background: var(--paper);
     box-shadow: 0 8px 24px rgba(0,0,0,.28);
   }
+  /* Carried over to the rail. The ghost is a full-width clone of the row --
+     right for dragging inside a page, and useless the moment the cursor is on
+     the rail: a 778px card hanging off a cursor at x=1175 is almost entirely
+     past the right edge of the window, so the block you are holding looks like
+     it vanished. Over a tab it becomes a small card, held to the LEFT of the
+     cursor so it stays on screen and stays legible. */
+  .pm-ghost.carrying {
+    max-height: calc(var(--rule) * 2.5);
+    overflow: hidden;
+    box-shadow: 0 6px 18px rgba(0,0,0,.34);
+    outline: 2px solid var(--mark-deep);
+  }
+  .pm-ghost.carrying .edit { font-size: .82rem; }
+  .pm-ghost.carrying .tools { display: none; }
+
   .pm-placeholder {
     margin: .35rem 0; border: 2px dashed var(--accent); border-radius: var(--radius-sm);
     background: var(--sand); pointer-events: none;
@@ -830,6 +845,10 @@ function startDrag(ev, index, kind) {
   const host = $('blocks');
   const x0 = ev.clientX, y0 = ev.clientY;
   let live = false, ghost = null, ph = null, grabDX = 0, grabDY = 0;
+  // The ghost's natural width, so it can go back to being a full-width preview
+  // after a trip over the rail.
+  let ghostW = 0;
+  const CARRY_W = 15 * 17;   // 15rem at the app's 17px root
   let units = [], moved = [], hidden = [];
 
   function begin() {
@@ -858,7 +877,8 @@ function startDrag(ev, index, kind) {
 
     ghost = moved[0].cloneNode(true);
     ghost.className = 'pm-ghost';
-    ghost.style.width = Math.round(first.width) + 'px';
+    ghostW = Math.round(first.width);
+    ghost.style.width = ghostW + 'px';
     document.body.appendChild(ghost);
 
     ph = document.createElement('div');
@@ -933,9 +953,6 @@ function startDrag(ev, index, kind) {
       if (Math.abs(e.clientX - x0) + Math.abs(e.clientY - y0) < 4) return;
       begin();
     }
-    ghost.style.left = (e.clientX - grabDX) + 'px';
-    ghost.style.top = (e.clientY - grabDY) + 'px';
-
     // The ghost is pointer-events:none, so this reads what is actually under
     // the cursor rather than the thing being dragged.
     const under = document.elementFromPoint(e.clientX, e.clientY);
@@ -943,11 +960,30 @@ function startDrag(ev, index, kind) {
     // Never the page you are already on: "move it to here" would be a no-op
     // that still looked like it did something.
     setTabTarget(tab && Number(tab.dataset.page) !== page ? tab : null);
-    // Parked on a tab: change NOTHING about the layout. Removing the
-    // placeholder here closed its gap, the document got shorter, the sticky
-    // rail moved under the cursor, the cursor was no longer on the tab, the
-    // placeholder came back -- and the whole page shook at pointer rate.
-    if (overTab) return;
+    if (overTab) {
+      // Held clear of the RAIL, not merely left of the cursor. Anchored to the
+      // cursor alone it lay across the tabs and covered the arming wipe -- the
+      // one piece of feedback telling you the page is about to turn.
+      ghost.classList.add('carrying');
+      ghost.style.width = CARRY_W + 'px';
+      const railLeft = overTab.closest('.pages').getBoundingClientRect().left;
+      ghost.style.left =
+        Math.max(8, Math.min(e.clientX - CARRY_W - 14, railLeft - CARRY_W - 14)) + 'px';
+      ghost.style.top = Math.max(8, e.clientY - 18) + 'px';
+      // And change NOTHING about the layout. Removing the placeholder here
+      // closed its gap, the document got shorter, the sticky rail moved under
+      // the cursor, the cursor was no longer on the tab, the placeholder came
+      // back -- and the whole page shook at pointer rate.
+      return;
+    }
+
+    ghost.classList.remove('carrying');
+    ghost.style.width = ghostW + 'px';
+    // Clamped to the window. A row is nearly the width of the page, so grabbing
+    // one near its right end hung most of the ghost past the edge of the
+    // screen -- the same "where did my block go" as the rail, just less total.
+    ghost.style.left = Math.max(0, Math.min(e.clientX - grabDX, innerWidth - ghostW - 4)) + 'px';
+    ghost.style.top = Math.max(0, e.clientY - grabDY) + 'px';
     // Detach before measuring, so the drop math always sees the resting layout
     // rather than the gap the placeholder itself just opened. Without this the
     // placeholder chases the cursor and the target oscillates.
