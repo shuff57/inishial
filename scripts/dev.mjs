@@ -13,7 +13,7 @@
 
 import { createServer } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { d1 } from '../tests/helpers.mjs';
@@ -31,7 +31,34 @@ const DEMO_CODE = 'DEMO2345';
 const fresh = !existsSync(DB_FILE);
 const db = new DatabaseSync(DB_FILE);
 db.exec('PRAGMA foreign_keys = ON;');
-if (fresh) db.exec(readFileSync(join(ROOT, 'migrations/0001_init.sql'), 'utf8'));
+migrate();
+
+/**
+ * Apply every migration not yet applied to .dev.sqlite.
+ *
+ * The old version ran 0001 on a fresh file and nothing otherwise, so adding a
+ * migration silently skipped every developer who already had a database --
+ * including one holding a real imported syllabus, which is exactly the file
+ * nobody wants to delete to pick up a schema change.
+ */
+function migrate() {
+  const dir = join(ROOT, 'migrations');
+  const files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+
+  db.exec('CREATE TABLE IF NOT EXISTS dev_migrations (file TEXT PRIMARY KEY, applied_at INTEGER)');
+  // A database from before this bookkeeping existed already has the initial
+  // schema in it; recording that is what stops the loop re-running it.
+  if (!fresh && !db.prepare('SELECT COUNT(*) AS n FROM dev_migrations').get().n) {
+    db.prepare('INSERT INTO dev_migrations VALUES (?, ?)').run(files[0], 0);
+  }
+
+  for (const file of files) {
+    if (db.prepare('SELECT 1 FROM dev_migrations WHERE file = ?').get(file)) continue;
+    db.exec(readFileSync(join(dir, file), 'utf8'));
+    db.prepare('INSERT INTO dev_migrations VALUES (?, ?)').run(file, Math.floor(Date.now() / 1000));
+    if (!fresh) console.log(`  applied migration ${file}`);
+  }
+}
 
 // ---- local secrets ----
 //
@@ -60,6 +87,10 @@ const env = {
   DB: d1(db),
   SESSION_SECRET: 'local-dev-secret-do-not-use-in-production',
   ADMIN_EMAILS: DEV_ADMIN,
+  // Self-service teacher sign-up, gated on this domain. DEV_ADMIN is at
+  // school.edu, so signing up as that address also exercises the
+  // adopt-the-unowned-courses path in signup.js.
+  TEACHER_DOMAINS: 'school.edu',
   // `.secrets.local` wins over the ambient environment for these three, which is
   // the opposite of the usual precedence and deliberate: a machine-wide
   // OLLAMA_HOST pointing at somebody's local daemon (0.0.0.0:11434) otherwise
@@ -135,6 +166,7 @@ const ROUTES = {
   '/api/admin/structure': () => import('../functions/api/admin/structure.js'),
   '/api/admin/progress': () => import('../functions/api/admin/progress.js'),
   '/api/admin/login': () => import('../functions/api/admin/login.js'),
+  '/api/admin/signup': () => import('../functions/api/admin/signup.js'),
   '/admin/signed': () => import('../functions/admin/signed.js'),
 };
 
@@ -251,6 +283,7 @@ createServer(async (req, res) => {
   http://localhost:${PORT}/register/     student sign-up   (try ID 904512, last name Chen)
   http://localhost:${PORT}/sign/         parent signing    (ID 904511, code ${DEMO_CODE})
   http://localhost:${PORT}/admin/login/  teacher sign-in   (password ${DEV_PASSWORD})
+  http://localhost:${PORT}/admin/signup/ teacher sign-up   (any @school.edu address)
 
   Database: .dev.sqlite  (delete it to reseed)
   Ollama:   ${env.OLLAMA_API_KEY ? 'key loaded from .secrets.local (' + (env.OLLAMA_MODEL || 'default model') + ')' : 'no key — AI steps stay disabled, everything else works'}

@@ -15,7 +15,7 @@
 // one period must not mark every other period of that course as dropped, and
 // that is the mistake this guard exists to prevent.
 
-import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin } from '../../_lib/http.js';
+import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, ownerFilter } from '../../_lib/http.js';
 import { parseRoster } from '../../_lib/csv.js';
 
 export async function onRequestPost({ request, env }) {
@@ -47,19 +47,28 @@ export async function onRequestPost({ request, env }) {
   // part worth seeing before it happens, so the count is surfaced up front
   // rather than reported after the fact.
   if (url.searchParams.get('preview') === '1') {
-    return json(await previewPlan(env.DB, rows, fallbackCourse, { skipped, warnings, delimiter }));
+    return json(await previewPlan(env.DB, rows, fallbackCourse, admin, { skipped, warnings, delimiter }));
   }
 
   const nowSec = Math.floor(Date.now() / 1000);
+  const owner = ownerFilter(admin);
   const courseIds = new Map();
 
   async function courseId(name) {
     if (courseIds.has(name)) return courseIds.get(name);
-    const found = await env.DB.prepare('SELECT id FROM courses WHERE name = ?1').bind(name).first();
+    // Scoped to the uploader. Course names are not unique across the school --
+    // two teachers both have an "Algebra I" -- so an unscoped match by name
+    // would drop one teacher's students into the other's roster, and the drop
+    // sweep below would then mark the rightful class as having left.
+    //
+    // `IS` rather than `=`: owner is NULL for the site owner, and `= NULL`
+    // matches nothing in SQL.
+    const found = await env.DB.prepare('SELECT id FROM courses WHERE name = ?1 AND owner_id IS ?2')
+      .bind(name, owner).first();
     let id = found?.id;
     if (!id) {
-      const ins = await env.DB.prepare('INSERT INTO courses (name, created_at) VALUES (?1, ?2)')
-        .bind(name, nowSec).run();
+      const ins = await env.DB.prepare('INSERT INTO courses (name, created_at, owner_id) VALUES (?1, ?2, ?3)')
+        .bind(name, nowSec, owner).run();
       id = ins.meta.last_row_id;
     }
     courseIds.set(name, id);
@@ -140,7 +149,8 @@ export async function onRequestPost({ request, env }) {
 }
 
 /** Read-only: what a POST of these rows would change. Writes nothing. */
-async function previewPlan(db, rows, fallbackCourse, extra) {
+async function previewPlan(db, rows, fallbackCourse, admin, extra) {
+  const owner = ownerFilter(admin);
   const courses = new Map();   // course name -> course id, or null if new
   // Scope key is only ever an opaque lookup handle. The course id and period
   // are carried in the VALUE rather than parsed back out of the key -- packing
@@ -153,7 +163,10 @@ async function previewPlan(db, rows, fallbackCourse, extra) {
   for (const row of rows) {
     const name = row.course || fallbackCourse;
     if (!courses.has(name)) {
-      const found = await db.prepare('SELECT id FROM courses WHERE name = ?1').bind(name).first();
+      // Same owner scoping as the write path, or the preview would report
+      // "updates 30" against a course the upload is not going to touch.
+      const found = await db.prepare('SELECT id FROM courses WHERE name = ?1 AND owner_id IS ?2')
+        .bind(name, owner).first();
       courses.set(name, found?.id ?? null);
     }
     const courseId = courses.get(name);
@@ -201,7 +214,8 @@ async function previewPlan(db, rows, fallbackCourse, extra) {
 }
 
 export async function onRequestGet({ request, env }) {
-  if (!await requireAdmin(request, env)) return unauthorized();
+  const admin = await requireAdmin(request, env);
+  if (!admin) return unauthorized();
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const { results } = await env.DB.prepare(
@@ -213,9 +227,10 @@ export async function onRequestGet({ request, env }) {
        FROM courses c
        LEFT JOIN roster   r ON r.course_id = c.id
        LEFT JOIN accounts a ON a.roster_id = r.id AND r.status = 'active'
+      WHERE (?1 IS NULL OR c.owner_id = ?1)
       GROUP BY c.id, c.name
       ORDER BY c.name`,
-  ).all();
+  ).bind(ownerFilter(admin)).all();
 
   return json({ courses: results ?? [] });
 }

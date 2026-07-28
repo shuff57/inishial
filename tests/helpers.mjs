@@ -5,10 +5,18 @@
 // node:sqlite is stdlib (Node 22+), so this costs no dependency.
 
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { hashCode } from '../functions/_lib/codes.js';
 
-const SCHEMA = readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8');
+// Every migration, in filename order -- not just the initial one. Pinning this
+// to 0001 meant a new migration was invisible to the whole suite, so tests
+// passed against a schema production did not have.
+const MIGRATIONS = new URL('../migrations/', import.meta.url);
+const SCHEMA = readdirSync(MIGRATIONS)
+  .filter((f) => f.endsWith('.sql'))
+  .sort()
+  .map((f) => readFileSync(new URL(f, MIGRATIONS), 'utf8'))
+  .join('\n');
 
 export function d1(db) {
   return {

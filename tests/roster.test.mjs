@@ -1,5 +1,5 @@
 // Integration tests for the roster import handler, run against a real SQLite
-// database built from migrations/0001_init.sql.
+// database built from the migrations.
 //
 // node:sqlite is stdlib (Node 22+), so this needs no dependency and no running
 // wrangler. D1 is SQLite, so the schema and every query here are the same ones
@@ -7,42 +7,16 @@
 //
 // The drop-scoping rule is the reason this file exists: uploading one period
 // must never mark another period's students as dropped.
+//
+// The harness comes from helpers.mjs rather than a copy here. This file used to
+// carry its own, pinned to 0001_init.sql, and a later migration was therefore
+// invisible to every test in it -- they passed against a schema production did
+// not have.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { freshEnv, ADMIN_HEADERS as ADMIN } from './helpers.mjs';
 import { onRequestPost, onRequestGet } from '../functions/api/admin/roster.js';
-
-const SCHEMA = readFileSync(new URL('../migrations/0001_init.sql', import.meta.url), 'utf8');
-
-// Minimal stand-in for the D1 client surface the handlers use.
-function d1(db) {
-  return {
-    prepare(sql) {
-      let args = [];
-      const api = {
-        bind(...a) { args = a; return api; },
-        run() {
-          const r = db.prepare(sql).run(...args);
-          return { meta: { last_row_id: Number(r.lastInsertRowid), changes: Number(r.changes) } };
-        },
-        first() { return db.prepare(sql).get(...args) ?? null; },
-        all() { return { results: db.prepare(sql).all(...args) }; },
-      };
-      return api;
-    },
-  };
-}
-
-function freshEnv() {
-  const db = new DatabaseSync(':memory:');
-  db.exec('PRAGMA foreign_keys = ON;');
-  db.exec(SCHEMA);
-  return { DB: d1(db), ADMIN_EMAILS: 'teacher@school.edu', _raw: db };
-}
-
-const ADMIN = { 'Cf-Access-Authenticated-User-Email': 'teacher@school.edu' };
 
 function upload(csv, { course = 'Algebra I', headers = ADMIN } = {}) {
   return new Request(`https://x/api/admin/roster?course=${encodeURIComponent(course)}`, {

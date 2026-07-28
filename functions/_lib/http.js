@@ -50,19 +50,52 @@ export function readAdminEmail(request, env) {
  * Either alone is sufficient, so the app works with or without Zero Trust and
  * gains edge-level protection for free if Access is added later. The role is
  * checked explicitly: a parent or student cookie is not an admin cookie.
+ *
+ * `teacherId` is what scopes the data:
+ *
+ *   a number -- a teacher who signed up. Sees their own courses and no others.
+ *   null     -- the site owner: the shared ADMIN_PASSWORD_HASH, or a Cloudflare
+ *               Access identity. Sees everything, including courses that
+ *               predate teacher accounts.
+ *
+ * That second case is why ADMIN_EMAILS should stay narrow. If Access is ever
+ * pointed at the whole school domain without also setting ADMIN_EMAILS, every
+ * teacher who reaches it is a site owner and the per-course scoping below
+ * stops meaning anything.
  */
 export async function requireAdmin(request, env, nowSec = Math.floor(Date.now() / 1000)) {
   const viaAccess = readAdminEmail(request, env);
-  if (viaAccess) return { via: 'access', email: viaAccess };
+  if (viaAccess) return { via: 'access', email: viaAccess, teacherId: null };
 
   const claims = await currentSession(request, env, nowSec);
-  // ADMIN_EMAILS may hold several addresses and the password says nothing about
-  // which person typed it, so the audit trail records the method, not a name it
-  // cannot actually establish.
-  if (claims?.role === 'teacher') return { via: 'session', email: 'password-login' };
+  if (claims?.role !== 'teacher') return null;
 
-  return null;
+  // sub 0 is the shared password: it says nothing about which person typed it,
+  // so the audit trail records the method rather than a name it cannot
+  // actually establish. Any other sub is a row in `teachers`.
+  return claims.sub
+    ? { via: 'teacher', email: claims.email || `teacher#${claims.sub}`, teacherId: claims.sub }
+    : { via: 'session', email: 'password-login', teacherId: null };
 }
+
+/**
+ * The course row this admin is allowed to act on, or null.
+ *
+ * Null covers both "no such course" and "not yours" on purpose. Distinguishing
+ * them would let a teacher enumerate which course ids exist at the school by
+ * watching for a different error, and there is nothing a caller does with the
+ * difference anyway.
+ */
+export async function ownedCourse(env, courseId, admin) {
+  if (!Number.isInteger(courseId) || courseId < 1) return null;
+  const row = await env.DB.prepare('SELECT * FROM courses WHERE id = ?1').bind(courseId).first();
+  if (!row) return null;
+  return admin.teacherId == null || row.owner_id === admin.teacherId ? row : null;
+}
+
+/** Bind value for `WHERE (?n IS NULL OR owner_id = ?n)` in list queries: the
+ *  teacher's id, or NULL for a site owner, who is filtered by nothing. */
+export const ownerFilter = (admin) => admin.teacherId ?? null;
 
 /** Parse a JSON body, returning null rather than throwing on malformed input. */
 export async function readJson(request) {

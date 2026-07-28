@@ -11,11 +11,12 @@
 // twice does not silently invalidate codes already sitting in parents'
 // inboxes. `reissue=1` overrides that for the "we lost the email" case.
 
-import { unauthorized, serverMisconfigured, badRequest, requireAdmin, csvResponse, csvRow } from '../../_lib/http.js';
+import { unauthorized, serverMisconfigured, badRequest, requireAdmin, ownedCourse, csvResponse, csvRow } from '../../_lib/http.js';
 import { generateCode, hashCode } from '../../_lib/codes.js';
 
 export async function onRequestGet({ request, env }) {
-  if (!await requireAdmin(request, env)) return unauthorized();
+  const admin = await requireAdmin(request, env);
+  if (!admin) return unauthorized();
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const url = new URL(request.url);
@@ -23,7 +24,9 @@ export async function onRequestGet({ request, env }) {
   if (!Number.isInteger(courseId) || courseId < 1) return badRequest('course_id is required.');
   const reissue = url.searchParams.get('reissue') === '1';
 
-  const course = await env.DB.prepare('SELECT name FROM courses WHERE id = ?1').bind(courseId).first();
+  // Ownership matters more here than anywhere else in the app: this response is
+  // parent email addresses and live access codes for every student in a class.
+  const course = await ownedCourse(env, courseId, admin);
   if (!course) return badRequest('No such course.');
 
   // The roster address is authoritative; a student-supplied one overrides it

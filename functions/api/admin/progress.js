@@ -8,7 +8,7 @@
 // changed -- `stale` exists to make that visible instead of quietly counting
 // them as complete.
 
-import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, csvResponse, csvRow } from '../../_lib/http.js';
+import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, ownedCourse, csvResponse, csvRow } from '../../_lib/http.js';
 
 const STATUS = {
   not_registered: 'Not registered',
@@ -20,14 +20,15 @@ const STATUS = {
 };
 
 export async function onRequestGet({ request, env }) {
-  if (!await requireAdmin(request, env)) return unauthorized();
+  const admin = await requireAdmin(request, env);
+  if (!admin) return unauthorized();
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const url = new URL(request.url);
   const courseId = Number(url.searchParams.get('course_id'));
   if (!Number.isInteger(courseId) || courseId < 1) return badRequest('course_id is required.');
 
-  const course = await env.DB.prepare('SELECT id, name FROM courses WHERE id = ?1').bind(courseId).first();
+  const course = await ownedCourse(env, courseId, admin);
   if (!course) return badRequest('No such course.');
 
   const published = await env.DB.prepare(

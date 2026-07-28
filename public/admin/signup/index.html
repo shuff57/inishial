@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up a teacher account · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+<script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script src="/ui.js" defer></script>
+</head>
+<!--
+  Self-service teacher sign-up, gated on the school's email domain.
+
+  The gate is enforced server-side in functions/api/admin/signup.js. Everything
+  this page does with the domain list is presentation: telling someone the rule
+  before they type is the difference between a form that works and one that
+  rejects them twice.
+-->
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/admin/login/">Teacher sign-in</a></li>
+    <li><a href="/admin/signup/">Set up a teacher account</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <a href="/">Back to the student side</a>
+  </div>
+</nav></header>
+
+<main id="main" tabindex="-1">
+  <h1>Set up a teacher account</h1>
+  <p class="muted">For teachers at <span class="mark" id="domainNote">this school</span>. Your classes,
+    rosters and syllabus are yours — other teachers can't see them.</p>
+
+  <div id="closed" class="notice error" hidden>
+    Teacher sign-up isn't turned on for this school yet. Ask whoever set up iniSHial
+    to add your domain, or sign in with the shared admin password.
+  </div>
+
+  <form id="form" class="card plain" hidden novalidate>
+    <label for="email">School email address
+      <span class="hint" id="emailHint">Your work address, not a personal one.</span></label>
+    <input id="email" name="email" type="email" autocomplete="email" required autofocus>
+
+    <label for="name">Your name <span class="hint">— optional</span>
+      <span class="hint">Shown on roster imports, so you can tell yours from a colleague's.</span></label>
+    <input id="name" name="name" type="text" autocomplete="name">
+
+    <label for="password">Pick a password
+      <span class="hint">At least 12 characters. Length beats punctuation — a short phrase
+        you'll remember is stronger than <span class="mark">P@ssw0rd</span>.</span></label>
+    <input id="password" type="password" autocomplete="new-password" required>
+
+    <label for="confirm">Type it again</label>
+    <input id="confirm" type="password" autocomplete="new-password" required>
+
+    <div id="msg" hidden></div>
+    <p><button id="submit" type="submit">Create my account</button></p>
+  </form>
+
+  <p class="small muted">Already have one? <a href="/admin/login/">Sign in</a>.</p>
+  <p class="small muted">This holds student names, student IDs and parent email addresses.
+    Use a password you don't use anywhere else.</p>
+</main>
+
+<script>
+const form = document.getElementById('form');
+const msg = document.getElementById('msg');
+const submit = document.getElementById('submit');
+const email = document.getElementById('email');
+const password = document.getElementById('password');
+const confirm = document.getElementById('confirm');
+
+function show(text, kind = 'error') {
+  msg.hidden = false;
+  msg.className = 'notice ' + kind;
+  msg.textContent = text;
+}
+
+// Ask the server which domains it accepts, and say so before anyone types.
+// Failing soft here shows the form rather than hiding it: the POST re-checks
+// everything, so the worst case is one rejected submission instead of a
+// teacher who cannot find the page.
+(async () => {
+  try {
+    const res = await fetch('/api/admin/signup');
+    const body = await res.json();
+    if (!body.available) {
+      document.getElementById('closed').hidden = false;
+      return;
+    }
+    const list = body.domains.map((d) => (d.startsWith('.') ? '@…' + d : '@' + d));
+    document.getElementById('domainNote').textContent = list.join(' or ');
+    document.getElementById('emailHint').textContent =
+      'Has to end in ' + list.join(' or ') + '.';
+  } catch {
+    /* leave the generic copy in place */
+  }
+  form.hidden = false;
+})();
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  msg.hidden = true;
+
+  // Checked here as well as on the server: the server never sees `confirm`, so
+  // a mistyped password would otherwise become an account nobody can sign in to.
+  if (password.value !== confirm.value) {
+    show('Those two passwords are different.');
+    confirm.focus();
+    return;
+  }
+
+  submit.disabled = true;
+  submit.textContent = 'Setting up…';
+  try {
+    const res = await fetch('/api/admin/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: email.value,
+        name: document.getElementById('name').value,
+        password: password.value,
+      }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      show(body.error || 'Could not create the account.');
+      if (body.taken) {
+        msg.insertAdjacentHTML('beforeend', ' <a href="/admin/login/">Sign in</a>');
+      }
+      return;
+    }
+    // Signed in already — the POST set the session cookie.
+    location.href = '/admin/';
+  } catch {
+    show('Could not reach the server.');
+  } finally {
+    submit.disabled = false;
+    submit.textContent = 'Create my account';
+  }
+});
+</script>
+</body>
+</html>

@@ -18,6 +18,7 @@
   <a class="brand" href="/">ini<span class="sh">SH</span>ial</a>
   <ul class="nav-main">
     <li><a href="/admin/login/">Teacher sign-in</a></li>
+    <li><a href="/admin/signup/">Set up a teacher account</a></li>
   </ul>
   <div class="nav-end">
     <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
@@ -31,12 +32,20 @@
     Parents and students don't sign in here.</p>
 
   <form id="form" class="card plain" novalidate>
-    <label for="password">Admin password</label>
-    <input id="password" type="password" autocomplete="current-password" required autofocus>
+    <label for="email">School email address
+      <span class="hint">Leave blank if you're using the shared admin password.</span></label>
+    <input id="email" name="email" type="email" autocomplete="email" autofocus>
+
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+
     <div id="msg" hidden></div>
     <p><button id="submit" type="submit">Sign in</button></p>
   </form>
 
+  <p class="small muted" id="signupLine" hidden>
+    No account yet? <a href="/admin/signup/">Set one up</a> with your school email address.
+  </p>
   <p class="small muted">Sessions last two hours. Five wrong attempts locks sign-in for thirty minutes.</p>
 </main>
 
@@ -52,6 +61,13 @@ function nextPath() {
   return /^\/(?!\/)/.test(raw) ? raw : '/admin/';
 }
 
+// Only offer sign-up when the server actually has a domain allowlist. A link to
+// a form that can only refuse you is worse than no link.
+fetch('/api/admin/signup')
+  .then((r) => r.json())
+  .then((b) => { document.getElementById('signupLine').hidden = !b.available; })
+  .catch(() => {});
+
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   msg.hidden = true;
@@ -61,7 +77,12 @@ form.addEventListener('submit', async (event) => {
     const res = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: document.getElementById('password').value }),
+      // An empty email means the shared admin password, which is a different
+      // credential entirely -- so it is omitted rather than sent blank.
+      body: JSON.stringify({
+        email: document.getElementById('email').value.trim() || undefined,
+        password: document.getElementById('password').value,
+      }),
     });
     const body = await res.json();
     if (!res.ok) {

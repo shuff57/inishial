@@ -15,7 +15,8 @@
 import { unauthorized, serverMisconfigured, badRequest, requireAdmin, escapeHtml, html } from '../_lib/http.js';
 
 export async function onRequestGet({ request, env }) {
-  if (!await requireAdmin(request, env)) return unauthorized();
+  const admin = await requireAdmin(request, env);
+  if (!admin) return unauthorized();
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const accountId = Number(new URL(request.url).searchParams.get('account_id'));
@@ -23,13 +24,19 @@ export async function onRequestGet({ request, env }) {
 
   const who = await env.DB.prepare(
     `SELECT a.id, a.username, COALESCE(a.parent_email, r.parent_email) AS email,
-            r.first, r.last, r.student_ext_id, r.period, c.name AS course
+            r.first, r.last, r.student_ext_id, r.period, c.name AS course, c.owner_id
        FROM accounts a
        JOIN roster r ON r.id = a.roster_id
        JOIN courses c ON c.id = r.course_id
       WHERE a.id = ?1`,
   ).bind(accountId).first();
-  if (!who) return badRequest('No such student.');
+  // This page is a named student, their parent's email, and everything they
+  // agreed to. Addressed by account_id, so the owner check comes through the
+  // course; "not yours" is reported as "no such student" so account ids are not
+  // enumerable across the school.
+  if (!who || (admin.teacherId != null && who.owner_id !== admin.teacherId)) {
+    return badRequest('No such student.');
+  }
 
   // The version they signed. Falls back to the live one when nothing is signed
   // yet, so the page still shows what they were asked to agree to.

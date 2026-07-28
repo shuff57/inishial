@@ -71,6 +71,37 @@ npx wrangler pages secret put ADMIN_EMAILS --project-name inishial
 # or set it as a plain var in wrangler.toml — it is not secret
 ```
 
+### 5b. Let other teachers sign themselves up
+
+Set `TEACHER_DOMAINS` in `wrangler.toml` to your school's email domain, and
+teachers can create their own account at `/admin/signup/`. Each one sees only
+their own classes, rosters and syllabus.
+
+```toml
+TEACHER_DOMAINS = "yourschool.org"      # that domain exactly
+TEACHER_DOMAINS = ".yourschool.org"     # and its subdomains
+TEACHER_DOMAINS = ""                    # sign-up off (the default)
+```
+
+Empty means **nobody**, never "anybody" — leaving it unset is safe.
+
+Two things to be clear-eyed about:
+
+- **This does not verify identity.** Nothing emails the address, so anyone who
+  knows the domain can claim any name at it. It narrows who can sign up; it
+  does not prove who they are. If you need proof, put Cloudflare Access in
+  front of `/admin/*` — `requireAdmin` already accepts an Access identity.
+- **Set `ADMIN_EMAILS` first.** The first account to sign up adopts every class
+  that predates teacher accounts. With `ADMIN_EMAILS` set, only an address on
+  that list can, so a colleague signing up ahead of you cannot walk off with
+  your roster.
+
+Upgrading a database that already has data:
+
+```bash
+npm run db:upgrade      # applies migrations/0002_teachers.sql to production
+```
+
 ### 6. Optional, for the AI authoring pass
 
 ```bash

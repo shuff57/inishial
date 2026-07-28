@@ -29,6 +29,17 @@ database_id = "26a2ff24-a632-4b74-9034-3b40622b15fa"
 # Comma-separated allowlist, checked on top of the Access policy. Leave empty
 # to accept any identity Access lets through.
 ADMIN_EMAILS = ""
+# Comma-separated list of the school's email domains. A teacher may create their
+# own account at /admin/signup/ only if their address ends in one of these.
+#
+# Leave empty to switch self-service sign-up off entirely -- an empty list is
+# read as "nobody", never as "anybody". Write `school.org` for that domain
+# exactly, or `.school.org` to accept its subdomains too.
+#
+# This is not identity verification: nothing emails the address, so it narrows
+# who can sign up rather than proving who they are. What it does guarantee is
+# that each account sees only its own courses.
+TEACHER_DOMAINS = ""
 # Ollama host for the authoring-time AI pass. Secret set out of band:
 #   npx wrangler pages secret put OLLAMA_API_KEY --project-name inishial
 OLLAMA_HOST = "https://ollama.com"
@@ -40,4 +51,5 @@ database_id = "26a2ff24-a632-4b74-9034-3b40622b15fa"
 
 [env.production.vars]
 ADMIN_EMAILS = ""
+TEACHER_DOMAINS = ""
 OLLAMA_HOST = "https://ollama.com"

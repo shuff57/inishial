@@ -64,6 +64,17 @@ Then put a Cloudflare Access application in front of `/api/admin/*`. The
 Functions fail closed without it, but failing closed is not the same as being
 protected. Narrow it further with the `ADMIN_EMAILS` var.
 
+### Teacher accounts
+
+Set `TEACHER_DOMAINS` to your school's email domain and teachers can create
+their own account at `/admin/signup/`. Each account owns its own classes:
+rosters carry student names, student IDs and parent email addresses, so one
+teacher cannot read another's.
+
+Empty (the default) turns sign-up off — an unset allowlist means nobody, never
+everybody. The domain check narrows who can sign up; it does not prove who they
+are, because nothing emails the address. See DEPLOY.md.
+
 ## Design
 
 `docs/plans/2026-07-27-interactive-syllabus-design.md` — decisions, the

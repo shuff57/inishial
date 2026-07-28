@@ -8,17 +8,18 @@
 // a fresh draft, so no request handled here can modify content someone has
 // already initialed.
 
-import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, readJson } from '../../_lib/http.js';
+import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, ownedCourse, readJson } from '../../_lib/http.js';
 import { ensureSyllabus, ensureDraft, latestPublished, blocksOf, replaceDraftBlocks, diffVersions } from '../../_lib/syllabus.js';
 
 export async function onRequestGet({ request, env }) {
-  if (!await requireAdmin(request, env)) return unauthorized();
+  const admin = await requireAdmin(request, env);
+  if (!admin) return unauthorized();
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const courseId = Number(new URL(request.url).searchParams.get('course_id'));
   if (!Number.isInteger(courseId) || courseId < 1) return badRequest('course_id is required.');
 
-  const course = await env.DB.prepare('SELECT id, name FROM courses WHERE id = ?1').bind(courseId).first();
+  const course = await ownedCourse(env, courseId, admin);
   if (!course) return badRequest('No such course.');
 
   const syllabus = await env.DB.prepare('SELECT id, title FROM syllabi WHERE course_id = ?1').bind(courseId).first();
@@ -44,7 +45,8 @@ export async function onRequestGet({ request, env }) {
 }
 
 export async function onRequestPost({ request, env }) {
-  if (!await requireAdmin(request, env)) return unauthorized();
+  const admin = await requireAdmin(request, env);
+  if (!admin) return unauthorized();
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const body = await readJson(request);
@@ -54,7 +56,7 @@ export async function onRequestPost({ request, env }) {
   if (!Number.isInteger(courseId) || courseId < 1) return badRequest('course_id is required.');
   if (!Array.isArray(body.blocks)) return badRequest('blocks must be an array.');
 
-  const course = await env.DB.prepare('SELECT id, name FROM courses WHERE id = ?1').bind(courseId).first();
+  const course = await ownedCourse(env, courseId, admin);
   if (!course) return badRequest('No such course.');
 
   const title = String(body.title || `${course.name} — Course Syllabus`).slice(0, 200);
@@ -68,15 +70,24 @@ export async function onRequestPost({ request, env }) {
 }
 
 export async function onRequestPut({ request, env }) {
-  if (!await requireAdmin(request, env)) return unauthorized();
+  const admin = await requireAdmin(request, env);
+  if (!admin) return unauthorized();
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const body = await readJson(request);
   const syllabusId = Number(body?.syllabus_id);
   if (!Number.isInteger(syllabusId) || syllabusId < 1) return badRequest('syllabus_id is required.');
 
-  const syllabus = await env.DB.prepare('SELECT id FROM syllabi WHERE id = ?1').bind(syllabusId).first();
-  if (!syllabus) return badRequest('No such syllabus.');
+  // Publishing is addressed by syllabus_id, not course_id, so ownership has to
+  // come back through the course. Without this a teacher could publish over
+  // another teacher's live syllabus by guessing an id -- and publishing is the
+  // one action in the app that resets who has signed.
+  const syllabus = await env.DB.prepare(
+    `SELECT s.id, c.owner_id FROM syllabi s JOIN courses c ON c.id = s.course_id WHERE s.id = ?1`,
+  ).bind(syllabusId).first();
+  if (!syllabus || (admin.teacherId != null && syllabus.owner_id !== admin.teacherId)) {
+    return badRequest('No such syllabus.');
+  }
 
   const draft = await ensureDraft(env.DB, syllabusId);
   const draftBlocks = await blocksOf(env.DB, draft.id);
