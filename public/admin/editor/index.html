@@ -922,20 +922,45 @@ function startDrag(ev, index, kind) {
    * row is not on, and there would be nothing left under the cursor to drop.
    */
   function springTo(target) {
-    const ranges = sectionRanges(state.blocks);
-    const idx = Math.max(0, Math.min(target, ranges.length - 1));
+    const before = sectionRanges(state.blocks);
+    // The tab's number is its position in the rail as it stands NOW. Lifting a
+    // whole section deletes a page, so every page after it shifts up by one and
+    // that number stops meaning the page it was pointing at -- dropping page 5
+    // on the 8th tab landed it 9th. A loose block never removes a page, so its
+    // numbering is untouched.
+    const srcPage = before.findIndex(([f, t]) => from >= f && from < t);
+    const aimed = kind === 'section' && srcPage !== -1 && srcPage < target ? target - 1 : target;
+    const idx = Math.max(0, Math.min(aimed, before.length - 1));
     const carried = state.blocks.splice(from, to - from);
     // Recomputed AFTER the removal: taking blocks out shifts every later page.
     const after = sectionRanges(state.blocks);
-    const landing = after[Math.max(0, Math.min(idx, after.length - 1))][1];
+    const [tf, tt] = after[Math.max(0, Math.min(idx, after.length - 1))];
+
+    // A whole SECTION carries its own heading, so it does not join the target
+    // page -- it becomes a page in its own right. Landing it at the target's
+    // START makes it take that page's position, which is what dropping a page
+    // on a tab has to mean. A loose block joins the page instead, at its end.
+    const landing = kind === 'section' ? tf : tt;
     state.blocks.splice(landing, 0, ...carried);
 
     from = landing;
     to = landing + carried.length;
-    page = idx;
+    // The page the blocks ACTUALLY ended up on, not the one aimed at. Moving a
+    // section makes a new page and renumbers everything after it, so assuming
+    // the target index rendered a page the dragged rows were not on -- and the
+    // re-acquire below then found nothing.
+    const finalRanges = sectionRanges(state.blocks);
+    const landed = finalRanges.findIndex(([f, t]) => from >= f && from < t);
+    page = landed === -1 ? Math.min(idx, finalRanges.length - 1) : landed;
     selected = null;
     markDirty();
     render();
+    setTabTarget(null);
+
+    // A section IS a page. Once it has been placed there is nothing left to
+    // position within the page, so the gesture is done -- carrying on would
+    // leave a ghost attached to a drag that can no longer land anywhere.
+    if (kind === 'section') { finish(false); return; }
 
     // The DOM the drag was holding is gone. Re-acquire it, keeping the ghost
     // and the grab offset so the block stays under the cursor throughout.
@@ -945,7 +970,6 @@ function startDrag(ev, index, kind) {
     hidden = [];
     if (!moved[0]) { finish(false); return; }
     for (const el of moved) { hidden.push(el.style.display); el.style.display = 'none'; }
-    setTabTarget(null);
   }
 
   function move(e) {
@@ -1032,7 +1056,10 @@ function startDrag(ev, index, kind) {
     ph.remove();
     ghost.remove();
     dragging = false;
-    moved.forEach((el, i) => { el.style.display = hidden[i] || ''; });
+    // filter(Boolean): re-acquiring after a page turn can come up empty, and a
+    // crash in the CLEANUP path is the worst place for one -- it leaves the
+    // ghost on screen attached to nothing and the drag half-finished.
+    moved.filter(Boolean).forEach((el, i) => { el.style.display = hidden[i] || ''; });
 
     if (tabTarget !== null) {
       const carried = state.blocks.splice(from, to - from);
