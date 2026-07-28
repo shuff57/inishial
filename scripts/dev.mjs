@@ -190,8 +190,18 @@ async function send(res, response) {
   res.end(body);
 }
 
+// The same rewrites public/_redirects declares for Cloudflare Pages. Kept in
+// step by hand, which is the cost of a dev server that is not the real runtime
+// -- if a public URL is ever added, it goes in both places or it 404s in one of
+// them.
+const REWRITES = new Map([
+  ['/register', '/index.html'], ['/register/', '/index.html'],
+  ['/sign', '/index.html'], ['/sign/', '/index.html'],
+]);
+
 function serveStatic(res, urlPath) {
   let rel = decodeURIComponent(urlPath.split('?')[0]);
+  rel = REWRITES.get(rel) ?? rel;
   if (rel.endsWith('/')) rel += 'index.html';
   // normalize() collapses any ../ before it can escape PUBLIC.
   const file = join(PUBLIC, normalize(rel).replace(/^(\.\.[/\\])+/, ''));

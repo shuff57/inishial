@@ -399,10 +399,13 @@ h1 {
    separate it from a previous section -- the box edge already does that.
    Replaces the `style="margin-top:.2rem"` that used to be sprinkled through the
    pages, each of which knocked the grid sideways by a fraction of a rule. */
-/* ...and through a first <section> wrapper. /sign/ wraps its two views in
-   <section>, which hid its <h1> from this rule and started that page two ruled
-   lines lower than every other one. */
-:is(.card, .done-banner, .initial-box, main, main > section:first-child) > :first-child { margin-top: 0; }
+/* ...and through the view wrappers. Every public view is a <section class=view>
+   inside <main>, and the signing one nests another <div> for its two states.
+   Without reaching through both, a view's <h1> keeps the two rules of air meant
+   to separate it from a PREVIOUS section, and that page starts two ruled lines
+   lower than every other one. */
+:is(.card, .done-banner, .initial-box, main, main > .view, main > .view > div)
+  > :first-child { margin-top: 0; }
 /* Labels carry their leading gap as padding, so :first-child needs that killed
    too or the first question sits a rule lower than everything else. */
 :is(.card, .done-banner, main, form) > label:first-child { padding-top: 0; }
@@ -848,6 +851,55 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
 .bar { height: 3px; background: color-mix(in srgb, var(--desk-ink) 20%, transparent); border-radius: 2px; margin-top: .4rem; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--mark-deep); width: 0; transition: width .3s ease-out; }
 
+/* ---- grabbing the corner ----
+ *
+ * TOP-right, not bottom-right. The bottom corner of a sheet taller than the
+ * viewport is 80-260px past the fold depending on screen, so the first version
+ * of this was invisible to everyone who did not go looking. The top corner is
+ * on screen the instant the page is.
+ *
+ * The dog-ear is drawn at rest and does not grow on hover -- a control that
+ * only appears when the mouse is already on it teaches nobody it is there, and
+ * a touch user never hovers at all.
+ */
+.corner {
+  position: absolute; top: 0; right: 0;
+  width: var(--peel, 20px); height: var(--peel, 20px);
+  z-index: 4;
+  cursor: grab;
+  touch-action: none;
+}
+.corner[data-grabbing] { cursor: grabbing; }
+.corner::after {                      /* a hit area larger than the drawing */
+  content: ''; position: absolute; inset: -14px -14px 0 0;
+}
+
+/* The desk, seen through the lifted corner. */
+.corner-under {
+  position: absolute; top: 0; right: 0;
+  width: 100%; height: 100%;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  background: linear-gradient(225deg,
+    color-mix(in srgb, var(--desk) 68%, #000) 0%, var(--desk) 58%);
+}
+/* The back of the sheet, folded down. Same paper, unruled -- it is the reverse. */
+.corner-flap {
+  position: absolute; top: 0; right: 0;
+  width: 100%; height: 100%;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  background: linear-gradient(225deg,
+    color-mix(in srgb, var(--paper) 86%, var(--ink)) 0%,
+    var(--paper) 30%, var(--ivory) 100%);
+  box-shadow: 2px 2px 10px rgba(0,0,0,.20);
+  border-bottom-left-radius: 2px;
+}
+.corner:not([data-grabbing]) .corner-flap,
+.corner:not([data-grabbing]) .corner-under { transition: none; }
+
+@media (prefers-reduced-motion: reduce) { .corner { display: none; } }
+@media (forced-colors: active) { .corner { display: none; } }
+@media print { .corner { display: none !important; } }
+
 /* ---- the syllabus as a notebook ----
  *
  * One section per sheet, turned rather than scrolled. This is the one place in
@@ -1036,40 +1088,50 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
  * multi-page app with forms and server state, not a flipbook. Browsers without
  * the API simply navigate instantly, which is what they do today.
  */
-@view-transition { navigation: auto; }
+/* SAME-document only. The cross-document version (`@view-transition
+   { navigation: auto }`) is gone: it could not start until the incoming
+   document painted, and that wait was the flash — a frozen old page, then a
+   jump. Now the public side is one document and the swap is ours to time.
 
-/* The nav is furniture on the desk: it keeps its own name so it is lifted out
-   of the turning snapshot and stays put. Everything else rides `root`.
- *
- * Naming `main` instead was the obvious thing and it was wrong twice over. The
- * group then has to morph between two sheets of DIFFERENT heights, which
- * stretches the outgoing snapshot; and both sheets sit in the same place, so
- * any transparency at all shows one straight through the other. `root` is
- * always exactly the viewport, so there is no size to morph, and the desk
- * underneath is a flat colour -- only the sheet reads as turning. */
+   The nav keeps its own name so it is lifted out of the snapshot and stays
+   put while the view under it turns. */
 header.site { view-transition-name: chrome; }
+/* MAIN, not .view. .view is only the text inside the sheet -- naming it left
+   the paper itself (background, ruled lines, binder holes) in `root`, which
+   cross-fades in plus-lighter by default. That cross-fade of two sheets of
+   paper on top of each other was the ghosting: you could read both views at
+   once while the text alone rotated. */
+main { view-transition-name: sheet; }
 
 @media (prefers-reduced-motion: no-preference) {
-  ::view-transition-group(root) { animation-duration: 520ms; }
+  ::view-transition-group(sheet) { animation-duration: 480ms; }
 
   /* Default is a cross-fade in plus-lighter. Two sheets of paper passing each
      other do not blend -- one is on top of the other. */
-  ::view-transition-image-pair(root) { isolation: auto; }
-  ::view-transition-old(root), ::view-transition-new(root) { mix-blend-mode: normal; }
+  ::view-transition-image-pair(sheet) { isolation: auto; }
+  ::view-transition-old(sheet), ::view-transition-new(sheet) {
+    mix-blend-mode: normal;
+    /* Views are different heights, so the group morphs between them and the
+       default object-fit:fill would STRETCH the outgoing page while it turns.
+       Crop it instead: same width, so this only trims the bottom of a page
+       that is on its way off screen anyway. */
+    object-fit: cover;
+    object-position: top center;
+  }
 
   /* The page underneath does not move and does not fade in. It was already
      there. Animating it was what produced the double-exposure: for most of the
      transition you could read both pages at once. */
-  ::view-transition-new(root) { z-index: 1; animation: none; opacity: 1; }
+  ::view-transition-new(sheet) { z-index: 1; animation: none; opacity: 1; }
 
   /* The page being turned stays fully opaque the whole way round, so you never
      see through it. It only disappears once it is edge-on and there is nothing
      left to see. The slight rotate is the corner: the top-right leads, the way
      it does when you actually pinch a page. */
-  ::view-transition-old(root) {
+  ::view-transition-old(sheet) {
     z-index: 2;
     transform-origin: left center;
-    animation: page-turn 520ms cubic-bezier(.42, 0, .3, 1) both;
+    animation: page-turn 480ms cubic-bezier(.42, 0, .3, 1) both;
   }
   /* Two ideas taken from turn.js, reimplemented rather than imported: a crease
      shaded across the fold, and a shadow that grows as the sheet lifts off the
@@ -1088,8 +1150,11 @@ header.site { view-transition-name: chrome; }
   }
 }
 
-/* The crease itself. Added to <html> at pageswap, so it is part of the snapshot
-   the turn animates and is never seen on a page that is just sitting there.
+/* The crease itself. Added to <html> immediately before startViewTransition
+   photographs the outgoing view, and removed inside the callback -- which runs
+   after that photograph and before the new one. Same-document is what makes
+   that timing available at all; the cross-document version only offered
+   `pageswap`, one snapshot earlier and a whole document away.
  *
  * It goes on the sheet's existing background stack rather than a pseudo-element
  * because both of main's are already spent -- ::before is the binder holes,

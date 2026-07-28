@@ -1,0 +1,8 @@
+# /register/ and /sign/ are real URLs a teacher mails out, but the whole public
+# side is one document now. Serve it for those paths with a 200 rewrite, not a
+# redirect: the address bar has to keep saying /sign/, because that is the link
+# in the parent's inbox and app.js reads the view from it.
+/register    /index.html   200
+/register/   /index.html   200
+/sign        /index.html   200
+/sign/       /index.html   200

@@ -6,12 +6,24 @@
 <title>iniSHial</title>
 <link rel="stylesheet" href="/app.css">
 <!-- The stored theme, applied before the first paint. Inline and tiny on
-     purpose: a blocking <script src> here cost ~88ms of first paint, and a
-     cross-document view transition cannot start until the new page paints,
-     so that delay was visible as a pause-then-flash on every page turn. -->
+     purpose: a blocking <script src> here costs first paint for no reason. -->
 <script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <script src="/ui.js" defer></script>
+<script src="/app.js" type="module"></script>
 </head>
+<!--
+  The whole public side lives here: the start page, registration, and signing.
+  /register/ and /sign/ are still real URLs -- the server hands back this same
+  file for them (public/_redirects, scripts/dev.mjs) and app.js picks the view
+  from location.pathname.
+
+  Switching views is therefore a same-document change, which is what makes the
+  turn controllable: nothing has to be photographed, and nothing waits on
+  another document to paint. That wait was the flash.
+
+  Admin stays on its own pages. Different audience, different session, and no
+  reason to hand a parent a roster importer.
+-->
 <body>
 <a class="skip" href="#main">Skip to the page</a>
 <header class="site"><nav aria-label="Main">
@@ -27,26 +39,127 @@
   </div>
 </nav></header>
 
+<div class="progress" id="progress" hidden><div>
+  <span id="progressWho"></span>
+  <span id="progressCount"></span>
+</div><div class="bar" style="max-width:44rem;margin:.45rem auto 0"><i id="progressBar"></i></div></div>
+
 <main id="main" tabindex="-1">
-  <h1>Course syllabus</h1>
-  <p class="note-hand tape">No backpack required.</p>
-  <p class="muted">Pick the one that applies to you.</p>
 
-  <div class="card plain">
-    <h2>I'm a student</h2>
-    <p class="muted">First day of class. Takes <span class="mark">about a minute</span> — you'll
-      need your student ID number and a parent or guardian's email address.</p>
-    <!-- An <a> styled as a button, not a <button> wrapped in an <a>: nesting
-         them is invalid, and screen readers announce the pair inconsistently. -->
-    <p><a class="button" href="/register/">Set up my account</a></p>
-  </div>
+  <!-- ---------- start ---------- -->
+  <section class="view" id="view-home" data-path="/">
+    <h1>Course syllabus</h1>
+    <p class="note-hand tape">No backpack required.</p>
+    <p class="muted">Pick the one that applies to you.</p>
 
-  <div class="card plain">
-    <h2>I'm a parent or guardian</h2>
-    <p class="muted">Your teacher emailed you a student ID and an <span class="mark">access
-      code</span>. Use those to read the syllabus and initial each section.</p>
-    <p><a class="button" href="/sign/">Read and sign the syllabus</a></p>
-  </div>
+    <div class="card plain">
+      <h2>I'm a student</h2>
+      <p class="muted">First day of class. Takes <span class="mark">about a minute</span> — you'll
+        need your student ID number and a parent or guardian's email address.</p>
+      <!-- An <a> styled as a button, not a <button> wrapped in an <a>: nesting
+           them is invalid, and screen readers announce the pair inconsistently. -->
+      <p><a class="button" href="/register/">Set up my account</a></p>
+    </div>
+
+    <div class="card plain">
+      <h2>I'm a parent or guardian</h2>
+      <p class="muted">Your teacher emailed you a student ID and an <span class="mark">access
+        code</span>. Use those to read the syllabus and initial each section.</p>
+      <p><a class="button" href="/sign/">Read and sign the syllabus</a></p>
+    </div>
+  </section>
+
+  <!-- ---------- set up an account ---------- -->
+  <section class="view" id="view-register" data-path="/register/" hidden>
+    <h1>Set up your account</h1>
+    <p class="muted">Already set one up? Enter your student ID and last name and leave the rest blank —
+      it takes you back to your syllabus.</p>
+
+    <form id="registerForm" class="card plain" novalidate>
+      <label for="reg-sid">Student ID number
+        <span class="hint">The number on your school ID card.</span></label>
+      <input id="reg-sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+
+      <label for="reg-last">Last name</label>
+      <input id="reg-last" class="blank-name" name="last" type="text" autocomplete="family-name" required>
+
+      <label for="reg-username">Pick a username <span class="hint">— first time only</span>
+        <span class="hint">3–32 characters. Letters, numbers, dot, dash, underscore.
+          Leave blank if you already have an account.</span></label>
+      <input id="reg-username" class="blank-name" name="username" type="text" autocomplete="off">
+
+      <label for="reg-email">Parent or guardian's email <span class="hint">— optional</span>
+        <span class="hint">Your school already has a contact email for most families. Only fill this in if
+          your parent or guardian should get the syllabus at a different address.</span></label>
+      <input id="reg-email" name="parent_email" type="email" autocomplete="off">
+
+      <div id="registerMsg" hidden></div>
+      <p><button id="registerBtn" type="submit">Continue</button></p>
+    </form>
+
+    <div id="registerDone" class="card plain" hidden>
+      <h2 id="doneTitle">You're registered</h2>
+      <p id="doneWho" class="muted"></p>
+      <p id="doneMsg"></p>
+      <p><a id="doneNext" class="button" href="/sign/">Read and initial the syllabus</a></p>
+    </div>
+  </section>
+
+  <!-- ---------- read and initial ---------- -->
+  <section class="view" id="view-sign" data-path="/sign/" hidden>
+    <div id="loginView">
+      <h1>Read and sign the syllabus</h1>
+      <p class="muted">Use the student ID and access code from your teacher's email.</p>
+
+      <form id="loginForm" class="card plain" novalidate>
+        <label for="sid">Student ID number
+          <span class="hint">The number on your student's school ID card.</span></label>
+        <input id="sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+
+        <label for="code">Access code
+          <span class="hint">Eight characters, from your teacher's email.</span></label>
+        <input id="code" class="blank-code" name="code" type="text" autocomplete="off" spellcheck="false" required>
+
+        <fieldset>
+          <legend>I am</legend>
+          <div class="choices">
+            <label class="choice"><input type="radio" name="role" value="parent" checked> the parent or guardian</label>
+            <label class="choice"><input type="radio" name="role" value="student"> the student</label>
+          </div>
+        </fieldset>
+
+        <div id="loginMsg" hidden></div>
+        <p><button id="loginBtn" type="submit">Open the syllabus</button></p>
+      </form>
+    </div>
+
+    <div id="docView" hidden>
+      <h1 id="docTitle"></h1>
+      <p class="muted small" id="docMeta"></p>
+      <div id="blocks"></div>
+
+      <!-- Turning the notebook. The buttons are the real control: the stacked
+           page edge is a nicety for a pointer, and is aria-hidden. -->
+      <div class="book-bar" id="bookBar" hidden>
+        <button class="secondary" id="prevPage">← Back</button>
+        <button class="secondary" id="nextPage">Next page →</button>
+        <span class="spacer"></span>
+        <span class="where" id="where" role="status"></span>
+        <button class="secondary" id="readAll">Read as one page</button>
+      </div>
+
+      <div id="doneBanner" class="done-banner" hidden>
+        <h2>All sections initialed</h2>
+        <p class="muted">Your teacher can see this is complete. Nothing else to do.</p>
+        <button class="secondary no-print" onclick="window.print()">Print a copy</button>
+      </div>
+    </div>
+  </section>
+
+  <noscript>
+    <p class="notice error">This page needs JavaScript. Registering and initialing a
+      syllabus both talk to the server as you go, so there is nothing to show without it.</p>
+  </noscript>
 </main>
 </body>
 </html>
