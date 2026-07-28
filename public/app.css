@@ -442,16 +442,21 @@ a {
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
 }
+/* The band sweeps ACROSS the word, the way a highlighter is actually drawn.
+   It used to scale up from the baseline, which reads as a bar rising rather
+   than as a pen stroke — and it disagreed with .mark, which has swept sideways
+   from the start. Same gesture everywhere now. */
 a::before {
   content: ''; position: absolute; z-index: -1;
   left: -.12em; right: -.12em; top: .08em; bottom: 0;
   background: var(--mark);
-  border-radius: 2px;
-  transform: scaleY(0);
-  transform-origin: center bottom;
+  /* A marker does not start and stop square. */
+  border-radius: 2px 5px 3px 6px;
+  transform: scaleX(0);
+  transform-origin: left center;
   transition: transform var(--swipe);
 }
-a:hover::before, a:focus-visible::before { transform: scaleY(1); }
+a:hover::before, a:focus-visible::before { transform: scaleX(1); }
 a.button::before, .brand::before { display: none; }
 a.button, .brand { text-decoration: none; }
 
