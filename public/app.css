@@ -1001,6 +1001,90 @@ header.site { view-transition-name: chrome; }
   }
 }
 
+/* ---- the draggable corner ----
+ *
+ * Grab the bottom-right corner of the sheet and peel it. The fold tracks the
+ * pointer 1:1; let go past the halfway mark and the page turns.
+ *
+ * The peel is a GESTURE ON THIS PAGE, not a preview of the next one. That is
+ * the whole reason it can exist here: it never has to render another
+ * document, so navigation stays an ordinary navigation and the app stays eight
+ * separate pages. What you see under the lifted corner is the desk, then a
+ * spinner, then the browser navigates -- which is honest, because that is
+ * exactly what is happening.
+ *
+ * Decorative and duplicative by design: every destination it reaches is also a
+ * link in the nav. It is aria-hidden and never in the tab order, so a keyboard
+ * or screen-reader user loses nothing by not having it.
+ */
+.peel {
+  position: absolute; right: 0; bottom: 0;
+  width: 0; height: 0;
+  z-index: 3;
+  touch-action: none;          /* the drag is ours; do not also scroll */
+  cursor: grab;
+  --peel: 0px;                 /* leg length of the fold, driven by the pointer */
+}
+.peel[data-armed] { cursor: grabbing; }
+
+/* The grab region. turn.js calls this cornerSize -- a fixed patch at the
+   corner that starts a peel, rather than the whole edge. */
+.peel::before {
+  content: '';
+  position: absolute; right: 0; bottom: 0;
+  width: 4.5rem; height: 4.5rem;
+}
+
+/* What the lifted corner uncovers: the desk, shaded in the crease. */
+.peel-under {
+  position: absolute; right: 0; bottom: 0;
+  width: var(--peel); height: var(--peel);
+  clip-path: polygon(100% 0, 0 100%, 100% 100%);
+  background: linear-gradient(315deg,
+    color-mix(in srgb, var(--desk) 70%, #000) 0%,
+    var(--desk) 55%);
+  pointer-events: none;
+}
+
+/* The back of the sheet, folded over. Same paper, no ruling -- you are looking
+   at the reverse -- and lit from the fold so it reads as bent, not pasted on. */
+.peel-flap {
+  position: absolute; right: 0; bottom: 0;
+  width: var(--peel); height: var(--peel);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  background: linear-gradient(315deg,
+    color-mix(in srgb, var(--paper) 88%, var(--ink)) 0%,
+    var(--paper) 26%,
+    var(--ivory) 100%);
+  box-shadow: -2px -2px 10px rgba(0,0,0,.22);
+  pointer-events: none;
+}
+
+/* Resting hint: a small dog-ear so the corner reads as liftable before anyone
+   has tried. It grows on hover, and the drag takes over from there. */
+.peel:not([data-armed]) { transition: none; }
+.peel:not([data-armed]) .peel-flap,
+.peel:not([data-armed]) .peel-under { transition: width 180ms ease-out, height 180ms ease-out; }
+
+/* Committed: the fold finishes on its own while the browser fetches. */
+.peel[data-loading] .peel-flap, .peel[data-loading] .peel-under {
+  transition: width 320ms cubic-bezier(.3,0,.2,1), height 320ms cubic-bezier(.3,0,.2,1);
+}
+.peel-spinner {
+  position: absolute; right: 1.1rem; bottom: 1.1rem;
+  width: 1.4rem; height: 1.4rem;
+  border: 2px solid color-mix(in srgb, var(--ink) 25%, transparent);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.peel[data-loading] .peel-spinner { opacity: 1; animation: peel-spin 620ms linear infinite; }
+@keyframes peel-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) { .peel { display: none; } }
+@media (forced-colors: active) { .peel { display: none; } }
+
 /* The crease itself. Added to <html> at pageswap, so it is part of the snapshot
    the turn animates and is never seen on a page that is just sitting there.
  *
