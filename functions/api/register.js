@@ -31,6 +31,7 @@ import { json, badRequest, serverMisconfigured, readJson } from '../_lib/http.js
 import { hit, reset, clientIp } from '../_lib/ratelimit.js';
 import { signSession, sessionCookie } from '../_lib/session.js';
 import { generateCode, hashCode } from '../_lib/codes.js';
+import { sealCode } from '../_lib/vault.js';
 
 // Deliberately permissive. Strict RFC-5322 validation rejects addresses that
 // work; the real check is whether the mail arrives.
@@ -135,9 +136,13 @@ export async function onRequestPost({ request, env }) {
   try {
     const insert = await env.DB.prepare(
       `INSERT INTO accounts (roster_id, username, parent_email, created_at,
-                             student_code_hash, student_code_issued_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?4)`,
-    ).bind(rosterRow.id, username, parentEmail || null, nowSec, await hashCode(studentCode)).run();
+                             student_code_hash, student_code_issued_at, student_code_enc)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?4, ?6)`,
+    ).bind(rosterRow.id, username, parentEmail || null, nowSec,
+      // Hash to verify against, ciphertext so the teacher can read it back to
+      // a student who shut the tab. Both, or neither is any use. sealCode
+      // returns null with no CODE_SECRET set, and the page says so.
+      await hashCode(studentCode), await sealCode(env, studentCode)).run();
     accountId = Number(insert.meta.last_row_id);
   } catch (err) {
     // UNIQUE(username) is the only constraint a well-formed request can trip.

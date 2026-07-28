@@ -1,18 +1,27 @@
-// GET /api/admin/credentials?course_id=<n>[&reissue=1]   (Access gated)
+// GET /api/admin/credentials?course_id=<n>[&reissue=1][&format=json]
 //
-// The mail-merge source. Returns CSV: student, period, parent email, access
-// code, and the syllabus link -- ready to paste into a mail merge from the
-// teacher's own account. Nothing is emailed from here by design; that removes
-// the only proprietary dependency the app would otherwise need.
+// The access codes for one class. Two shapes, one set of rules:
 //
-// Codes are hashed at rest and therefore unrecoverable, so this endpoint is
-// where the one and only plaintext appears. Accounts that already have a code
-// are returned with an empty code column rather than a fresh one, so exporting
-// twice does not silently invalidate codes already sitting in parents'
-// inboxes. `reissue=1` overrides that for the "we lost the email" case.
+//   CSV (default)   the mail-merge source -- paste into a merge from the
+//                   teacher's own account. Nothing is emailed from here, which
+//                   is what keeps the app free of a mail provider.
+//   format=json     what /admin/codes/ renders as a table on screen.
+//
+// Both go through the same minting and the same ownership check, because two
+// copies of "who may read this and when is a code replaced" is how the two
+// drift until one of them is wrong.
+//
+// Codes are stored hashed (for sign-in) AND sealed under CODE_SECRET (so this
+// endpoint can read them back). A row sealed before the vault existed, or under
+// a since-rotated secret, comes back with the code null and `recoverable:
+// false` -- the page offers to reissue rather than pretending it is blank.
 
-import { unauthorized, serverMisconfigured, badRequest, requireAdmin, ownedCourse, csvResponse, csvRow } from '../../_lib/http.js';
+import {
+  unauthorized, serverMisconfigured, badRequest, requireAdmin, ownedCourse,
+  csvResponse, csvRow, json,
+} from '../../_lib/http.js';
 import { generateCode, hashCode } from '../../_lib/codes.js';
+import { sealCode, openCode, vaultReady } from '../../_lib/vault.js';
 
 export async function onRequestGet({ request, env }) {
   const admin = await requireAdmin(request, env);
@@ -23,6 +32,10 @@ export async function onRequestGet({ request, env }) {
   const courseId = Number(url.searchParams.get('course_id'));
   if (!Number.isInteger(courseId) || courseId < 1) return badRequest('course_id is required.');
   const reissue = url.searchParams.get('reissue') === '1';
+  const wantsJson = url.searchParams.get('format') === 'json';
+  // One student, by account id. The remedy for "this one leaked" that does not
+  // involve invalidating every code in the class.
+  const only = Number(url.searchParams.get('account_id')) || null;
 
   // Ownership matters more here than anywhere else in the app: this response is
   // parent email addresses and live access codes for every student in a class.
@@ -33,6 +46,8 @@ export async function onRequestGet({ request, env }) {
   // only when they bothered to enter one, which is the "not on file" case.
   const { results } = await env.DB.prepare(
     `SELECT a.id, a.username, a.code_hash, a.student_code_hash,
+            a.code_enc, a.student_code_enc,
+            a.code_issued_at, a.student_code_issued_at,
             COALESCE(a.parent_email, r.parent_email) AS email,
             CASE
               WHEN a.parent_email IS NOT NULL THEN 'student-supplied'
@@ -47,50 +62,73 @@ export async function onRequestGet({ request, env }) {
   ).bind(courseId).all();
 
   const nowSec = Math.floor(Date.now() / 1000);
-  const origin = url.origin;
-  const link = `${origin}/sign`;
+  const link = `${url.origin}/sign`;
 
-  // Two codes per student now, in two columns. The parent's is the one to mail;
-  // the student's exists so a teacher can hand it back to whoever shut the tab
-  // before finishing. They are different strings on purpose -- that is what
-  // keeps a student from signing their own parent's agreement.
+  /**
+   * The current plaintext for one code, minting a new one when there is none
+   * or when a reissue was asked for.
+   *
+   * Reissue writes the hash and the ciphertext together. If they ever came
+   * apart the page would show one code while sign-in accepted another, and
+   * the teacher would be reading a wrong answer off a screen with no way to
+   * tell -- so both columns move in the same statement or neither does.
+   */
+  const settle = async (row, kind) => {
+    const hashCol = kind === 'parent' ? 'code_hash' : 'student_code_hash';
+    const encCol = kind === 'parent' ? 'code_enc' : 'student_code_enc';
+    const atCol = kind === 'parent' ? 'code_issued_at' : 'student_code_issued_at';
+    const mine = only == null || only === row.id;
+
+    if (mine && (reissue || !row[hashCol])) {
+      const code = generateCode();
+      await env.DB.prepare(
+        `UPDATE accounts SET ${hashCol} = ?1, ${encCol} = ?2, ${atCol} = ?3 WHERE id = ?4`,
+      ).bind(await hashCode(code), await sealCode(env, code), nowSec, row.id).run();
+      return { code, issued_at: nowSec, fresh: true, recoverable: true };
+    }
+    if (!row[hashCol]) return { code: null, issued_at: null, fresh: false, recoverable: false };
+
+    const code = await openCode(env, row[encCol]);
+    return { code, issued_at: row[atCol], fresh: false, recoverable: code !== null };
+  };
+
+  const students = [];
+  for (const row of results ?? []) {
+    students.push({
+      account_id: row.id,
+      student: `${row.last}, ${row.first}`,
+      student_ext_id: row.student_ext_id,
+      period: row.period ?? '',
+      email: row.email ?? '',
+      email_source: row.email_source,
+      school_email: row.username,
+      parent: await settle(row, 'parent'),
+      student_code: await settle(row, 'student'),
+    });
+  }
+
+  if (wantsJson) {
+    return json({
+      course: course.name,
+      link,
+      // The page needs to distinguish "no code yet" from "cannot be shown", and
+      // the second is a deployment problem rather than a per-student one.
+      vault: vaultReady(env),
+      students,
+    });
+  }
+
   const lines = [csvRow([
     'Student', 'Student ID', 'Period', 'Parent email', 'Email source',
     'Parent access code', 'Student access code', 'Link',
   ])];
-
-  for (const row of results ?? []) {
-    // Same rule for both: an existing code is left alone and its column comes
-    // back empty, so exporting twice does not invalidate what is already in an
-    // inbox. reissue=1 replaces both.
-    let parentCode = '';
-    if (reissue || !row.code_hash) {
-      parentCode = generateCode();
-      await env.DB.prepare('UPDATE accounts SET code_hash = ?1, code_issued_at = ?2 WHERE id = ?3')
-        .bind(await hashCode(parentCode), nowSec, row.id).run();
-    }
-    // A student who has not registered yet has no student code and gets none
-    // here: the code is minted when they register, and issuing one now would
-    // overwrite it a minute later. Accounts predating the two-code split have
-    // no student code either, and this is where they get one.
-    let studentCode = '';
-    if (reissue || !row.student_code_hash) {
-      studentCode = generateCode();
-      await env.DB.prepare('UPDATE accounts SET student_code_hash = ?1, student_code_issued_at = ?2 WHERE id = ?3')
-        .bind(await hashCode(studentCode), nowSec, row.id).run();
-    }
+  for (const s of students) {
     lines.push(csvRow([
-      `${row.last}, ${row.first}`,
-      row.student_ext_id,
-      row.period ?? '',
-      row.email ?? '',
-      row.email_source,
-      parentCode,
-      studentCode,
-      link,
+      s.student, s.student_ext_id, s.period, s.email, s.email_source,
+      s.parent.code ?? '', s.student_code.code ?? '', link,
     ]));
   }
 
   const slug = String(course.name).replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
-  return csvResponse(`credentials-${slug || courseId}.csv`, lines.join('\r\n') + '\r\n');
+  return csvResponse(`access-codes-${slug || courseId}.csv`, lines.join('\r\n') + '\r\n');
 }

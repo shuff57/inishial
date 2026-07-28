@@ -12,7 +12,7 @@
 // Printing today's text over last term's signature would misrepresent what was
 // agreed to.
 
-import { unauthorized, serverMisconfigured, badRequest, requireAdmin, escapeHtml, html } from '../_lib/http.js';
+import { unauthorized, serverMisconfigured, badRequest, requireAdmin, owns, escapeHtml, html } from '../_lib/http.js';
 
 export async function onRequestGet({ request, env }) {
   const admin = await requireAdmin(request, env);
@@ -34,7 +34,7 @@ export async function onRequestGet({ request, env }) {
   // agreed to. Addressed by account_id, so the owner check comes through the
   // course; "not yours" is reported as "no such student" so account ids are not
   // enumerable across the school.
-  if (!who || (admin.teacherId != null && who.owner_id !== admin.teacherId)) {
+  if (!who || !owns(who.owner_id, admin)) {
     return badRequest('No such student.');
   }
 

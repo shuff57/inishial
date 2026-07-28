@@ -884,7 +884,12 @@ main :is(button, .button):not(.danger):hover:not([disabled])::after, main :is(bu
 main :is(.flags, .filters, .tabs, .pages, .adders, .tools, .page-tools, .sec-tools, .compact)
   :is(button, .button)::before,
 main :is(.flags, .filters, .tabs, .pages, .adders, .tools, .page-tools, .sec-tools, .compact)
-  :is(button, .button)::after { content: none; }
+  :is(button, .button)::after,
+/* ...and .compact on the control ITSELF, not just on a container. The list
+   above is all wrappers, so a lone compact button -- a Reissue chip in a table
+   row -- matched none of it and wore a torn strip. */
+main :is(button, .button).compact::before,
+main :is(button, .button).compact::after { content: none; }
 
 /* Under forced colours both pseudo-elements are discarded and only the box is
    left, so the box has to still be a button. The border is transparent rather

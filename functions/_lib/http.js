@@ -53,15 +53,24 @@ export function readAdminEmail(request, env) {
  *
  * `teacherId` is what scopes the data:
  *
- *   a number -- a teacher who signed up. Sees their own courses and no others.
- *   null     -- the site owner: the shared ADMIN_PASSWORD_HASH, or a Cloudflare
- *               Access identity. Sees everything, including courses that
- *               predate teacher accounts.
+ *   a number -- a teacher who signed up. Their own courses, and no others.
+ *   null     -- the shared ADMIN_PASSWORD_HASH, or a Cloudflare Access
+ *               identity. UNOWNED courses only: the ones imported before
+ *               teacher accounts existed.
  *
- * That second case is why ADMIN_EMAILS should stay narrow. If Access is ever
- * pointed at the whole school domain without also setting ADMIN_EMAILS, every
- * teacher who reaches it is a site owner and the per-course scoping below
- * stops meaning anything.
+ * That second case used to mean "sees everything", which made the shared
+ * password a skeleton key to every class in the school. A colleague's roster
+ * is their students' names, their parents' addresses and their signing codes,
+ * and nobody needs a view across all of it to run this app. The legacy bucket
+ * still needs an owner, hence unowned-only rather than nothing at all; sign-up
+ * can adopt those courses and take them out of it.
+ *
+ * Read the limit of this honestly: it is an authorization boundary inside the
+ * app, not a wall against whoever operates the server. Anyone holding the
+ * database and CODE_SECRET can read any class, and no amount of server-side
+ * encryption changes that -- the server has to be able to decrypt to display.
+ * What this does guarantee is that no request through this app hands one
+ * teacher another teacher's students.
  */
 export async function requireAdmin(request, env, nowSec = Math.floor(Date.now() / 1000)) {
   const viaAccess = readAdminEmail(request, env);
@@ -90,11 +99,25 @@ export async function ownedCourse(env, courseId, admin) {
   if (!Number.isInteger(courseId) || courseId < 1) return null;
   const row = await env.DB.prepare('SELECT * FROM courses WHERE id = ?1').bind(courseId).first();
   if (!row) return null;
-  return admin.teacherId == null || row.owner_id === admin.teacherId ? row : null;
+  // `==` is deliberate on both sides: D1 hands back null for an unowned course
+  // and the shared-password admin carries undefined, and those two have to
+  // meet. A signed-up teacher matches only their own id -- there is no branch
+  // here that lets one identity through to another's course.
+  return owns(row.owner_id, admin) ? row : null;
 }
 
-/** Bind value for `WHERE (?n IS NULL OR owner_id = ?n)` in list queries: the
- *  teacher's id, or NULL for a site owner, who is filtered by nothing. */
+/** Does this admin own that course? The single definition of the boundary --
+ *  every list query below and every by-id check above goes through it. */
+export const owns = (ownerId, admin) =>
+  admin.teacherId == null ? ownerId == null : ownerId === admin.teacherId;
+
+/** Bind value for the owner clause in list queries. Pair it with
+ *  `WHERE owner_id IS ?n` -- SQLite's IS compares NULLs, so one bound value
+ *  covers both "mine" and "the unowned ones" without a second code path.
+ *
+ *  It used to be paired with `(?n IS NULL OR owner_id = ?n)`, which read as a
+ *  filter and behaved as a bypass: NULL matched every row rather than the
+ *  unowned ones. */
 export const ownerFilter = (admin) => admin.teacherId ?? null;
 
 /** Parse a JSON body, returning null rather than throwing on malformed input. */

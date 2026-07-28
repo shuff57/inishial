@@ -251,12 +251,38 @@ test('another teacher cannot publish over a syllabus', async () => {
 
 // ---- the site owner ----
 
-test('a Cloudflare Access identity still sees every course', async () => {
+// The site owner used to see EVERY course, which made the shared password a
+// skeleton key to every class in the school -- names, parents' addresses and
+// signing codes for students belonging to someone else. It now sees the
+// unowned bucket and nothing more.
+
+test('the site owner sees unowned courses, not other teachers\' classes', async () => {
   const { e, courseId, bobCourse } = await twoTeachers();
+  const orphan = Number(e._raw.prepare('INSERT INTO courses (name, created_at, owner_id) VALUES (?, ?, NULL)')
+    .run('Legacy Chemistry', 1000).lastInsertRowid);
+
   const res = await courses({ request: new Request('https://x/api/admin/roster', { headers: ADMIN_HEADERS }), env: e });
   const ids = (await res.json()).courses.map((c) => c.id).sort();
-  assert.deepEqual(ids, [courseId, bobCourse].sort(),
-    'the deployment owner is not scoped to a teacher account');
+
+  assert.deepEqual(ids, [orphan], 'only the course that has no teacher yet');
+  assert.ok(!ids.includes(courseId) && !ids.includes(bobCourse),
+    "the shared password is not a way into a colleague's roster");
+});
+
+test('the site owner cannot reach another teacher\'s students by id', async () => {
+  const { e, courseId, accountId } = await twoTeachers();   // courseId is Alice's
+
+  // Every door into one class's PII, tried with the shared-password identity.
+  const asOwner = (url) => new Request(url, { headers: ADMIN_HEADERS });
+
+  const codes = await credentials({ request: asOwner(`https://x/api/admin/credentials?course_id=${courseId}`), env: e });
+  assert.equal(codes.status, 400, 'access codes and parent emails for a class that is not theirs');
+
+  const prog = await progress({ request: asOwner(`https://x/api/admin/progress?course_id=${courseId}`), env: e });
+  assert.equal(prog.status, 400, 'who has signed, for a class that is not theirs');
+
+  const record = await signedRecord({ request: asOwner(`https://x/admin/signed?account_id=${accountId}`), env: e });
+  assert.equal(record.status, 400, 'a named student\'s signed record, addressed directly');
 });
 
 test('the first sign-up adopts courses that predate teacher accounts', async () => {

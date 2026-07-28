@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Access codes · iniSHial</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/app.css">
+<!-- The stored theme, applied before the first paint. Inline and tiny on
+     purpose: a blocking <script src> here cost ~88ms of first paint, and a
+     cross-document view transition cannot start until the new page paints,
+     so that delay was visible as a pause-then-flash on every page turn. -->
+<script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script src="/ui.js" defer></script>
+<style>
+  main { max-width: 62rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  /* No borders. The paper already draws a line under every row -- same as the
+     roster and the signing table. */
+  th, td { text-align: left; padding: 0 .55rem; line-height: var(--rule); vertical-align: top; }
+  th { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-stone); font-weight: 600; }
+
+  /* The codes themselves, spaced like the field they get typed into so a 1 and
+     an I are told apart while reading one off the screen to a parent. */
+  .code {
+    font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .code.none { font-weight: 400; letter-spacing: 0; color: var(--ink-silver); text-transform: none; }
+  td.act { text-align: right; white-space: nowrap; }
+  /* One rule tall and un-taped: these are chrome in a table, not actions in the
+     reading flow. .compact is the class app.css already reserves for that. */
+  .compact { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .78rem; }
+  .compact:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
+
+  /* A code just minted, so the eye can find the one that changed in a class of
+     thirty. Marker band, the same one everything else uses for "this one". */
+  tr.fresh .code { background: var(--mark); border-radius: 2px 5px 3px 6px; padding: 0 .3rem; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/admin/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/admin/">Classes</a></li>
+    <li><a href="/admin/editor/" data-keep-course>Syllabus editor</a></li>
+    <li><a href="/admin/progress/" data-keep-course>Who has signed</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <button type="button" class="secondary" id="navSignout">Sign out</button>
+  </div>
+</nav></header>
+
+<main id="main" tabindex="-1">
+  <h1>Access codes</h1>
+  <p class="muted small" id="sub"></p>
+  <div id="msg" hidden></div>
+
+  <p class="muted small">
+    Every student has <b>two</b> codes. Mail the parent theirs; the student's is
+    shown to them when they set up their account, and is here so you can read it
+    back to anyone who lost it. Which code is used at sign-in is what decides
+    whose initials it writes — so they are never the same string.
+  </p>
+
+  <p class="row">
+    <a id="csv" class="button secondary" href="#">Download CSV</a>
+    <a id="progress" class="button secondary" href="#">Who has signed</a>
+    <a id="edit" class="button secondary" href="#">Edit syllabus</a>
+  </p>
+
+  <table>
+    <thead><tr>
+      <th>Student</th><th>Per.</th><th>Parent email</th>
+      <th>Parent code</th><th>Student code</th><th></th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p id="empty" class="muted small" hidden>Nobody on this roster has registered yet.</p>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const courseId = Number(new URLSearchParams(location.search).get('course_id'));
+let data = null;
+
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function notice(text, kind) { const m = $('msg'); m.hidden = false; m.className = 'notice ' + kind; m.textContent = text; }
+
+const when = (secs) => secs ? new Date(secs * 1000).toLocaleDateString() : '';
+
+/** One code cell. Three states, and they are not the same thing:
+ *    a code            -- readable, hand it over
+ *    "not issued yet"  -- nobody has one; Issue makes it
+ *    "cannot be shown" -- a code EXISTS and works, but predates the vault or
+ *                         was sealed under a different secret. Reissue is the
+ *                         only way back, and it invalidates the working one. */
+function codeCell(c) {
+  if (c.code) return `<span class="code">${esc(c.code)}</span>`;
+  if (!c.issued_at && !c.recoverable) return '<span class="code none">not issued yet</span>';
+  return `<span class="code none" title="Issued ${esc(when(c.issued_at))}. Reissue to see a code — the current one stops working.">cannot be shown</span>`;
+}
+
+function render() {
+  $('sub').textContent = `${data.course} — ${data.students.length} registered`;
+  $('rows').innerHTML = data.students.map((s) => `<tr data-id="${s.account_id}">
+      <td>${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
+      <td>${esc(s.period)}</td>
+      <td class="small">${esc(s.email || '—')}</td>
+      <td>${codeCell(s.parent)}</td>
+      <td>${codeCell(s.student_code)}</td>
+      <td class="act"><button class="compact" data-reissue="${s.account_id}">Reissue both</button></td>
+    </tr>`).join('');
+  $('empty').hidden = data.students.length > 0;
+
+  if (!data.vault) {
+    notice('CODE_SECRET is not set on this deployment, so codes cannot be read back — '
+      + 'only ones issued from this page in this request are visible. Set the secret and reissue.', 'error');
+  }
+}
+
+// Reissuing is destructive: the code in a parent's inbox stops working the
+// moment this returns. Asked plainly rather than behind an "are you sure".
+async function reissue(accountId, who) {
+  if (!confirm(`Reissue both codes for ${who}?\n\nTheir current codes stop working immediately, `
+    + 'including any already mailed out.')) return;
+  try {
+    const res = await fetch(`/api/admin/credentials?course_id=${courseId}&format=json&reissue=1&account_id=${accountId}`);
+    const body = await res.json();
+    if (!res.ok) { notice(body.error || 'Could not reissue.', 'error'); return; }
+    data = body;
+    render();
+    // Light up the row that changed. Everything else on the page looks
+    // identical, so without this a reissue is invisible in a class of thirty.
+    document.querySelector(`tr[data-id="${accountId}"]`)?.classList.add('fresh');
+    notice(`New codes issued for ${who}.`, 'ok');
+  } catch {
+    notice('Could not reach the server.', 'error');
+  }
+}
+
+$('rows').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-reissue]');
+  if (!btn) return;
+  const id = Number(btn.dataset.reissue);
+  reissue(id, data.students.find((s) => s.account_id === id)?.student ?? 'this student');
+});
+
+(async function load() {
+  if (!courseId) { notice('No class chosen. Open this from the admin page.', 'error'); return; }
+  for (const [id, href] of [
+    ['csv', `/api/admin/credentials?course_id=${courseId}`],
+    ['progress', `/admin/progress/?course_id=${courseId}`],
+    ['edit', `/admin/editor/?course_id=${courseId}`],
+  ]) $(id).href = href;
+
+  try {
+    const res = await fetch(`/api/admin/credentials?course_id=${courseId}&format=json`);
+    if (res.status === 401) { location.href = '/admin/login/'; return; }
+    const body = await res.json();
+    if (!res.ok) { notice(body.error || 'Could not load the codes.', 'error'); return; }
+    data = body;
+    render();
+  } catch {
+    notice('Could not reach the server.', 'error');
+  }
+})();
+</script>
+</body>
+</html>

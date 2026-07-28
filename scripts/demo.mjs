@@ -164,7 +164,8 @@ const VERSION_2 = (() => {
  * purpose: this is a fixture, and it should not depend on the endpoints it
  * exists to let you exercise.
  */
-export async function seedDemo(db, { hashCode, reset = false, now = Math.floor(Date.now() / 1000) } = {}) {
+export async function seedDemo(db, { hashCode, seal = async () => null, reset = false,
+  now = Math.floor(Date.now() / 1000) } = {}) {
   const existing = db.prepare('SELECT id FROM courses WHERE name = ?').get(COURSE)?.id;
   if (existing && !reset) return { added: false, courseId: existing, course: COURSE };
   // ON DELETE CASCADE carries the roster, accounts, syllabus and signatures.
@@ -196,15 +197,19 @@ export async function seedDemo(db, { hashCode, reset = false, now = Math.floor(D
     const username = `${(first[0] + last).toLowerCase().replace(/[^a-z0-9]/g, '')}@chicousd.org`;
     accountIds.set(extId, Number(db.prepare(
       `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
-                             student_code_hash, student_code_issued_at)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
+                             student_code_hash, student_code_issued_at, code_enc, student_code_enc)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
     ).run(rosterIds.get(extId), username,
       hasCode ? await hashCode(demoCode(extId)) : null,
       hasCode ? now : null, now,
       // Everyone who registered has their own code -- registration is what
       // mints it, so "has an account" and "has a student code" are the same
       // state. The parent's is separate and is the one the teacher issues.
-      await hashCode(demoStudentCode(extId)), now).lastInsertRowid));
+      await hashCode(demoStudentCode(extId)), now,
+      // Sealed as well as hashed, so /admin/codes/ can show the demo class the
+      // way it shows a real one.
+      hasCode ? await seal(demoCode(extId)) : null,
+      await seal(demoStudentCode(extId))).lastInsertRowid));
   }
 
   const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')

@@ -18,6 +18,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { d1 } from '../tests/helpers.mjs';
 import { hashCode } from '../functions/_lib/codes.js';
+import { sealCode } from '../functions/_lib/vault.js';
 import { seedDemo } from './demo.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -95,6 +96,11 @@ function configuredDomains() {
 const env = {
   DB: d1(db),
   SESSION_SECRET: 'local-dev-secret-do-not-use-in-production',
+  // Seals access codes so /admin/codes/ can read them back. Fixed in dev so a
+  // restart does not orphan every code in .dev.sqlite -- in production this is
+  // a `wrangler secret put CODE_SECRET`, and changing it makes every existing
+  // code unreadable (still valid for sign-in, just no longer displayable).
+  CODE_SECRET: process.env.CODE_SECRET || 'local-dev-code-vault-do-not-use-in-production',
   ADMIN_EMAILS: DEV_ADMIN,
   // Self-service teacher sign-up. The real domain is read out of wrangler.toml
   // rather than repeated here, so testing sign-up locally exercises the same
@@ -277,7 +283,11 @@ await seed();
 // A fake class to click around in, added beside whatever is already here
 // rather than instead of it -- a real imported syllabus in this database must
 // survive a dev restart. DEMO_RESET=1 rebuilds it.
-const demo = await seedDemo(db, { hashCode, reset: process.env.DEMO_RESET === '1' });
+const demo = await seedDemo(db, {
+  hashCode,
+  seal: (code) => sealCode(env, code),
+  reset: process.env.DEMO_RESET === '1',
+});
 
 // Built as lines rather than inline in the banner: nesting a .map().join() with
 // its own newline inside a template literal is how the last two escaping bugs

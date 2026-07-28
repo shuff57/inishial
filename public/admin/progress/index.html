@@ -72,7 +72,7 @@
     <!-- Links styled as buttons. A <button> nested in an <a> is invalid HTML
          and announces inconsistently; these navigate, so they stay links. -->
     <a id="csv" class="button secondary" href="#">Download CSV</a>
-    <a id="creds" class="button secondary" href="#">Credentials CSV</a>
+    <a id="creds" class="button secondary" href="#">Access codes</a>
     <a id="edit" class="button secondary" href="#">Edit syllabus</a>
   </p>
 
@@ -139,7 +139,9 @@ for (const btn of $('filters').querySelectorAll('button')) {
     : `No syllabus published yet · ${data.total} active students`;
 
   $('csv').href = `/api/admin/progress?course_id=${courseId}&format=csv`;
-  $('creds').href = `/api/admin/credentials?course_id=${courseId}`;
+  // A page to read, not a file to download. The CSV is still there for a
+  // mail merge, one click further in.
+  $('creds').href = `/admin/codes/?course_id=${courseId}`;
   $('edit').href = `/admin/editor/?course_id=${courseId}`;
 
   const c = data.counts;

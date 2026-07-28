@@ -227,7 +227,11 @@ export async function onRequestGet({ request, env }) {
        FROM courses c
        LEFT JOIN roster   r ON r.course_id = c.id
        LEFT JOIN accounts a ON a.roster_id = r.id AND r.status = 'active'
-      WHERE (?1 IS NULL OR c.owner_id = ?1)
+      -- IS, not =: one bound value covers "mine" and, for the shared
+      -- password, the unowned ones. The old (?1 IS NULL OR owner_id = ?1)
+      -- read as a filter and behaved as a bypass -- NULL matched every
+      -- course in the school rather than the unowned ones.
+      WHERE c.owner_id IS ?1
       GROUP BY c.id, c.name
       ORDER BY c.name`,
   ).bind(ownerFilter(admin)).all();
