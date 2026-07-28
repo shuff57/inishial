@@ -14,7 +14,14 @@
 <style>
   main { max-width: 56rem; }
   table { width: 100%; border-collapse: collapse; font-size: .92rem; }
-  th, td { text-align: left; padding: 0 .6rem; border-bottom: 1px solid var(--border-warm); line-height: calc(var(--rule) - 1px); }
+  /* No borders. The paper already draws a line under every row, and a 1px
+     border landed ~10px above it -- two nearly-parallel lines per row, which
+     read as a printing fault rather than as a table. Row separation comes from
+     the ruled background, the same way it does everywhere else in the app.
+     Line height is a full rule now that there is no border to subtract; the
+     old -1px existed only to make room for one, and leaving it would walk
+     every row a pixel further off the grid down the table. */
+  th, td { text-align: left; padding: 0 .6rem; line-height: var(--rule); }
   th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-stone); }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .tabs { display: flex; gap: .3rem; margin: var(--rule) 0 0; }
@@ -24,7 +31,14 @@
     width: 100%; min-height: calc(var(--rule) * 6); padding: calc(var(--rule) / 2 - 1px) .8rem; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
     color: var(--ink); background: var(--paper); border: 1px solid var(--border-warm); border-radius: 8px; resize: vertical;
   }
-  .drop { border: 2px dashed var(--border-warm); border-radius: var(--radius-md); padding: calc(var(--rule) - 2px) 1rem; text-align: center; color: var(--ink-stone); }
+  /* The dashed box ends just ABOVE a ruled line rather than across one.
+     It is a whole 5 rules tall and starts 6px past a rule, so without this
+     the bottom edge landed 6px past one too and the line ran through the box
+     near its foot. --drop-lift is that 6px plus the same 3px of clearance
+     --sit gives text, and it comes back as margin so everything below stays
+     on the grid. Measured, not derived: if the content above this box gains
+     or loses a line, re-measure. */
+  .drop { --drop-lift: 9px; border: 2px dashed var(--border-warm); border-radius: var(--radius-md); padding: calc(var(--rule) - 2px) 1rem calc(var(--rule) - 2px - var(--drop-lift)); margin-bottom: var(--drop-lift); text-align: center; color: var(--ink-stone); }
   .drop.over { border-color: var(--accent); background: var(--sand); color: var(--accent); }
   .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: .8rem; margin: var(--rule) 0; }
   .stat { border: 1px solid var(--border-warm); border-radius: 8px; padding: .7rem .8rem; }
@@ -52,7 +66,7 @@
 <main id="main" tabindex="-1">
   <h1>Classes</h1>
   <div id="coursesMsg" hidden></div>
-  <div class="card" id="coursesCard">
+  <div class="card plain" id="coursesCard">
     <table id="coursesTable">
       <thead><tr>
         <th>Course</th><th class="num">Active</th><th class="num">Dropped</th>
@@ -70,7 +84,7 @@
     file are marked dropped, never deleted.
   </p>
 
-  <div class="card">
+  <div class="card plain">
     <div class="tabs on-rules" role="tablist">
       <button role="tab" id="tabFile" aria-selected="true">Upload a file</button>
       <button role="tab" id="tabPaste" aria-selected="false">Paste from a spreadsheet</button>

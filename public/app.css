@@ -885,6 +885,13 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
  */
 .book { position: relative; }
 
+/* Imported .docx content is rounded onto the grid by snap.js -- an image at its
+   original pixel height, a <sup> that grew the line box, a table with borders
+   of its own. There is no rule here to do it: the correction depends on a
+   rendered height, which only the browser knows, so it is applied as an inline
+   margin from JS. Content that already fits is not touched at all, which is
+   the normal case. */
+
 .book-bar {
   display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
   margin: var(--rule) 0 0;

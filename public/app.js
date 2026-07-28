@@ -14,6 +14,7 @@
 // knows which view it is.
 
 import { createBook, sections, sectionTitle } from './book.js';
+import { keepSnapped } from './snap.js';
 
 const $ = (id) => document.getElementById(id);
 const views = () => [...document.querySelectorAll('.view')];
@@ -185,6 +186,8 @@ async function loadSyllabus() {
 // section split is shared/sections.js -- the same definition the editor drags
 // by and the same one a signature is hashed against, because a parent must
 // initial exactly the span of text they were shown.
+let stopSnapping = null;
+
 function render() {
   const wasOn = book?.at() ?? 0;
   const host = $('blocks');
@@ -210,6 +213,11 @@ function render() {
     },
   });
   $('bookBar').hidden = !book;
+  // Imported .docx content is not the app's to control, so its fit to the ruled
+  // lines is measured rather than assumed. A document already on the grid --
+  // which is the normal case -- gets no correction at all.
+  stopSnapping?.();
+  stopSnapping = keepSnapped(host);
   // Stay on the page the reader was on. Initialling re-renders the whole
   // syllabus, and sending them back to page 1 each time would be its own bug.
   if (book) book.showSection(Math.min(wasOn, book.count() - 1));

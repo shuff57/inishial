@@ -15,7 +15,12 @@
 import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, readJson } from '../../_lib/http.js';
 
 const MODEL = 'gpt-oss:120b';
-const TIMEOUT_MS = 20_000;
+// A hosted model that has gone cold takes longer to answer the first request
+// than any subsequent one, and 20s was landing inside that window -- the whole
+// AI pass reported itself unavailable on the one request most likely to be a
+// cold start. This is an authoring-time convenience with a working manual
+// path behind it, so waiting is cheaper than failing.
+const TIMEOUT_MS = 60_000;
 
 const PROMPT = `You are helping a teacher prepare a course syllabus that parents must read and initial.
 
@@ -83,7 +88,9 @@ export async function onRequestPost({ request, env }) {
     const aborted = err?.name === 'AbortError';
     return json({
       available: false,
-      reason: aborted ? 'Ollama did not respond in time.' : 'Could not reach Ollama.',
+      reason: aborted
+        ? `Ollama did not respond within ${TIMEOUT_MS / 1000}s — the model may be cold. Try again, or tick the sections yourself.`
+        : 'Could not reach Ollama.',
       suggestions: [],
     });
   }
