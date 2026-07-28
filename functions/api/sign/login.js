@@ -1,6 +1,11 @@
 // POST /api/sign/login   -- parent or student enters the access code
 //
-// Body: { student_ext_id, code, role }   role: 'parent' | 'student'
+// Body: { student_ext_id, code }
+//
+// There is no `role` field. The account carries two codes -- one the parent was
+// mailed, one the student was shown when they registered -- and which of them
+// is typed here is what decides whose signature the session can write. A field
+// asking the visitor to declare it was the same thing as letting them choose.
 //
 // The syllabus URL is public and shared, so the access code is the only thing
 // standing between a stranger and signing as someone's parent. Everything
@@ -24,7 +29,10 @@ export async function onRequestPost({ request, env }) {
 
   const studentExtId = String(body.student_ext_id ?? '').trim();
   const code = normalize(body.code);
-  const role = body.role === 'student' ? 'student' : 'parent';
+  // The role is NOT taken from the request. It used to be -- `body.role` chose
+  // between the two attestations and one code opened both, so a student holding
+  // the family's code could sign as their own parent. There are two codes now
+  // and the role is whichever one the submitted code turns out to be.
   if (!studentExtId || !code) return badRequest('Enter the student ID and the access code.');
 
   const nowSec = Math.floor(Date.now() / 1000);
@@ -43,18 +51,28 @@ export async function onRequestPost({ request, env }) {
   }
 
   const row = await env.DB.prepare(
-    `SELECT a.id, a.code_hash, r.first, r.last, r.course_id
+    `SELECT a.id, a.code_hash, a.student_code_hash, r.first, r.last, r.course_id
        FROM accounts a
        JOIN roster r ON r.id = a.roster_id
       WHERE r.student_ext_id = ?1 AND r.status = 'active'
       LIMIT 1`,
   ).bind(studentExtId).first();
 
-  // Verify against a decoy hash when the account is absent, so a missing
-  // student and a wrong code take the same amount of time to reject.
-  const stored = row?.code_hash || 'pbkdf2$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
-  const valid = await verifyCode(code, stored);
-  if (!row || !row.code_hash || !valid) return json({ error: REJECT }, 401);
+  // Both hashes are verified on EVERY attempt, and neither result short-
+  // circuits the other. Stopping at the first match would make a parent code
+  // measurably faster to check than a student code, which is a side channel
+  // telling an attacker which kind of code they just guessed at.
+  //
+  // The decoys keep a missing student, a student with no code yet, and a wrong
+  // code all costing the same two verifications.
+  const DECOY = 'pbkdf2$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+  const parentOk = await verifyCode(code, row?.code_hash || DECOY) && !!row?.code_hash;
+  const studentOk = await verifyCode(code, row?.student_code_hash || DECOY) && !!row?.student_code_hash;
+  if (!row || !(parentOk || studentOk)) return json({ error: REJECT }, 401);
+
+  // Derived, never claimed. If the same string somehow opened both -- it cannot,
+  // the two are generated independently -- the narrower role wins.
+  const role = studentOk ? 'student' : 'parent';
 
   await reset(env.DB, `login:ip:${ip}`);
   await reset(env.DB, `login:stu:${studentExtId}`);

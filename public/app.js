@@ -123,6 +123,10 @@ $('registerForm').addEventListener('submit', async (event) => {
       [body.student, body.course, body.period && ('Period ' + body.period)].filter(Boolean).join(' · ');
     $('doneTitle').textContent = body.returning ? 'Welcome back' : "You're registered";
     $('doneMsg').textContent = body.message;
+    // Only a first registration mints one. A returning student is already
+    // holding theirs, and re-showing it would mean storing it in the clear.
+    $('doneCode').hidden = !body.student_code;
+    if (body.student_code) $('doneCodeValue').textContent = body.student_code;
     const next = $('doneNext');
     next.textContent = body.returning ? 'Back to the syllabus' : 'Read and initial the syllabus';
     next.href = '/sign/';

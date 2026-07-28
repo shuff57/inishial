@@ -286,8 +286,14 @@ const demoLines = (demo.added
   ? [
     `    ${demo.active} active students, ${demo.dropped} dropped, ${demo.codes} with codes, ${demo.signatures} signatures`,
     '    version 1 is PUBLISHED; version 2 is an open draft, ready to publish',
-    '    sign in as a parent with:',
-    ...demo.sample.map((s) => `      ${s.extId} / ${s.code}   (${s.who})`),
+    // Both codes, because which one is typed is what decides whose signature
+    // the session can write. Signing in twice with the same student ID and the
+    // two different codes is the whole demonstration.
+    '    sign in at /sign/ with a student ID and ONE of its two codes:',
+    ...demo.sample.flatMap((s) => [
+      `      ${s.extId}  ${s.code}  -> parent   (${s.who})`,
+      `      ${s.extId}  ${s.studentCode}  -> student  (${s.who})`,
+    ]),
   ]
   : ['    already present — DEMO_RESET=1 npm run local  to rebuild it']
 ).join('\n');

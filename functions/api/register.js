@@ -30,6 +30,7 @@
 import { json, badRequest, serverMisconfigured, readJson } from '../_lib/http.js';
 import { hit, reset, clientIp } from '../_lib/ratelimit.js';
 import { signSession, sessionCookie } from '../_lib/session.js';
+import { generateCode, hashCode } from '../_lib/codes.js';
 
 // Deliberately permissive. Strict RFC-5322 validation rejects addresses that
 // work; the real check is whether the mail arrives.
@@ -123,11 +124,20 @@ export async function onRequestPost({ request, env }) {
     return badRequest("That doesn't look like an email address. Leave it blank to use the one your school has on file.");
   }
 
+  // The student's own access code, minted here and shown once on the next
+  // screen. Without it the only way back in is to register again, which works
+  // but asks a fifteen-year-old to remember that re-entering a form is how you
+  // resume. It is the student's half of the pair; the parent's is minted by the
+  // teacher's export and is a different string.
+  const studentCode = generateCode();
+
   let accountId;
   try {
     const insert = await env.DB.prepare(
-      'INSERT INTO accounts (roster_id, username, parent_email, created_at) VALUES (?1, ?2, ?3, ?4)',
-    ).bind(rosterRow.id, username, parentEmail || null, nowSec).run();
+      `INSERT INTO accounts (roster_id, username, parent_email, created_at,
+                             student_code_hash, student_code_issued_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?4)`,
+    ).bind(rosterRow.id, username, parentEmail || null, nowSec, await hashCode(studentCode)).run();
     accountId = Number(insert.meta.last_row_id);
   } catch (err) {
     // UNIQUE(username) is the only constraint a well-formed request can trip.
@@ -141,15 +151,20 @@ export async function onRequestPost({ request, env }) {
 
   const hasContact = !!(parentEmail || rosterRow.parent_email);
 
-  // Two things deliberately absent from this response, both of which a student
-  // could otherwise read off a shared Chromebook:
+  // Still deliberately absent from this response, and readable off a shared
+  // Chromebook if it were not:
   //   - the parent's email address, in any form, masked or not
-  //   - the access code, which is minted only by the teacher's export
+  //   - the PARENT's access code, which is minted only by the teacher's export
+  //
+  // The student's own code is here, and only here: it is hashed at rest like
+  // every other code, so this response is the one and only time the plaintext
+  // exists. A student who loses it asks their teacher to reissue.
   const token = await signSession(env, accountId, 'student', nowSec);
 
   return json({
     ok: true,
     username,
+    student_code: studentCode,
     student: `${rosterRow.first} ${rosterRow.last}`,
     course: rosterRow.course,
     period: rosterRow.period,

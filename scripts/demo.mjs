@@ -22,7 +22,13 @@ const COURSE = 'Biology 1 (demo)';
 const PERIOD = '6';
 
 // Predictable so they can be typed from the banner rather than looked up.
+//
+// Two per student, because there are two now: the parent was mailed one and the
+// student was shown the other when they registered. Which one you sign in with
+// is what decides whose signature you can write, so having both to hand is the
+// point of the demo class.
 export const demoCode = (extId) => 'DEMO' + String(extId).slice(-4);
+export const demoStudentCode = (extId) => 'STUD' + String(extId).slice(-4);
 
 // Fake students. Deliberately varied, because every one of these shapes has
 // its own path through the app and its own way of going wrong:
@@ -186,13 +192,19 @@ export async function seedDemo(db, { hashCode, reset = false, now = Math.floor(D
 
   for (const [extId, first, last] of registered) {
     const hasCode = withCode.some(([id]) => id === extId);
-    const username = (first[0] + last).toLowerCase().replace(/[^a-z0-9]/g, '');
+    // The school address, which is what registration asks for now.
+    const username = `${(first[0] + last).toLowerCase().replace(/[^a-z0-9]/g, '')}@chicousd.org`;
     accountIds.set(extId, Number(db.prepare(
-      `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at)
-       VALUES (?, ?, ?, ?, NULL, ?)`,
+      `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
+                             student_code_hash, student_code_issued_at)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
     ).run(rosterIds.get(extId), username,
       hasCode ? await hashCode(demoCode(extId)) : null,
-      hasCode ? now : null, now).lastInsertRowid));
+      hasCode ? now : null, now,
+      // Everyone who registered has their own code -- registration is what
+      // mints it, so "has an account" and "has a student code" are the same
+      // state. The parent's is separate and is the one the teacher issues.
+      await hashCode(demoStudentCode(extId)), now).lastInsertRowid));
   }
 
   const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')
@@ -234,6 +246,6 @@ export async function seedDemo(db, { hashCode, reset = false, now = Math.floor(D
     students: STUDENTS.length, active: active.length, dropped: DROPPED.size,
     registered: registered.length, codes: withCode.length, signatures: signed,
     sample: withCode.slice(0, 2).map(([extId, first, last]) =>
-      ({ extId, who: `${first} ${last}`, code: demoCode(extId) })),
+      ({ extId, who: `${first} ${last}`, code: demoCode(extId), studentCode: demoStudentCode(extId) })),
   };
 }

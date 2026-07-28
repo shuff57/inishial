@@ -276,7 +276,36 @@ test('the credential export is the only place a plaintext code appears', async (
   const csv = await (await credentials({
     request: new Request('https://x/api/admin/credentials?course_id=1&reissue=1', { headers: ADMIN_HEADERS }), env,
   })).text();
-  assert.match(csv, /,[2-9A-HJ-NP-Z]{8},http/, 'a freshly minted code belongs in the export');
+  // BOTH columns, and named separately. Asserting one 8-character code before
+  // the link would have passed on the student column alone.
+  assert.match(csv, /Parent access code,Student access code,Link/);
+  // Counted from the END: the Student column is "Last, First" and is quoted,
+  // so splitting on commas from the left lands a field early.
+  const [parentCode, studentCode] = csv.trim().split('\r\n')[1].split(',').slice(-3, -1);
+  assert.match(parentCode, /^[2-9A-HJ-NP-Z]{8}$/, 'a freshly minted parent code belongs in the export');
+  assert.match(studentCode, /^[2-9A-HJ-NP-Z]{8}$/, 'and the teacher can hand the student theirs back');
+  assert.notEqual(parentCode, studentCode, 'one code for both would be the hole this split closed');
+});
+
+test('registering mints the student their own code, and it signs them in', async () => {
+  const env = freshEnv();
+  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+
+  const body = await (await post(env, {
+    student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+  })).json();
+
+  assert.match(body.student_code, /^[2-9A-HJ-NP-Z]{8}$/, 'shown once, on the confirmation screen');
+  // Hashed at rest like every other code -- the screen above is the only
+  // plaintext that ever exists.
+  const stored = env._raw.prepare('SELECT student_code_hash FROM accounts').get().student_code_hash;
+  assert.ok(stored && !stored.includes(body.student_code), 'the code was stored in the clear');
+
+  const res = await login({ request: jsonRequest('https://x/api/sign/login', {
+    student_ext_id: '904511', code: body.student_code,
+  }), env });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).role, 'student', 'their own code brings them back as themselves');
 });
 
 test('the credential export refuses a request without Access', async () => {

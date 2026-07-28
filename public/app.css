@@ -643,6 +643,18 @@ input:focus-visible { border-bottom-color: var(--mark-deep); }
   font-weight: 700;
 }
 
+/* The code, shown once, on the line. Spaced the same as the field it will be
+   typed into so a 1 and an I are told apart while copying it down, and one
+   whole rule tall so the page below it stays on the grid. */
+.code-out {
+  margin: 0 0 var(--rule);
+  font-size: 1.35rem;
+  line-height: var(--rule);
+  letter-spacing: .22em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 input[type=file] {
   width: 100%; padding: calc(var(--rule) / 2 - .4rem) 0;
   margin: 0; border-bottom-width: 0;

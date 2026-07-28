@@ -102,6 +102,17 @@
       <h2 id="doneTitle">You're registered</h2>
       <p id="doneWho" class="muted"></p>
       <p id="doneMsg"></p>
+
+      <!-- Shown once, and nowhere else ever again: the code is hashed the
+           moment it is made, so this screen is the only place the plaintext
+           exists. Said plainly rather than in fine print, because the cost of
+           missing it is asking a teacher to reissue. -->
+      <div id="doneCode" hidden>
+        <p class="small muted">Your access code — write it down. You need it to come back
+          and finish later, and this is the only time it is shown.</p>
+        <p class="code-out"><b id="doneCodeValue"></b></p>
+      </div>
+
       <p><a id="doneNext" class="button" href="/sign/">Read and initial the syllabus</a></p>
     </div>
   </section>
@@ -118,16 +129,15 @@
         <input id="sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
 
         <label for="code">Access code
-          <span class="hint">Eight characters, from your teacher's email.</span></label>
+          <span class="hint">Eight characters. Parents: from your teacher's email.
+            Students: the code shown when you set up your account.</span></label>
         <input id="code" class="blank-code" name="code" type="text" autocomplete="off" spellcheck="false" required>
 
-        <fieldset>
-          <legend>I am</legend>
-          <div class="choices">
-            <label class="choice"><input type="radio" name="role" value="parent" checked> the parent or guardian</label>
-            <label class="choice"><input type="radio" name="role" value="student"> the student</label>
-          </div>
-        </fieldset>
+        <!-- There is no "I am" question any more. It used to be a pair of radio
+             buttons, and with one code per account the answer was simply taken
+             at its word -- so a student holding the family's code could sign as
+             their own parent. The two codes are different strings now, and
+             which one is typed here is what decides whose signature this is. -->
 
         <div id="loginMsg" hidden></div>
         <p><button id="loginBtn" type="submit">Open the syllabus</button></p>

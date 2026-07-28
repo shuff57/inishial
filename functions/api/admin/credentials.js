@@ -32,7 +32,7 @@ export async function onRequestGet({ request, env }) {
   // The roster address is authoritative; a student-supplied one overrides it
   // only when they bothered to enter one, which is the "not on file" case.
   const { results } = await env.DB.prepare(
-    `SELECT a.id, a.username, a.code_hash,
+    `SELECT a.id, a.username, a.code_hash, a.student_code_hash,
             COALESCE(a.parent_email, r.parent_email) AS email,
             CASE
               WHEN a.parent_email IS NOT NULL THEN 'student-supplied'
@@ -50,14 +50,34 @@ export async function onRequestGet({ request, env }) {
   const origin = url.origin;
   const link = `${origin}/sign`;
 
-  const lines = [csvRow(['Student', 'Student ID', 'Period', 'Parent email', 'Email source', 'Access code', 'Link'])];
+  // Two codes per student now, in two columns. The parent's is the one to mail;
+  // the student's exists so a teacher can hand it back to whoever shut the tab
+  // before finishing. They are different strings on purpose -- that is what
+  // keeps a student from signing their own parent's agreement.
+  const lines = [csvRow([
+    'Student', 'Student ID', 'Period', 'Parent email', 'Email source',
+    'Parent access code', 'Student access code', 'Link',
+  ])];
 
   for (const row of results ?? []) {
-    let code = '';
+    // Same rule for both: an existing code is left alone and its column comes
+    // back empty, so exporting twice does not invalidate what is already in an
+    // inbox. reissue=1 replaces both.
+    let parentCode = '';
     if (reissue || !row.code_hash) {
-      code = generateCode();
+      parentCode = generateCode();
       await env.DB.prepare('UPDATE accounts SET code_hash = ?1, code_issued_at = ?2 WHERE id = ?3')
-        .bind(await hashCode(code), nowSec, row.id).run();
+        .bind(await hashCode(parentCode), nowSec, row.id).run();
+    }
+    // A student who has not registered yet has no student code and gets none
+    // here: the code is minted when they register, and issuing one now would
+    // overwrite it a minute later. Accounts predating the two-code split have
+    // no student code either, and this is where they get one.
+    let studentCode = '';
+    if (reissue || !row.student_code_hash) {
+      studentCode = generateCode();
+      await env.DB.prepare('UPDATE accounts SET student_code_hash = ?1, student_code_issued_at = ?2 WHERE id = ?3')
+        .bind(await hashCode(studentCode), nowSec, row.id).run();
     }
     lines.push(csvRow([
       `${row.last}, ${row.first}`,
@@ -65,7 +85,8 @@ export async function onRequestGet({ request, env }) {
       row.period ?? '',
       row.email ?? '',
       row.email_source,
-      code,
+      parentCode,
+      studentCode,
       link,
     ]));
   }

@@ -65,14 +65,25 @@ export function seedStudent(db, { course = 'Algebra I', extId = '904511', first 
   return { courseId, rosterId, extId };
 }
 
-/** Register the student and issue them a known access code. */
-export async function seedAccount(db, rosterId, { username = 'malvarez@chicousd.org', code = 'ABCD2345', parentEmail = 'parent@example.com' } = {}) {
+/** Register the student and issue both known access codes -- `code` is the
+ *  parent's, `studentCode` the student's. They are different strings here for
+ *  the same reason they are in production: which one is used at sign-in is what
+ *  decides whose signature the session may write. */
+export async function seedAccount(db, rosterId, {
+  username = 'malvarez@chicousd.org',
+  code = 'ABCD2345',
+  studentCode = 'STU45678',
+  parentEmail = 'parent@example.com',
+} = {}) {
   const accountId = Number(
     db.prepare(
-      'INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    ).run(rosterId, username, await hashCode(code), 1000, parentEmail, 1000).lastInsertRowid,
+      `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
+                             student_code_hash, student_code_issued_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(rosterId, username, await hashCode(code), 1000, parentEmail, 1000,
+      studentCode ? await hashCode(studentCode) : null, studentCode ? 1000 : null).lastInsertRowid,
   );
-  return { accountId, code };
+  return { accountId, code, studentCode };
 }
 
 /**

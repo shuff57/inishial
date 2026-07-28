@@ -24,9 +24,9 @@ const BLOCKS = [
 async function setup({ published = true } = {}) {
   const env = freshEnv();
   const { courseId, rosterId, extId } = seedStudent(env._raw);
-  const { accountId, code } = await seedAccount(env._raw, rosterId);
+  const { accountId, code, studentCode } = await seedAccount(env._raw, rosterId);
   const seeded = seedSyllabus(env._raw, courseId, BLOCKS, { published });
-  return { env, courseId, accountId, extId, code, ...seeded };
+  return { env, courseId, accountId, extId, code, studentCode, ...seeded };
 }
 
 const doLogin = (env, body, headers) =>
@@ -46,6 +46,49 @@ test('a correct student ID and access code issues a session cookie', async () =>
   assert.match(setCookie, /HttpOnly/);
   assert.match(setCookie, /SameSite=Lax/);
   assert.match(setCookie, /Secure/);
+});
+
+// ---- which code was used is what decides whose signature this is ----
+//
+// Before the split there was ONE code per account and /api/sign/login took the
+// role as a request field. The code is mailed to the family, so the student
+// usually has it too -- and could pick 'parent' and sign their own parent's
+// agreement. These four hold that shut.
+
+test('the parent code opens a parent session and nothing else', async () => {
+  const { env, extId, code } = await setup();
+  const body = await (await doLogin(env, { student_ext_id: extId, code })).json();
+  assert.equal(body.role, 'parent');
+});
+
+test('the student code opens a student session', async () => {
+  const { env, extId, studentCode } = await setup();
+  const body = await (await doLogin(env, { student_ext_id: extId, code: studentCode })).json();
+  assert.equal(body.role, 'student');
+});
+
+test('a role claimed in the request body is ignored outright', async () => {
+  const { env, extId, code, studentCode } = await setup();
+
+  // The old attack, verbatim: the family's code plus "I am the student".
+  const posing = await (await doLogin(env, { student_ext_id: extId, code, role: 'student' })).json();
+  assert.equal(posing.role, 'parent', 'the parent code cannot buy a student session');
+
+  // And the reverse, so the field is dead in both directions rather than
+  // merely inconvenient in one.
+  const other = await (await doLogin(env, { student_ext_id: extId, code: studentCode, role: 'parent' })).json();
+  assert.equal(other.role, 'student', 'the student code cannot buy a parent session');
+});
+
+test('an account with no student code yet still lets the parent in', async () => {
+  const { env, extId, code } = await setup();
+  env._raw.prepare('UPDATE accounts SET student_code_hash = NULL, student_code_issued_at = NULL').run();
+
+  assert.equal((await doLogin(env, { student_ext_id: extId, code })).status, 200,
+    'a roster imported before the split has no student code, and that is not a lockout');
+  // A NULL hash must not be a wildcard: an empty or absent code cannot match it.
+  assert.equal((await doLogin(env, { student_ext_id: extId, code: '' })).status, 400);
+  assert.equal((await doLogin(env, { student_ext_id: extId, code: 'STU45678' })).status, 401);
 });
 
 test('the access code is accepted in the format people actually type it', async () => {
@@ -138,9 +181,11 @@ test('an unpublished draft is not visible to a signer', async () => {
 
 // ---- initialing ----
 
+// The role is not asked for any more -- it follows from WHICH code is used.
 async function signedIn(role = 'parent') {
   const ctx = await setup();
-  const res = await doLogin(ctx.env, { student_ext_id: ctx.extId, code: ctx.code, role });
+  const code = role === 'student' ? ctx.studentCode : ctx.code;
+  const res = await doLogin(ctx.env, { student_ext_id: ctx.extId, code });
   return { ...ctx, cookie: cookieFrom(res) };
 }
 
@@ -250,8 +295,8 @@ test('a second submission returns the first rather than overwriting it', async (
 
 test('a parent and a student sign the same section independently', async () => {
   const ctx = await setup();
-  const parent = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, code: ctx.code, role: 'parent' }));
-  const student = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, code: ctx.code, role: 'student' }));
+  const parent = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, code: ctx.code }));
+  const student = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, code: ctx.studentCode }));
 
   await initial(ctx.env, parent, { block_id: ctx.blockIds[2], initials: 'PAR' });
   await initial(ctx.env, student, { block_id: ctx.blockIds[2], initials: 'STU' });
