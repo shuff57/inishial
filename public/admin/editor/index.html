@@ -460,6 +460,20 @@ function textToBlocks(text) {
 // actually gets signed.
 let page = 0;
 
+/**
+ * The page holding block `index`.
+ *
+ * Anything that moves blocks has to call this afterwards. Rendering one page at
+ * a time means `page` is a position in a list that reordering rewrites, so
+ * holding it still moves the VIEW to whatever took that slot -- the block you
+ * just moved leaves the screen and looks lost. Falls back to the current page
+ * when the index has gone entirely.
+ */
+function pageOf(index) {
+  const at = sectionRanges(state.blocks).findIndex(([f, t]) => index >= f && index < t);
+  return at === -1 ? page : at;
+}
+
 /** Page ranges, and `page` clamped to one that exists. */
 function pages() {
   const ranges = sectionRanges(state.blocks);
@@ -798,6 +812,11 @@ document.addEventListener('keydown', (e) => {
   // The move re-indexes everything; follow the block that actually moved so a
   // second arrow press continues from where the first left off.
   selected = { kind: selected.kind, at: state.blocks.indexOf(block) };
+  // ...and follow it with the VIEW. Moving a section up swaps it past the one
+  // above, so the page number it used to sit at now holds a different section
+  // entirely: the arrow key worked, and the thing you moved vanished off
+  // screen while a stranger appeared in its place.
+  page = pageOf(selected.at);
   render();
 });
 
@@ -949,9 +968,7 @@ function startDrag(ev, index, kind) {
     // section makes a new page and renumbers everything after it, so assuming
     // the target index rendered a page the dragged rows were not on -- and the
     // re-acquire below then found nothing.
-    const finalRanges = sectionRanges(state.blocks);
-    const landed = finalRanges.findIndex(([f, t]) => from >= f && from < t);
-    page = landed === -1 ? Math.min(idx, finalRanges.length - 1) : landed;
+    page = pageOf(from);
     selected = null;
     markDirty();
     render();
