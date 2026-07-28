@@ -899,6 +899,65 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
 .book-bar .spacer { flex: 1; }
 .book-bar .where { font-size: .95rem; color: var(--ink-stone); line-height: var(--rule); }
 
+/* ---- "initial here", on the page itself ----
+ *
+ * The tab stuck on the left edge of a contract at the line you have to sign,
+ * pointing in at it. The flags down the right edge are navigation -- which
+ * sections still want you, and how to get there. This is the other half: once
+ * you are on the page, where on it.
+ *
+ * ::before so it costs no markup and cannot be tabbed to. It is decorative,
+ * and a screen reader is already inside a labelled prompt with a text field in
+ * it -- announcing "initial here" beside that is noise.
+ *
+ * The arrow points RIGHT, into the page, which is the opposite of the
+ * navigation flags: those point left at the sheet they belong to from outside
+ * it, this one points at the line it belongs to from the margin.
+ */
+.initial-box::before {
+  content: 'Initial here';
+  position: absolute;
+  /* Out through main's 3.2rem left margin and a little past the paper edge, so
+     it reads as stuck ON the page rather than floating beside it. */
+  left: -4.9rem;
+  top: calc(var(--rule) + 5px);
+  width: 4.7rem;
+  height: 1.28rem;
+  clip-path: polygon(0 0, calc(100% - .55rem) 0, 100% 50%, calc(100% - .55rem) 100%, 0 100%);
+  background: var(--tab-3);
+  /* Fixed dark ink, like the flags: the pastels are accents sitting ON the
+     page rather than the page surface, so they do not flip for dark mode. */
+  color: #1a1a1a;
+  font-size: .58rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  line-height: 1.28rem;
+  text-align: center;
+  text-indent: -.45rem;
+  box-shadow: -2px 2px 4px rgba(0, 0, 0, .18);
+  pointer-events: none;
+}
+/* Done. Green, quieter, and past tense -- the tab stops being an instruction
+   and becomes a receipt. */
+.initial-box.done::before {
+  content: '✓ Initialled';
+  background: var(--tab-1);
+  opacity: .7;
+  box-shadow: none;
+}
+
+/* Below this the paper's left margin is gone and the tab would land on the
+   text. The prompt is perfectly findable without it. */
+@media (max-width: 62rem) {
+  .initial-box::before { display: none; }
+}
+
+@media print {
+  /* An instruction, not part of the record. */
+  .initial-box::before { display: none !important; }
+}
+
 /* ---- sign-here flags ----
  *
  * The thin arrow stickers a contract comes back with, stuck down the fore-edge
