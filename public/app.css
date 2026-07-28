@@ -735,11 +735,24 @@ button[disabled] { opacity: .5; cursor: not-allowed; }
 .secondary { background: transparent; color: var(--ink); border-color: var(--ring); }
 /* On the paper, though, it needs a fill. A secondary button is two rules tall,
    and transparent means a ruled line is drawn straight through it -- which
-   reads as a mistake rather than as paper showing through. Paper-coloured, so
-   it still looks like an outline; it just stops the line at its edge. Only
-   inside main: in the toolbar and the nav the background is the desk, not the
-   page, and there is no rule to hide. */
-main .secondary { background: var(--paper); }
+   reads as a mistake rather than as paper showing through.
+ *
+ * Masking tape. --tape is already the palette's dull beige -- it is what the
+ * .tape accent is torn from -- so a secondary button is a strip of it stuck to
+ * the page: quieter than the highlighter the primary button is made of, and
+ * still plainly a thing placed ON the paper rather than a hole in it. Paper
+ * white did the job of stopping the rule and looked like nothing at all.
+ *
+ * Only inside main: in the toolbar and the nav the background is the desk, not
+ * the page, and there is no rule to hide. */
+main .secondary { background: var(--tape); }
+/* Hover moves the tape TOWARDS --ink, which darkens it on the cream sheet and
+   lightens it on the dark one -- the press reads the same either way because
+   --ink flips with the theme and the mix follows it. Needed at this
+   specificity because the generic .secondary:hover is (0,3,0) and would
+   otherwise repaint this --sand, which is LIGHTER than the tape, so the button
+   appeared to lift off the page when the pointer landed on it. */
+main .secondary:hover:not([disabled]) { background: color-mix(in srgb, var(--tape) 86%, var(--ink)); }
 .secondary:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
 .danger { background: transparent; color: var(--danger); border-color: var(--danger); }
 .danger:hover:not([disabled]) { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
