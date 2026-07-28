@@ -47,9 +47,19 @@ export function createBook(host, { onTurn } = {}) {
     if (target === index) return;
     index = target;
     place();
-    // Back to the top of the page you turned to. Without this, leaving a long
-    // section drops you halfway down the next one.
-    host.scrollIntoView({ block: 'start', behavior: 'auto' });
+    toTop();
+  }
+
+  /** Every page starts at its first line.
+   *
+   *  scrollIntoView() was not enough: it aligns the element with the top of the
+   *  VIEWPORT, and the nav and the progress spine are sticky over it, so the
+   *  first line landed behind them -- and a page shorter than the last left the
+   *  reader partway down anyway, because the document had shrunk beneath them.
+   *  The syllabus title sits just above the page, so the top of the document is
+   *  the top of the page. */
+  function toTop() {
+    scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }
 
   // Arrow keys, bound to the document rather than to a control: the buttons are
