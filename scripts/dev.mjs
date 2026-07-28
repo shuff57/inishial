@@ -229,9 +229,19 @@ async function send(res, response) {
   const cookies = response.headers.getSetCookie?.() ?? [];
   if (cookies.length) headers['Set-Cookie'] = cookies;
 
-  const body = Buffer.from(await response.arrayBuffer());
   res.writeHead(response.status, headers);
-  res.end(body);
+  if (!response.body) { res.end(); return; }
+
+  // Piped, not buffered. arrayBuffer() waits for the last byte, which turned the
+  // Ollama log into a minute of nothing followed by the whole answer at once --
+  // locally indistinguishable from streaming being broken.
+  const reader = response.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    res.write(Buffer.from(value));
+  }
+  res.end();
 }
 
 // The same rewrites functions/sign/index.js and functions/register/index.js do

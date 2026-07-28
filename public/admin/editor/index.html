@@ -106,6 +106,35 @@
   .drop.over { border-color: var(--accent); background: var(--sand); color: var(--accent); }
   textarea { width: 100%; min-height: calc(var(--rule) * 5); font: 13px/var(--rule) var(--font-mono); }
   .diff li { margin: .2rem 0; }
+
+  /* The Ollama log. Sized in whole rules like everything else, so opening it
+     does not knock the blocks below off the ruled lines. */
+  .ai-log { margin: var(--rule) 0; }
+  .ai-log summary {
+    cursor: pointer; line-height: var(--rule); font-size: .9rem; color: var(--ink-stone);
+    display: flex; gap: .6rem; align-items: baseline;
+  }
+  .ai-log[open] summary { color: var(--ink); }
+  .ai-meta { font-variant-numeric: tabular-nums; font-size: .8rem; }
+  .ai-log pre {
+    /* A fixed 8 rules. The box must not grow a line at a time as tokens arrive,
+       or the page reflows under the reader for a minute solid. */
+    height: calc(var(--rule) * 8);
+    margin: 0 0 var(--rule);
+    padding: 0 .8rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font: 12px/var(--rule) ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--ink-stone);
+    background: var(--paper);
+    border: 1px solid var(--border-warm);
+    border-radius: 8px;
+  }
+  .ai-log pre b { color: var(--ink); font-weight: 600; }
+  /* Reasoning, where the model exposes any. Dimmer than the answer: it is the
+     model thinking aloud, not what it decided. */
+  .ai-log pre i { color: var(--border-warm); font-style: normal; }
 </style>
 </head>
 <body>
@@ -136,6 +165,23 @@
 
 <main id="main" tabindex="-1">
   <div id="msg" hidden></div>
+
+  <!--
+    What the model is doing, while it does it. A cold hosted model can take most
+    of a minute, and a button that sits disabled that long is indistinguishable
+    from a broken one.
+
+    A <details> because it is optional: it opens itself when a run starts and
+    stays however the teacher last left it, so watching is available without
+    being imposed. Everything in here is DISPLAY ONLY -- the decision that
+    reaches the document is the whitelisted `done` line, never this text.
+  -->
+  <details class="ai-log" id="aiLog" hidden>
+    <summary><span id="aiTitle">Ollama</span><span class="ai-meta" id="aiMeta"></span></summary>
+    <!-- aria-live is off deliberately: a token-by-token live region reads the
+         same sentence back a dozen times. The result is announced by notice(). -->
+    <pre id="aiStream" aria-live="off" tabindex="0"></pre>
+  </details>
 
   <h1 id="title" contenteditable="true" spellcheck="false">Course Syllabus</h1>
   <p class="muted small"><b>Click</b> a block to pick it up, then drag it where it goes — or use
@@ -699,6 +745,108 @@ for (const btn of document.querySelectorAll('[data-add]')) {
   });
 }
 
+
+// ---- watching Ollama work ----
+//
+// Both AI endpoints answer with newline-delimited JSON when asked with
+// ?stream=1: `open`, then `think`/`token` lines as the model produces them, and
+// exactly one `done` line carrying the whitelisted result.
+//
+// Only the `done` line is ever acted on. Everything above it goes in the log
+// box and nowhere else -- the model's words are for the teacher to watch, never
+// for the document to absorb.
+
+const aiLog = $('aiLog');
+const aiStream = $('aiStream');
+const aiMeta = $('aiMeta');
+
+function aiOpen(what) {
+  aiLog.hidden = false;
+  aiLog.open = true;
+  $('aiTitle').textContent = what;
+  aiStream.textContent = '';
+  aiMeta.textContent = 'waiting for the model…';
+}
+
+/** Append, and follow the tail only if the reader has not scrolled up to read
+ *  something. Yanking the view back mid-sentence is worse than not following. */
+function aiWrite(text, kind) {
+  const pinned = aiStream.scrollHeight - aiStream.scrollTop - aiStream.clientHeight < 40;
+  const node = kind === 'think' ? document.createElement('i')
+    : kind === 'note' ? document.createElement('b')
+      : document.createTextNode(text);
+  if (node.nodeType === 1) { node.textContent = text; aiStream.appendChild(node); }
+  else aiStream.appendChild(node);
+  if (pinned) aiStream.scrollTop = aiStream.scrollHeight;
+}
+
+/**
+ * Run a streaming AI request and hand back its `done` payload.
+ *
+ * Falls back to the plain JSON endpoint when streaming is not available -- an
+ * old deployment, a proxy that buffers, a browser without ReadableStream. The
+ * feature is a window onto the work, so losing it must cost the view and not
+ * the result.
+ */
+async function aiRun(path, payload, label) {
+  aiOpen(label);
+  const started = Date.now();
+  const tick = setInterval(() => {
+    if (!aiMeta.dataset.done) aiMeta.textContent = `${((Date.now() - started) / 1000).toFixed(1)}s`;
+  }, 100);
+  delete aiMeta.dataset.done;
+
+  const finish = (result) => {
+    clearInterval(tick);
+    aiMeta.dataset.done = '1';
+    const secs = ((Date.now() - started) / 1000).toFixed(1);
+    aiMeta.textContent = `${result?.model ? result.model + ' · ' : ''}${secs}s`;
+    aiWrite(`\n\n${result?.available ? 'Done' : 'Failed'} in ${secs}s.\n`, 'note');
+    return result;
+  };
+
+  try {
+    const res = await fetch(`${path}?stream=1`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    if (!res.ok || !res.body) throw new Error('no stream');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let carry = '';
+    let done = null;
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      carry += decoder.decode(chunk.value, { stream: true });
+      const lines = carry.split('\n');
+      carry = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let ev;
+        try { ev = JSON.parse(line); } catch { continue; }
+        if (ev.type === 'open') aiWrite(`${ev.model}\n\n`, 'note');
+        else if (ev.type === 'think') aiWrite(ev.text, 'think');
+        else if (ev.type === 'token') aiWrite(ev.text);
+        else if (ev.type === 'done') done = ev;
+      }
+    }
+    // A stream that ends without one is a truncated response, not a success.
+    if (!done) throw new Error('the stream ended before the model finished');
+    return finish(done);
+  } catch (err) {
+    aiWrite(`\nStreaming unavailable (${err.message}) — asking the plain way.\n`, 'note');
+    try {
+      const res = await fetch(path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      });
+      return finish(await res.json());
+    } catch {
+      return finish({ available: false, reason: 'Could not reach the server.' });
+    }
+  }
+}
+
 // ---- suggest / save / publish ----
 
 async function runStructure() {
@@ -706,11 +854,7 @@ async function runStructure() {
   $('structureBtn').disabled = true;
   status('Checking headings…');
   try {
-    const res = await fetch('/api/admin/structure', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blocks: state.blocks }),
-    });
-    const body = await res.json();
+    const body = await aiRun('/api/admin/structure', { blocks: state.blocks }, 'Checking headings');
     if (!body.available) { notice(body.reason || 'Not available.', 'error'); return; }
     if (!body.retag.length) { notice('Headings already look right — nothing changed.', 'ok'); return; }
 
@@ -750,11 +894,7 @@ $('suggestBtn').addEventListener('click', async () => {
   $('suggestBtn').disabled = true;
   status('Asking Ollama…');
   try {
-    const res = await fetch('/api/admin/suggest', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blocks: state.blocks }),
-    });
-    const body = await res.json();
+    const body = await aiRun('/api/admin/suggest', { blocks: state.blocks }, 'Suggesting initials');
     if (!body.available) { notice(body.reason || 'Suggestions are not available.', 'error'); return; }
     if (!body.suggestions.length) { notice('No further sections suggested.', 'ok'); return; }
     // Suggestions annotate; they never rewrite. You still click ✍ to accept.

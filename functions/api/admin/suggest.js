@@ -13,14 +13,7 @@
 //   - It is authoring-time only. No parent or student request reaches a model.
 
 import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, readJson } from '../../_lib/http.js';
-
-const MODEL = 'gpt-oss:120b';
-// A hosted model that has gone cold takes longer to answer the first request
-// than any subsequent one, and 20s was landing inside that window -- the whole
-// AI pass reported itself unavailable on the one request most likely to be a
-// cold start. This is an authoring-time convenience with a working manual
-// path behind it, so waiting is cheaper than failing.
-const TIMEOUT_MS = 60_000;
+import { MODEL, chat, streamChat, failure } from '../../_lib/ollama.js';
 
 const PROMPT = `You are helping a teacher prepare a course syllabus that parents must read and initial.
 
@@ -52,47 +45,44 @@ export async function onRequestPost({ request, env }) {
 
   const listing = candidates.map((b) => `[${b.i}] ${b.text}`).join('\n\n');
 
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  // The whitelist, applied identically whether the answer arrived in one piece
+  // or a token at a time. Streaming must not become a second, laxer path into
+  // the document -- so there is exactly one, and both callers go through it.
+  const decide = (text) => {
+    try {
+      const parsed = JSON.parse(text || '{}');
+      const valid = new Set(candidates.map((c) => c.i));
 
-    const res = await fetch(`${ollamaBase(env)}/api/chat`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OLLAMA_API_KEY}` },
-      body: JSON.stringify({
-        model: env.OLLAMA_MODEL || MODEL,
-        stream: false,
-        format: 'json',
-        options: { temperature: 0 },
-        messages: [{ role: 'user', content: `${PROMPT}\n\n${listing}` }],
-      }),
-    }).finally(() => clearTimeout(timer));
+      // Indices are validated against the blocks actually sent. A hallucinated
+      // index is dropped rather than trusted.
+      const suggestions = (Array.isArray(parsed.initial) ? parsed.initial : [])
+        .map((s) => ({ index: Number(s?.index), reason: String(s?.reason ?? '').slice(0, 60) }))
+        .filter((s) => valid.has(s.index));
 
-    if (!res.ok) {
-      return json({ available: false, reason: `Ollama returned ${res.status}.`, suggestions: [] });
+      return { available: true, model: env.OLLAMA_MODEL || MODEL, suggestions };
+    } catch (err) {
+      return {
+        available: false,
+        reason: `Ollama replied with something unreadable: ${String(err?.message || err).slice(0, 120)}`,
+        suggestions: [],
+      };
     }
+  };
 
-    const payload = await res.json();
-    const parsed = JSON.parse(payload?.message?.content ?? '{}');
-    const valid = new Set(candidates.map((c) => c.i));
+  const prompt = `${PROMPT}
 
-    // Indices are validated against the blocks actually sent. A hallucinated
-    // index is dropped rather than trusted.
-    const suggestions = (Array.isArray(parsed.initial) ? parsed.initial : [])
-      .map((s) => ({ index: Number(s?.index), reason: String(s?.reason ?? '').slice(0, 60) }))
-      .filter((s) => valid.has(s.index));
+${listing}`;
 
-    return json({ available: true, model: env.OLLAMA_MODEL || MODEL, suggestions });
+  // ?stream=1 reports the model as it works. Same request, same whitelist; the
+  // only difference is that the teacher gets to watch a slow one.
+  if (new URL(request.url).searchParams.get('stream') === '1') {
+    return streamChat(env, prompt, decide);
+  }
+
+  try {
+    return json(decide(await chat(env, prompt)));
   } catch (err) {
-    const aborted = err?.name === 'AbortError';
-    return json({
-      available: false,
-      reason: aborted
-        ? `Ollama did not respond within ${TIMEOUT_MS / 1000}s — the model may be cold. Try again, or tick the sections yourself.`
-        : 'Could not reach Ollama.',
-      suggestions: [],
-    });
+    return json({ ...failure(err), suggestions: [] });
   }
 }
 
@@ -107,9 +97,3 @@ function stripHtml(html) {
     .trim();
 }
 
-/** Ollama's own OLLAMA_HOST convention allows a bare `host:port`, which is not a
- *  URL -- fetch() rejects it outright. Add the scheme when it is missing. */
-function ollamaBase(env) {
-  const raw = String(env.OLLAMA_HOST || 'https://ollama.com').trim().replace(/\/+$/, '');
-  return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
-}

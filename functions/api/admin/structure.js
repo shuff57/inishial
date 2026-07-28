@@ -19,14 +19,7 @@
 //   - It is authoring-time only. No parent or student request reaches a model.
 
 import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, readJson } from '../../_lib/http.js';
-
-const MODEL = 'gpt-oss:120b';
-// A hosted model that has gone cold takes longer to answer the first request
-// than any subsequent one, and 20s was landing inside that window -- the whole
-// AI pass reported itself unavailable on the one request most likely to be a
-// cold start. This is an authoring-time convenience with a working manual
-// path behind it, so waiting is cheaper than failing.
-const TIMEOUT_MS = 60_000;
+import { MODEL, chat, streamChat, failure } from '../../_lib/ollama.js';
 
 // Only these two can be reinterpreted. A prompt, a list or a table is never
 // silently retagged -- an `initial` block carries a signature obligation, and
@@ -60,62 +53,49 @@ export async function onRequestPost({ request, env }) {
 
   const listing = candidates.map((b) => `[${b.i}] (${b.type}) ${b.text}`).join('\n');
 
-  // Two try blocks, not one. Folding them together reported every failure as
-  // "could not reach Ollama", which sent me hunting a network problem when the
-  // model had in fact answered fine -- a wrong error message costs more time
-  // than no error message.
-  let payload;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  // The whitelist, applied identically whether the answer arrived in one piece
+  // or a token at a time. Streaming must not become a second, laxer path into
+  // the document -- so there is exactly one, and both callers go through it.
+  const decide = (text) => {
+    try {
+      const parsed = JSON.parse(text || '{}');
 
-    const res = await fetch(`${ollamaBase(env)}/api/chat`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.OLLAMA_API_KEY}` },
-      body: JSON.stringify({
-        model: env.OLLAMA_MODEL || MODEL,
-        stream: false,
-        format: 'json',
-        options: { temperature: 0 },
-        messages: [{ role: 'user', content: `${PROMPT}\n\n${listing}` }],
-      }),
-    }).finally(() => clearTimeout(timer));
+      // A whitelist, not a parse: an index must be one we actually sent, a tag
+      // must be one of two literals, and the change must be a real change.
+      // Anything else the model returns is dropped on the floor.
+      const byIndex = new Map(candidates.map((c) => [c.i, c.type]));
+      const seen = new Set();
+      const retag = (Array.isArray(parsed.retag) ? parsed.retag : [])
+        .map((r) => ({ index: Number(r?.index), tag: String(r?.tag ?? '') }))
+        .filter((r) => Number.isInteger(r.index) && byIndex.has(r.index))
+        .filter((r) => RETAGGABLE.has(r.tag))
+        .filter((r) => r.tag !== byIndex.get(r.index))
+        .filter((r) => (seen.has(r.index) ? false : seen.add(r.index)));
 
-    if (!res.ok) return json({ available: false, reason: `Ollama returned ${res.status}.`, retag: [] });
-    payload = await res.json();
-  } catch (err) {
-    return json({
-      available: false,
-      reason: err?.name === 'AbortError'
-        ? `Ollama did not respond within ${TIMEOUT_MS / 1000}s — the model may be cold. Try again, or mark headings yourself.`
-        : `Could not reach Ollama: ${String(err?.message || err).slice(0, 120)}`,
-      retag: [],
-    });
+      return { available: true, model: env.OLLAMA_MODEL || MODEL, retag };
+    } catch (err) {
+      return {
+        available: false,
+        reason: `Ollama replied with something unreadable: ${String(err?.message || err).slice(0, 120)}`,
+        retag: [],
+      };
+    }
+  };
+
+  const prompt = `${PROMPT}
+
+${listing}`;
+
+  // ?stream=1 reports the model as it works. Same request, same whitelist; the
+  // only difference is that the teacher gets to watch a slow one.
+  if (new URL(request.url).searchParams.get('stream') === '1') {
+    return streamChat(env, prompt, decide);
   }
 
   try {
-    const parsed = JSON.parse(payload?.message?.content ?? '{}');
-
-    // Everything below is a whitelist, not a parse: an index must be one we
-    // actually sent, a tag must be one of two literals, and the change must be
-    // a real change. Anything else the model returns is dropped on the floor.
-    const byIndex = new Map(candidates.map((c) => [c.i, c.type]));
-    const seen = new Set();
-    const retag = (Array.isArray(parsed.retag) ? parsed.retag : [])
-      .map((r) => ({ index: Number(r?.index), tag: String(r?.tag ?? '') }))
-      .filter((r) => Number.isInteger(r.index) && byIndex.has(r.index))
-      .filter((r) => RETAGGABLE.has(r.tag))
-      .filter((r) => r.tag !== byIndex.get(r.index))
-      .filter((r) => (seen.has(r.index) ? false : seen.add(r.index)));
-
-    return json({ available: true, model: env.OLLAMA_MODEL || MODEL, retag });
+    return json(decide(await chat(env, prompt)));
   } catch (err) {
-    return json({
-      available: false,
-      reason: `Ollama replied with something unreadable: ${String(err?.message || err).slice(0, 120)}`,
-      retag: [],
-    });
+    return json({ ...failure(err), retag: [] });
   }
 }
 
@@ -130,9 +110,3 @@ function stripHtml(html) {
     .trim();
 }
 
-/** Ollama's own OLLAMA_HOST convention allows a bare `host:port`, which is not a
- *  URL -- fetch() rejects it outright. Add the scheme when it is missing. */
-function ollamaBase(env) {
-  const raw = String(env.OLLAMA_HOST || 'https://ollama.com').trim().replace(/\/+$/, '');
-  return /^https?:\/\//i.test(raw) ? raw : `http://${raw}`;
-}
