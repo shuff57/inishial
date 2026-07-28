@@ -929,6 +929,10 @@ main:has(.book[data-paged])::after { display: none; }
   border-radius: 2px;
 }
 .book[data-paged] .sheet { display: none; }
+/* Only while a corner is being folded: the shadow band is longer than the page
+   on purpose, so the book has to contain it. Not on by default, because the
+   leaf that swings over the spine needs to overflow. */
+.book[data-folding] { overflow: hidden; }
 .book[data-paged] .sheet[data-slot] { display: block; grid-row: 1; }
 .book[data-paged] .sheet[data-slot="left"]  { grid-column: 1; }
 .book[data-paged] .sheet[data-slot="right"] { grid-column: 2; z-index: 2; }
@@ -967,6 +971,71 @@ main:has(.book[data-paged])::after { display: none; }
     color-mix(in srgb, var(--ink) 22%, transparent) 4px, transparent 4.5px);
   background-size: 14px 96px; background-repeat: repeat-y; background-position: 0 2rem;
   opacity: .5;
+}
+
+/* ---- the folded corner ----
+ *
+ * The grip is the outer corner of the right page: always on screen, because the
+ * spread is sized to fit rather than scrolled. It is not drawn -- the fold
+ * itself is the feedback, and a permanent dog-ear on a legal document reads as
+ * damage.
+ */
+.fold-grip {
+  position: absolute; right: 0; bottom: 0;
+  width: 5.5rem; height: 5.5rem;
+  z-index: 6;
+  cursor: grab;
+  touch-action: none;
+}
+.fold-grip[data-grabbing] { cursor: grabbing; }
+
+/* The flap: the same sheet, mirrored across the crease, so what you see folded
+   back is the reverse of the paper rather than a blank triangle. The content is
+   dropped to a ghost of itself the way ink shows faintly through a page held up
+   to the light. */
+.fold-flap {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  /* The reflection matrix is an absolute map in the element's own coordinates,
+     so the origin has to BE the element's top-left. CSS defaults
+     transform-origin to the centre, which offset the whole fold by half the
+     page and threw the flap ~1000px off screen. */
+  transform-origin: 0 0;
+  /* The reverse of the sheet has to LOOK different from the front or the fold is
+     invisible: paper on paper reads as the corner simply being missing. Lit from
+     the crease, the way a lifted page catches light along the fold. */
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--paper) 84%, var(--ink)) 0%,
+      color-mix(in srgb, var(--paper) 95%, var(--ink)) 14%,
+      var(--ivory) 46%);
+  box-shadow: -8px 8px 26px rgba(0,0,0,.34);
+  will-change: clip-path, transform;
+}
+.fold-flap .fold-face {
+  opacity: .16;
+  filter: grayscale(1);
+  min-height: 0 !important;
+  box-shadow: none;
+}
+
+/* The shadow the lifted corner casts along its own crease. Symmetric on
+   purpose: the flap darkens the page it is lying on, and the page darkens the
+   underside of the flap. */
+.fold-crease {
+  position: absolute;
+  z-index: 6;
+  pointer-events: none;
+  transform-origin: 50% 50%;
+  background: linear-gradient(to right,
+    transparent 0%,
+    color-mix(in srgb, var(--ink) 6%, transparent) 34%,
+    color-mix(in srgb, var(--ink) 30%, transparent) 49%,
+    color-mix(in srgb, var(--ink) 32%, transparent) 51%,
+    color-mix(in srgb, var(--ink) 5%, transparent) 66%,
+    transparent 100%);
+  will-change: transform, opacity;
 }
 
 /* Mid-turn: the right page swings over the spine, shaded across the fold. */

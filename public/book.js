@@ -14,6 +14,7 @@
 //     initialled; the progress spine is a count, not a lock.
 
 import { sections, sectionTitle } from './shared/sections.js';
+import { foldLine, reflection, clipRect, polygon, clampPointer } from './fold.js';
 
 export { sections, sectionTitle };
 
@@ -135,6 +136,129 @@ export function createBook(host, { onTurn } = {}) {
     if (event.key === 'ArrowRight' || event.key === 'PageDown') { go(index + perSpread()); event.preventDefault(); }
     if (event.key === 'ArrowLeft' || event.key === 'PageUp') { go(index - perSpread()); event.preventDefault(); }
   });
+
+  // ---- folding the corner ----
+  //
+  // Grab the outer corner of the right-hand page and it folds along the
+  // perpendicular bisector between the corner and your finger, which is what
+  // folding paper actually does: every point on the crease is the same distance
+  // from both, so the corner lands exactly under the pointer.
+  //
+  // Three layers, because the flap is showing the REVERSE of the sheet:
+  // the page clipped to everything behind the crease, whatever is underneath,
+  // and a mirrored clone clipped to the part in front of it.
+  const grip = document.createElement('div');
+  grip.className = 'fold-grip';
+  grip.setAttribute('aria-hidden', 'true');   // the buttons are the real control
+  host.appendChild(grip);
+
+  let flap = null;
+  let crease = null;
+  let peel = null;
+
+  function rightPage() {
+    return sheets.find((s) => s.dataset.slot === (perSpread() === 2 ? 'right' : 'left'));
+  }
+
+  function beginFold(page) {
+    // A live clone: inert, so the copied initials boxes cannot take focus or be
+    // typed into while they are lying on their back.
+    const clone = page.cloneNode(true);
+    clone.removeAttribute('data-slot');
+    clone.removeAttribute('id');
+    clone.classList.add('fold-face');
+    clone.inert = true;
+    flap = document.createElement('div');
+    flap.className = 'fold-flap';
+    flap.setAttribute('aria-hidden', 'true');
+    flap.appendChild(clone);
+    page.parentElement.appendChild(flap);
+
+    // The crease shadow. StPageFlip's realism is four gradient layers rotated
+    // onto the fold with opacity driven by progress -- the geometry is the same
+    // clip-path polygon everyone ends up with, and the shadows are what make it
+    // read as paper rather than as a shape. This is that idea, as one band:
+    // dark at the crease, falling off both ways.
+    crease = document.createElement('div');
+    crease.className = 'fold-crease';
+    crease.setAttribute('aria-hidden', 'true');
+    page.parentElement.appendChild(crease);
+    // The shadow band is deliberately longer than the page so it spans the
+    // crease at any angle; clip it to the book, or it falls across the desk.
+    host.dataset.folding = '1';
+    const box = page.getBoundingClientRect();
+    Object.assign(flap.style, {
+      left: `${page.offsetLeft}px`, top: `${page.offsetTop}px`,
+      width: `${box.width}px`, height: `${box.height}px`,
+    });
+    Object.assign(clone.style, { width: `${box.width}px`, height: `${box.height}px`, margin: '0' });
+    return box;
+  }
+
+  function drawFold(page, box, pointer) {
+    const corner = { x: box.width, y: box.height };
+    const local = clampPointer(
+      { x: pointer.x - box.left, y: pointer.y - box.top }, corner, box.width, box.height);
+    const line = foldLine(corner, local);
+    const m = reflection(line.mid, line.theta);
+    page.style.clipPath = polygon(clipRect(box.width, box.height, corner, line, false));
+    flap.style.clipPath = polygon(clipRect(box.width, box.height, corner, line, true));
+    flap.style.transform = `matrix(${m.a}, ${m.b}, ${m.c}, ${m.d}, ${m.e}, ${m.f})`;
+
+    // Lay the shadow band along the crease. Long enough to span the page
+    // whatever angle the fold is at, and it deepens as the page lifts.
+    const span = Math.hypot(box.width, box.height) * 2;
+    const spread = 46;
+    const progress = Math.min(1, line.length / Math.hypot(box.width, box.height));
+    Object.assign(crease.style, {
+      left: `${page.offsetLeft + line.mid.x - spread}px`,
+      top: `${page.offsetTop + line.mid.y - span / 2}px`,
+      width: `${spread * 2}px`,
+      height: `${span}px`,
+      opacity: String(0.25 + progress * 0.55),
+      transform: `rotate(${line.theta - Math.PI / 2}rad)`,
+    });
+    return progress;
+  }
+
+  function endFold(page) {
+    page.style.clipPath = '';
+    delete host.dataset.folding;
+    flap?.remove();
+    crease?.remove();
+    flap = null;
+    crease = null;
+    peel = null;
+  }
+
+  grip.addEventListener('pointerdown', (event) => {
+    if (turning) return;
+    const page = rightPage();
+    if (!page || index + perSpread() >= sheets.length) return;
+    const box = beginFold(page);
+    peel = { page, box, fraction: 0 };
+    grip.setPointerCapture(event.pointerId);
+    grip.dataset.grabbing = '1';
+    drawFold(page, box, { x: event.clientX, y: event.clientY });
+    event.preventDefault();
+  });
+
+  grip.addEventListener('pointermove', (event) => {
+    if (!peel) return;
+    peel.fraction = drawFold(peel.page, peel.box, { x: event.clientX, y: event.clientY });
+  });
+
+  const releaseFold = (event) => {
+    if (!peel) return;
+    const { page, fraction } = peel;
+    delete grip.dataset.grabbing;
+    try { grip.releasePointerCapture(event.pointerId); } catch { /* gone */ }
+    endFold(page);
+    // Past halfway the page has committed to turning; short of it, it drops back.
+    if (fraction > 0.5) go(index + perSpread());
+  };
+  grip.addEventListener('pointerup', releaseFold);
+  grip.addEventListener('pointercancel', releaseFold);
 
   place();
 
