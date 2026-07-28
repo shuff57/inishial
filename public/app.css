@@ -1182,7 +1182,17 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
    down the edge, with a shape and a colour of their own. It sits inside main,
    so it has to say no to the tape explicitly. */
 main .flags button::before, main .flags button::after { content: none; }
-.flags button {
+/* `:not(.danger)` is not decoration -- it is specificity, the same trick as the
+   `:not([disabled])` on the hover rule below.
+   The tape treatment is `main :is(button, .button):not(.danger)` at (0,2,1) and
+   it sets `background: transparent`. A plain `.flags button` is (0,1,1) and lost
+   to it, so every flag NOT yet initialled came out with no colour at all and the
+   rail stopped saying "here is what is left" -- it read as a list of grey words.
+   The opt-out list further up only cancels the tape's ::before/::after; it never
+   touched the background. The signed state kept its green purely by accident:
+   `[data-signed="1"]` adds an attribute and reaches (0,2,1) on its own.
+   This brings the resting state to the same (0,2,1) and it wins on source order. */
+.flags button:not(.danger) {
   /* display:block so text-overflow works -- as a flex item it does not, and a
      long section name is cut mid-word with no ellipsis. */
   display: block;

@@ -241,7 +241,15 @@
     margin: 0 calc(-8.4rem - 1.6rem + 1.5rem) var(--rule) 1rem;
     display: flex; flex-direction: column; gap: .3rem; z-index: 3;
   }
-  .pages button {
+  /* `:not(.danger)` is specificity, not meaning -- the same trick app.css uses
+     on the parent's .flags rail, and for the same reason. The tape treatment is
+     `main :is(button, .button):not(.danger)` at (0,2,1) and it sets
+     `background: transparent`. A plain `.pages button` is (0,1,1) and lost, so
+     every page that does NOT ask for initials rendered with no tab at all --
+     only the rose ones survived, because `[data-needs="1"]` reaches (0,2,1) on
+     its own and wins on source order. The rail read as "some pages have tabs"
+     rather than "these are the pages a parent has to sign". */
+  .pages button:not(.danger) {
     display: block; width: 100%; min-height: 0; height: 1.35rem; line-height: 1.35rem;
     padding: 0 .4rem 0 0; text-indent: 1.1rem; text-align: left;
     border: 0; border-radius: 0 3px 3px 0;
