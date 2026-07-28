@@ -23,6 +23,32 @@
   .toolbar > div { max-width: 52rem; margin: 0 auto; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
   .toolbar .spacer { flex: 1; }
   .toolbar button { min-height: 0; height: var(--rule); padding: 0 .8rem; font-size: .88rem; line-height: calc(var(--rule) - 2px); }
+  /* The bar's actions are plain text on the desk until you reach for one, and
+     then a strip of tape appears under the label. Five outlined boxes in a row
+     was five boxes competing for the eye; the words are enough, and the tape
+     is what says "this is the one you are about to press".
+   *
+     Publish keeps its strip stuck down, because it is the only thing on this
+     bar that changes what a parent sees -- with everything else unmarked at
+     rest, one taped label reads as the end of the sequence. Both get the same
+     marker band on hover. See the tape block in app.css. */
+  .toolbar button { --tape-inset: .8rem; }
+  /* Paler tape up here. --tape is a beige on a beige desk and the strip barely
+     read; this is the near-white the bar's buttons used to hover to, which is
+     the contrast the desk needs. On the paper the strip stays --tape, because
+     down there it is lying on a cream sheet and near-white would vanish
+     instead. background-color only, so the fibre gradient survives. */
+  .toolbar button::before { background-color: var(--sand); }
+  /* Unstuck at rest, and lettered like the rest of the bar rather than like ink
+     on paper -- until the strip lands under it. Publish is not in here: its
+     tape is already down, so its label is page ink from the start. */
+  .toolbar .secondary { --tape-rest: 0; color: var(--desk-ink); }
+  .toolbar .secondary:hover:not([disabled]), .toolbar .secondary:focus-visible { color: var(--ink); }
+  /* No marker band on the bar's actions. The tape arriving IS their hover, and
+     a band as well made every button in the row shout the same way Publish
+     does. Publish keeps the band: its tape is already stuck down, so the strip
+     cannot be its hover and the marker has to be. */
+  .toolbar .secondary::after { content: none; }
   .toolbar .status { font-size: .82rem; color: var(--ink-silver); }
 
   /* Settings menu, right of Sign out. The panel is absolutely positioned so
