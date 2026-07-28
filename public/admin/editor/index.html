@@ -156,6 +156,23 @@
   /* Drop target during a drag. Nothing else on the page changes colour, so the
      one that does is unambiguous. */
   .pages button.drop-to { background: var(--mark); color: #1a1a1a; transform: translateX(6px); outline: 2px solid var(--mark-deep); }
+  /* The dwell, made visible. A wipe across the tab that finishes exactly when
+     the page turns, so the wait reads as "hold still, nearly there" instead of
+     as nothing happening. Runs on background-size, which does not affect
+     layout -- animating width here would move the rail under the cursor and
+     bring back the shake this whole change exists to remove. */
+  .pages button.arming {
+    background-image: linear-gradient(var(--mark-deep), var(--mark-deep));
+    background-repeat: no-repeat;
+    background-position: left center;
+    animation: arm 700ms linear forwards;
+  }
+  @keyframes arm { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
+  @media (prefers-reduced-motion: reduce) {
+    /* No wipe, but the wait is the same length, so say so with a steady tint
+       rather than leaving the delay unexplained. */
+    .pages button.arming { animation: none; background-size: 100% 100%; opacity: .85; }
+  }
   .pages button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   /* The empty tab at the end of the rail: a page that does not exist yet,
      drawn as one. Outline rather than fill, because it is a place for a page
@@ -809,7 +826,7 @@ function moveByKey(index, dir) {
 function startDrag(ev, index, kind) {
   if (ev.button !== 0) return;
   ev.preventDefault();
-  const [from, to] = kind === 'section' ? dragRange(state.blocks, index) : [index, index + 1];
+  let [from, to] = kind === 'section' ? dragRange(state.blocks, index) : [index, index + 1];
   const host = $('blocks');
   const x0 = ev.clientX, y0 = ev.clientY;
   let live = false, ghost = null, ph = null, grabDX = 0, grabDY = 0;
@@ -854,15 +871,61 @@ function startDrag(ev, index, kind) {
   /** Candidate units the placeholder may precede, excluding what is moving. */
   const others = () => units.filter((el) => !moved.includes(el));
 
-  // The page tab the cursor is over, if any. Dropping on one sends the block to
-  // that page -- the only way to move it somewhere not on screen, since the
-  // placeholder can only land between rows that are rendered.
+  // Spring-loaded tabs. Park on one and, after a moment, the editor turns to
+  // that page carrying the block with you -- so you place it where it goes
+  // rather than accepting wherever a drop-on-tab decided to put it.
+  //
+  // The delay is the whole point. Without it the page changed the instant the
+  // cursor crossed a tab on its way somewhere else, and any pause anywhere
+  // near the rail was a page turn you did not ask for.
+  const DWELL_MS = 700;
   let overTab = null;
+  let dwell = 0;
+
   function setTabTarget(el) {
     if (overTab === el) return;
-    overTab?.classList.remove('drop-to');
+    overTab?.classList.remove('drop-to', 'arming');
+    clearTimeout(dwell);
+    dwell = 0;
     overTab = el;
-    overTab?.classList.add('drop-to');
+    if (!overTab) return;
+    overTab.classList.add('drop-to', 'arming');
+    dwell = setTimeout(() => springTo(Number(overTab.dataset.page)), DWELL_MS);
+  }
+
+  /**
+   * Turn to `target`, bringing the dragged blocks with us, and carry on
+   * dragging on the new page.
+   *
+   * The blocks move for real before the re-render, because a page only shows
+   * what is IN it -- leaving them behind would re-render a page the dragged
+   * row is not on, and there would be nothing left under the cursor to drop.
+   */
+  function springTo(target) {
+    const ranges = sectionRanges(state.blocks);
+    const idx = Math.max(0, Math.min(target, ranges.length - 1));
+    const carried = state.blocks.splice(from, to - from);
+    // Recomputed AFTER the removal: taking blocks out shifts every later page.
+    const after = sectionRanges(state.blocks);
+    const landing = after[Math.max(0, Math.min(idx, after.length - 1))][1];
+    state.blocks.splice(landing, 0, ...carried);
+
+    from = landing;
+    to = landing + carried.length;
+    page = idx;
+    selected = null;
+    markDirty();
+    render();
+
+    // The DOM the drag was holding is gone. Re-acquire it, keeping the ghost
+    // and the grab offset so the block stays under the cursor throughout.
+    const rows = [...$('blocks').querySelectorAll('.blk')];
+    units = rows;
+    moved = [rows.find((r) => Number(r.dataset.index) === from)];
+    hidden = [];
+    if (!moved[0]) { finish(false); return; }
+    for (const el of moved) { hidden.push(el.style.display); el.style.display = 'none'; }
+    setTabTarget(null);
   }
 
   function move(e) {
@@ -876,11 +939,15 @@ function startDrag(ev, index, kind) {
     // The ghost is pointer-events:none, so this reads what is actually under
     // the cursor rather than the thing being dragged.
     const under = document.elementFromPoint(e.clientX, e.clientY);
-    const tab = under?.closest?.('.pages button');
+    const tab = under?.closest?.('.pages button:not(.ghost)');
     // Never the page you are already on: "move it to here" would be a no-op
     // that still looked like it did something.
     setTabTarget(tab && Number(tab.dataset.page) !== page ? tab : null);
-    if (overTab) { ph.remove(); return; }
+    // Parked on a tab: change NOTHING about the layout. Removing the
+    // placeholder here closed its gap, the document got shorter, the sticky
+    // rail moved under the cursor, the cursor was no longer on the tab, the
+    // placeholder came back -- and the whole page shook at pointer rate.
+    if (overTab) return;
     // Detach before measuring, so the drop math always sees the resting layout
     // rather than the gap the placeholder itself just opened. Without this the
     // placeholder chases the cursor and the target oscillates.
@@ -897,8 +964,8 @@ function startDrag(ev, index, kind) {
     document.removeEventListener('keydown', onKey, true);
     if (!live) return;
 
-    // Dropped on a page tab: send the whole dragged range to the end of that
-    // page and go there, so the move is visible rather than reported.
+    // Dropped on a tab before the dwell fired: same move, just impatient.
+    clearTimeout(dwell);
     const tabTarget = commit && overTab ? Number(overTab.dataset.page) : null;
     setTabTarget(null);
 
