@@ -1,25 +1,20 @@
-// The public side is one document served at three URLs.
+// Hand back the single-page app shell for a URL that is not its own document.
 //
-// Two things this has to get right, both learned the hard way against the real
-// platform:
+// Fetch '/', not '/index.html'. The asset server 308s /index.html to /, and
+// that redirect reaches the browser -- so asking for the file by name lands the
+// reader on the home page with the address bar changed. Returning a fresh
+// Response with the location header stripped makes sure no redirect can leak
+// out either way.
 //
-//   1. Fetch '/', not '/index.html'. The asset server normalises /index.html to
-//      / with a 308, and that redirect reaches the browser -- so asking for the
-//      file by name lands the reader on the home page with the address bar
-//      changed. Returning a fresh Response makes sure no redirect leaks either
-//      way.
-//   2. Match the trailing slash. A route file only claims its exact path, so
-//      functions/sign/index.js answers /sign and lets /sign/ fall through to a
-//      404. /sign/ is the form a teacher's email actually contains, so these
-//      are [[path]] catch-alls.
-//
-// It is a rewrite, never a redirect: the address bar has to keep saying /sign/,
+// A rewrite, never a redirect: the address bar has to keep saying /sign/,
 // because app.js reads which view to show from location.pathname.
 export async function serveApp(context) {
-  const url = new URL(context.request.url);
-  url.pathname = '/';
-  const res = await context.env.ASSETS.fetch(new Request(url, { headers: context.request.headers }));
+  const shell = new URL(context.request.url);
+  shell.pathname = '/';
+  const res = await context.env.ASSETS.fetch(
+    new Request(shell, { headers: context.request.headers }));
   const headers = new Headers(res.headers);
   headers.delete('location');
+  headers.set('Content-Type', 'text/html; charset=utf-8');
   return new Response(res.body, { status: 200, headers });
 }
