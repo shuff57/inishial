@@ -957,10 +957,11 @@ function startDrag(ev, index, kind) {
     render();
     setTabTarget(null);
 
-    // A section IS a page. Once it has been placed there is nothing left to
-    // position within the page, so the gesture is done -- carrying on would
-    // leave a ghost attached to a drag that can no longer land anywhere.
-    if (kind === 'section') { finish(false); return; }
+    // A section is a whole page, and the page it landed on is now the one on
+    // screen -- so it is left VISIBLE rather than hidden. You are still holding
+    // it: carry on to another tab and it moves again, or let go to keep it
+    // here. Nothing is hidden, so nothing has to be restored.
+    if (kind === 'section') { units = []; moved = []; hidden = []; return; }
 
     // The DOM the drag was holding is gone. Re-acquire it, keeping the ghost
     // and the grab offset so the block stays under the cursor throughout.
@@ -1003,11 +1004,17 @@ function startDrag(ev, index, kind) {
 
     ghost.classList.remove('carrying');
     ghost.style.width = ghostW + 'px';
+    // A section IS the page on screen, so there is nowhere within the page for
+    // it to land -- and with no other section rendered the placeholder would
+    // sit at position 0, so letting go anywhere on the paper threw the page to
+    // the front of the syllabus. Pages move by tab, and only by tab.
+    if (kind === 'section') { ph.remove(); }
     // Clamped to the window. A row is nearly the width of the page, so grabbing
     // one near its right end hung most of the ghost past the edge of the
     // screen -- the same "where did my block go" as the rail, just less total.
     ghost.style.left = Math.max(0, Math.min(e.clientX - grabDX, innerWidth - ghostW - 4)) + 'px';
     ghost.style.top = Math.max(0, e.clientY - grabDY) + 'px';
+    if (kind === 'section') return;
     // Detach before measuring, so the drop math always sees the resting layout
     // rather than the gap the placeholder itself just opened. Without this the
     // placeholder chases the cursor and the target oscillates.
@@ -1030,7 +1037,8 @@ function startDrag(ev, index, kind) {
     setTabTarget(null);
 
     let dest = null;
-    if (commit && tabTarget === null) {
+    // Sections never take a destination from the placeholder -- see move().
+    if (commit && tabTarget === null && kind !== 'section') {
       // Read the drop off the placeholder's RESTING position rather than
       // re-running the hit test, so the drop always matches what was shown.
       const cand = others();
