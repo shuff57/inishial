@@ -91,9 +91,6 @@ document.addEventListener('click', (event) => {
 let state = null;
 let book = null;
 
-const PAGED_KEY = 'inishial:paged';
-let paged = (() => { try { return localStorage.getItem(PAGED_KEY) !== 'off'; } catch { return true; } })();
-
 function notice(el, text, kind) {
   el.hidden = false;
   el.className = 'notice ' + kind;
@@ -206,19 +203,16 @@ function render() {
   }
 
   book = createBook(host, {
-    onTurn: (i, n, step) => {
-      // "Pages 3-4 of 9" when the spread is open, "Page 3 of 9" when it is not.
-      const last = Math.min(i + step, n);
-      $('where').textContent = step === 2 && last > i + 1
-        ? `Pages ${i + 1}–${last} of ${n}`
-        : `Page ${i + 1} of ${n}`;
+    onTurn: (i, n) => {
+      $('where').textContent = `Page ${i + 1} of ${n}`;
       $('prevPage').disabled = i === 0;
-      $('nextPage').disabled = last >= n;
+      $('nextPage').disabled = i === n - 1;
     },
   });
   $('bookBar').hidden = !book;
-  if (book && paged) book.showSection(Math.min(wasOn, book.count() - 1));
-  else if (book) book.unpage();
+  // Stay on the page the reader was on. Initialling re-renders the whole
+  // syllabus, and sending them back to page 1 each time would be its own bug.
+  if (book) book.showSection(Math.min(wasOn, book.count() - 1));
 
   updateProgress();
 }
@@ -304,16 +298,8 @@ function updateProgress() {
 
 // ---- turning the notebook ----
 
-$('prevPage').addEventListener('click', () => book?.go(book.at() - book.perSpread()));
-$('nextPage').addEventListener('click', () => book?.go(book.at() + book.perSpread()));
-
-$('readAll').addEventListener('click', () => {
-  paged = !paged;
-  try { localStorage.setItem(PAGED_KEY, paged ? 'on' : 'off'); } catch { /* not fatal */ }
-  $('readAll').textContent = paged ? 'Read as one page' : 'Turn page by page';
-  for (const id of ['prevPage', 'nextPage', 'where']) $(id).hidden = !paged;
-  if (paged) book?.repage(); else book?.unpage();
-});
+$('prevPage').addEventListener('click', () => book?.go(book.at() - 1));
+$('nextPage').addEventListener('click', () => book?.go(book.at() + 1));
 
 // ---- start ----
 

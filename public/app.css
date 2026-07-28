@@ -867,201 +867,18 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
  * one sat past the bottom of a sheet taller than the viewport, so nobody ever
  * found it. An edge cannot hide.
  */
-.book {
-  position: relative;
-  perspective: 2600px;
-  margin: var(--rule) 0;
-}
-
-/* When the notebook is open, the LEAVES are the paper -- so <main> stops being
-   a sheet. Otherwise you get paper on paper: two sets of ruled lines, two sets
-   of binder holes and two margin rules, which is what made the spread look
-   like a mistake.
-   It also widens, because a 42rem measure is right for one column of prose and
-   far too narrow split in half. */
-main:has(.book[data-paged]) {
-  max-width: min(72rem, 96vw);
-  background-color: transparent;
-  background-image: none;
-  box-shadow: none;
-  padding-left: 1.6rem;
-}
-main:has(.book[data-paged])::before,
-main:has(.book[data-paged])::after { display: none; }
-
-/* Each sheet is its OWN piece of paper: cream ground, ruled lines, margin rule.
-   The paper used to live on <main>, which is why two stacked sheets showed
-   through each other -- there was nothing opaque between them, so the section
-   underneath collided with the one on top. */
-.sheet {
-  position: relative;
-  background-color: var(--paper);
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(var(--rule) - 1px),
-    color-mix(in srgb, var(--ring) 55%, transparent) calc(var(--rule) - 1px),
-    color-mix(in srgb, var(--ring) 55%, transparent) var(--rule));
-  background-position: 0 calc(var(--baseline) + var(--sit));
-  padding: var(--rule) 1.5rem calc(var(--rule) * 2);
-  transform-origin: left center;
-  backface-visibility: hidden;
-}
-/* The red-pen margin rule, on the outside edge of each page the way it is in a
-   real notebook -- left page rules on its left, right page on its left too. */
-.sheet::after {
-  content: ''; position: absolute; left: 1.1rem; top: 0; bottom: 0; width: 1px;
-  background: color-mix(in srgb, var(--mark-deep) 40%, transparent);
-  pointer-events: none;
-}
-
-/* ---- the open spread ----
+/* ---- the syllabus, one section per page ----
  *
- * Two pages side by side, hinged down the middle, so turning the right one over
- * is the motion an actual notebook makes. Sections are laid out as a book is:
- * pages 1|2, turn, 3|4.
- */
-.book[data-paged] {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: stretch;
-  box-shadow: var(--shadow-paper);
-  border-radius: 2px;
-}
-.book[data-paged] .sheet { display: none; }
-/* Only while a corner is being folded: the shadow band is longer than the page
-   on purpose, so the book has to contain it. Not on by default, because the
-   leaf that swings over the spine needs to overflow. */
-.book[data-folding] { overflow: hidden; }
-.book[data-paged] .sheet[data-slot] { display: block; grid-row: 1; }
-.book[data-paged] .sheet[data-slot="left"]  { grid-column: 1; }
-.book[data-paged] .sheet[data-slot="right"] { grid-column: 2; z-index: 2; }
-
-/* Wider margins at the spine than at the outer edge, the way a bound book is
-   set. Text that runs right up to the gutter is the thing that makes a spread
-   read as two columns instead of two pages. */
-.book[data-paged] .sheet[data-slot="left"],
-.book[data-paged] .sheet[data-beneath="left"] { padding-right: 2.6rem; }
-.book[data-paged] .sheet[data-slot="right"],
-.book[data-paged] .sheet[data-beneath="right"] { padding-left: 2.8rem; }
-.book[data-paged] .sheet[data-slot="right"]::after,
-.book[data-paged] .sheet[data-beneath="right"]::after { left: 2.2rem; }
-/* The spread that is being turned to, sitting underneath. */
-.book[data-paged] .sheet[data-beneath] { display: block; grid-row: 1; z-index: 0; }
-.book[data-paged] .sheet[data-beneath="left"]  { grid-column: 1; }
-.book[data-paged] .sheet[data-beneath="right"] { grid-column: 2; }
-
-/* The gutter: two pages meeting at a spine, shaded into the fold. */
-.book[data-paged]::after {
-  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
-  width: 34px; margin-left: -17px; z-index: 3; pointer-events: none;
-  background: linear-gradient(to right,
-    transparent 0%,
-    color-mix(in srgb, var(--ink) 9%, transparent) 38%,
-    color-mix(in srgb, var(--ink) 14%, transparent) 50%,
-    color-mix(in srgb, var(--ink) 9%, transparent) 62%,
-    transparent 100%);
-}
-/* Binder holes down the spine rather than the outer edge, because the pages are
-   bound in the middle now. */
-.book[data-paged]::before {
-  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
-  width: 14px; margin-left: -7px; z-index: 4; pointer-events: none;
-  background-image: radial-gradient(circle at 7px 7px,
-    color-mix(in srgb, var(--ink) 22%, transparent) 4px, transparent 4.5px);
-  background-size: 14px 96px; background-repeat: repeat-y; background-position: 0 2rem;
-  opacity: .5;
-}
-
-/* ---- the folded corner ----
+ * A page is one major section: a heading and everything under it. The paper
+ * stays on <main>, so a page is what is written on the sheet rather than a
+ * sheet of its own -- which is also what stopped two pages showing through each
+ * other, and what stopped `main:has(.book)` stripping the lined background off
+ * the whole public side.
  *
- * The grip is the outer corner of the right page: always on screen, because the
- * spread is sized to fit rather than scrolled. It is not drawn -- the fold
- * itself is the feedback, and a permanent dog-ear on a legal document reads as
- * damage.
+ * No turn animation. A page turn built from CSS transforms can only pivot a
+ * rigid rectangle, and it read as a flash rather than as paper.
  */
-.fold-grip {
-  position: absolute; right: 0; bottom: 0;
-  width: 5.5rem; height: 5.5rem;
-  z-index: 6;
-  cursor: grab;
-  touch-action: none;
-}
-.fold-grip[data-grabbing] { cursor: grabbing; }
-
-/* The flap: the same sheet, mirrored across the crease, so what you see folded
-   back is the reverse of the paper rather than a blank triangle. The content is
-   dropped to a ghost of itself the way ink shows faintly through a page held up
-   to the light. */
-.fold-flap {
-  position: absolute;
-  z-index: 5;
-  pointer-events: none;
-  /* The reflection matrix is an absolute map in the element's own coordinates,
-     so the origin has to BE the element's top-left. CSS defaults
-     transform-origin to the centre, which offset the whole fold by half the
-     page and threw the flap ~1000px off screen. */
-  transform-origin: 0 0;
-  /* The reverse of the sheet has to LOOK different from the front or the fold is
-     invisible: paper on paper reads as the corner simply being missing. Lit from
-     the crease, the way a lifted page catches light along the fold. */
-  background:
-    linear-gradient(135deg,
-      color-mix(in srgb, var(--paper) 84%, var(--ink)) 0%,
-      color-mix(in srgb, var(--paper) 95%, var(--ink)) 14%,
-      var(--ivory) 46%);
-  box-shadow: -8px 8px 26px rgba(0,0,0,.34);
-  will-change: clip-path, transform;
-}
-.fold-flap .fold-face {
-  opacity: .16;
-  filter: grayscale(1);
-  min-height: 0 !important;
-  box-shadow: none;
-}
-
-/* The shadow the lifted corner casts along its own crease. Symmetric on
-   purpose: the flap darkens the page it is lying on, and the page darkens the
-   underside of the flap. */
-.fold-crease {
-  position: absolute;
-  z-index: 6;
-  pointer-events: none;
-  transform-origin: 50% 50%;
-  background: linear-gradient(to right,
-    transparent 0%,
-    color-mix(in srgb, var(--ink) 6%, transparent) 34%,
-    color-mix(in srgb, var(--ink) 30%, transparent) 49%,
-    color-mix(in srgb, var(--ink) 32%, transparent) 51%,
-    color-mix(in srgb, var(--ink) 5%, transparent) 66%,
-    transparent 100%);
-  will-change: transform, opacity;
-}
-
-/* Mid-turn: the right page swings over the spine, shaded across the fold. */
-.sheet[data-turning] {
-  z-index: 5;
-  box-shadow: -14px 8px 30px rgba(0,0,0,.24);
-}
-.sheet[data-turning]::before {
-  content: ''; position: absolute; inset: 0; z-index: 1;
-  pointer-events: none;
-  background: linear-gradient(96deg,
-    color-mix(in srgb, var(--ink) 18%, transparent) 0%,
-    color-mix(in srgb, var(--ink) 6%, transparent) 14%,
-    transparent 36%);
-}
-.sheet[data-settling] { transition: transform 460ms cubic-bezier(.36, 0, .22, 1); }
-
-/* One page at a time when there is no room for two. A spread on a phone is two
-   unreadable columns. */
-@media (max-width: 52rem) {
-  .book[data-paged] { grid-template-columns: 1fr; }
-  .book[data-paged] .sheet[data-slot="right"],
-  .book[data-paged] .sheet[data-beneath="right"] { display: none; }
-  .book[data-paged] .sheet[data-slot="left"] { grid-column: 1; }
-  .book[data-paged]::before, .book[data-paged]::after { display: none; }
-}
+.book { position: relative; }
 
 .book-bar {
   display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
@@ -1070,14 +887,11 @@ main:has(.book[data-paged])::after { display: none; }
 .book-bar .spacer { flex: 1; }
 .book-bar .where { font-size: .95rem; color: var(--ink-stone); line-height: var(--rule); }
 
-/* Read as one page, and print, are the same thing: every sheet in flow, no
-   spread, no gutter. The whole document is what is being attested to. */
-.book:not([data-paged]) .sheet { display: block; margin-bottom: var(--rule); }
+/* Print is the whole document in order. Every sheet is in the DOM for exactly
+   this: what a parent signs is the syllabus entire, not the page they happen to
+   be on. */
 @media print {
-  .book { display: block !important; box-shadow: none !important; }
-  .book .sheet { display: block !important; transform: none !important;
-                 box-shadow: none !important; break-inside: auto; }
-  .book::before, .book::after { display: none !important; }
+  .book .sheet[hidden] { display: block !important; }
   .book-bar { display: none !important; }
 }
 

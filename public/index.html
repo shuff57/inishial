@@ -138,14 +138,12 @@
       <p class="muted small" id="docMeta"></p>
       <div id="blocks"></div>
 
-      <!-- Turning the notebook. The buttons are the real control: the stacked
-           page edge is a nicety for a pointer, and is aria-hidden. -->
+      <!-- One page per major section. Buttons and arrow keys; no gesture. -->
       <div class="book-bar" id="bookBar" hidden>
         <button class="secondary" id="prevPage">← Back</button>
         <button class="secondary" id="nextPage">Next page →</button>
         <span class="spacer"></span>
         <span class="where" id="where" role="status"></span>
-        <button class="secondary" id="readAll">Read as one page</button>
       </div>
 
       <div id="doneBanner" class="done-banner" hidden>
