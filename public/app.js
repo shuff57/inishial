@@ -15,6 +15,7 @@
 
 import { createBook, sections, sectionTitle } from './book.js';
 import { keepSnapped } from './snap.js';
+import { buildFlags, clearFlags } from './shared/flags.js';
 
 const $ = (id) => document.getElementById(id);
 const views = () => [...document.querySelectorAll('.view')];
@@ -188,63 +189,14 @@ async function loadSyllabus() {
 // initial exactly the span of text they were shown.
 let stopSnapping = null;
 
-/**
- * The sign-here flags: one per section that asks for initials.
- *
- * Built from the sheets that already exist rather than from state.blocks, so
- * there is no second place that has to agree about what a section is or which
- * ones want something.
- *
- * Only sections with a prompt get one. A flag on every section was the version
- * before this, and the four that wanted nothing were the loudest thing on the
- * page -- a marker means "here", and marking everywhere marks nothing.
- *
- * Returned as [pageIndex, button] pairs so the caller can light the current one
- * without keeping a second idea of which page is showing.
- */
-function buildFlags(host) {
-  const sheets = [...host.querySelectorAll('.sheet')];
-  const rail = document.createElement('nav');
-  rail.className = 'flags';
-  rail.setAttribute('aria-label', 'Sections needing initials');
-
-  const flags = [];
-  for (const [i, sheet] of sheets.entries()) {
-    const prompts = [...sheet.querySelectorAll('.initial-box')];
-    if (!prompts.length) continue;
-
-    const label = sheet.getAttribute('aria-label') || `Page ${i + 1}`;
-    const done = prompts.every((p) => p.classList.contains('done'));
-
-    const flag = document.createElement('button');
-    flag.type = 'button';
-    flag.textContent = label;
-    // The visible label is clipped by CSS at this width, so the accessible
-    // name carries the whole thing plus the state -- a screen reader must not
-    // be handed "Academic Honesty and Use…" with no idea whether it is done.
-    flag.title = `${label} — ${done ? 'initialled' : 'needs initials'}`;
-    flag.setAttribute('aria-label', `${label}, page ${i + 1}, ${done ? 'initialled' : 'needs initials'}`);
-    if (done) flag.dataset.signed = '1';
-    flag.addEventListener('click', () => book?.go(i));
-    rail.appendChild(flag);
-    flags.push([i, flag]);
-  }
-
-  // Nothing to sign: no rail at all rather than an empty strip of nothing.
-  if (!flags.length) return [];
-  host.before(rail);
-  return flags;
-}
-
 function render() {
   const wasOn = book?.at() ?? 0;
   const host = $('blocks');
   host.textContent = '';
   host.className = 'book';
-  // The rail is a SIBLING of #blocks, so emptying #blocks does not take it with
-  // it. Initialling re-renders, and without this every signature would leave
-  // another strip of flags down the page.
-  document.querySelector('.flags')?.remove();
+  clearFlags();
+  // Release the previous book's key bindings before building another.
+  book?.destroy();
 
   for (const section of sections(state.blocks)) {
     const sheet = document.createElement('section');
@@ -257,7 +209,7 @@ function render() {
     host.appendChild(sheet);
   }
 
-  const flags = buildFlags(host);
+  const flags = buildFlags(host, { onPick: (i) => book?.go(i) });
 
   book = createBook(host, {
     onTurn: (i, n) => {

@@ -112,6 +112,28 @@
   textarea { width: 100%; min-height: calc(var(--rule) * 5); font: 13px/var(--rule) var(--font-mono); }
   .diff li { margin: .2rem 0; }
 
+  /* The parent preview. No flags rail and no "initial here" margin tab in the
+     editor -- they are reading aids for someone working through the document,
+     and in here they would be two more things between a teacher and the words
+     they are checking. The page controls below the sheet do the same job.
+     Everything else is exactly what a parent gets. */
+  #parentView .flags { display: none; }
+  #parentView .initial-box::before { display: none; }
+  /* Inert. It looks like the parent's box because that is the point; it cannot
+     be used, because a teacher signing on a parent's behalf is the one thing
+     this whole app exists to make impossible. */
+  #parentView .initial-box input,
+  #parentView .initial-box button { opacity: .5; pointer-events: none; }
+  /* The editing surface, while previewing. Two copies of the document on one
+     page would mean a drag landing in the one you are not looking at. */
+  main.previewing #blocks,
+  main.previewing .adders,
+  main.previewing #importCard,
+  main.previewing .ai-log,
+  /* The drag-and-drop instructions. They describe a surface that is not on
+     screen while previewing, and a parent is not told how to reorder blocks. */
+  main.previewing > p.muted { display: none; }
+
   /* The Ollama log. Sized in whole rules like everything else, so opening it
      does not knock the blocks below off the ruled lines. */
   .ai-log { margin: var(--rule) 0; }
@@ -173,6 +195,7 @@
   <button class="secondary" id="importBtn" title="Start over from a .docx or pasted text">Import…</button>
   <button class="secondary" id="structureBtn" title="Ask Ollama which lines are really headings. Retags only — never changes a word.">Fix headings</button>
   <button class="secondary" id="suggestBtn" title="Ask Ollama which sections should need initials">Suggest initials</button>
+  <button class="secondary" id="parentBtn" aria-pressed="false" title="See the pages exactly as a parent will">Preview as parent</button>
   <button class="secondary" id="saveBtn">Save draft</button>
   <button id="publishBtn">Publish…</button>
 </div></div>
@@ -207,6 +230,25 @@
     Use <b>✍</b> on a section to require a parent's initials on it. Nothing is live
     until you publish.</p>
 
+  <!--
+    The syllabus as a parent will page through it. Same section split, same
+    block rendering, same page controls -- it exists to be checked against, so
+    anything it does differently is a lie it can tell later.
+
+    Read-only: the initials boxes are shown because a parent sees them, but
+    their controls are inert. Nothing here can sign anything.
+  -->
+  <div id="parentView" hidden>
+    <p class="muted small" id="parentNote"></p>
+    <div class="book" id="parentBlocks"></div>
+    <div class="book-bar">
+      <button class="secondary" id="pvPrev">← Back</button>
+      <button class="secondary" id="pvNext">Next page →</button>
+      <span class="spacer"></span>
+      <span class="where" id="pvWhere" role="status"></span>
+    </div>
+  </div>
+
   <div id="importCard" class="card">
     <h2>Start from a document</h2>
     <div class="drop" id="drop">
@@ -237,6 +279,8 @@
 <script type="module">
 import { dragRange, insertionIndex, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget,
          sectionSigns, toggleSigning, retag, blockText, structureProblem, structureAdvice } from './reorder.js';
+import { sections, sectionTitle } from '../../shared/sections.js';
+import { createBook } from '../../book.js';
 
 const $ = (id) => document.getElementById(id);
 const courseId = Number(new URLSearchParams(location.search).get('course_id'));
@@ -921,6 +965,103 @@ async function aiRun(path, payload, label) {
     }
   }
 }
+
+// ---- the syllabus as a parent sees it ----
+//
+// The same section split, the same block markup, the same page controls. It is
+// built from state.blocks -- the draft in front of you, not the published
+// version -- so it answers "is this what they will get" about the thing you are
+// actually editing.
+//
+// Deliberately NOT a second renderer's idea of the document: sections() is the
+// function the signing page pages by and the function a signature is hashed
+// against, imported rather than reimplemented. A preview that draws the
+// document its own way is a preview that can quietly stop being true.
+
+let parentBook = null;
+
+function previewBlock(block) {
+  if (block.needs_initials) {
+    const box = document.createElement('div');
+    box.className = 'initial-box';
+
+    const p = document.createElement('p');
+    p.className = 'prompt';
+    // Prompts are plain text on both sides -- not markup.
+    p.textContent = block.html;
+    box.appendChild(p);
+
+    const row = document.createElement('div');
+    row.className = 'row';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'ABC';
+    input.disabled = true;
+    input.setAttribute('aria-label', 'Where a parent types their initials');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Initial';
+    button.disabled = true;
+    row.append(input, button);
+    box.appendChild(row);
+    return box;
+  }
+  const div = document.createElement('div');
+  div.className = 'block';
+  div.innerHTML = block.html;              // teacher-authored, same as the parent side
+  return div;
+}
+
+function renderParentView() {
+  const host = $('parentBlocks');
+  host.textContent = '';
+  host.className = 'book';
+  parentBook?.destroy();
+
+  const groups = sections(state.blocks);
+  for (const section of groups) {
+    const sheet = document.createElement('section');
+    sheet.className = 'sheet';
+    const title = sectionTitle(section);
+    if (title) sheet.setAttribute('aria-label', title);
+    for (const block of section) sheet.appendChild(previewBlock(block));
+    host.appendChild(sheet);
+  }
+
+  const needing = groups.filter((sec) => sec.some((b) => b.needs_initials)).length;
+  $('parentNote').textContent =
+    `${groups.length} page${groups.length === 1 ? '' : 's'}, ${needing} needing initials. `
+    + 'This is the draft in front of you, not what is published.';
+
+  parentBook = createBook(host, {
+    onTurn: (i, n) => {
+      $('pvWhere').textContent = `Page ${i + 1} of ${n}`;
+      $('pvPrev').disabled = i === 0;
+      $('pvNext').disabled = i === n - 1;
+    },
+  });
+}
+
+function setParentView(on) {
+  $('parentBtn').setAttribute('aria-pressed', String(on));
+  $('parentBtn').textContent = on ? 'Back to editing' : 'Preview as parent';
+  $('parentView').hidden = !on;
+  // One class, not a list of ids to hide and un-hide. render() already owns
+  // whether the import card is showing, and toggling `hidden` underneath it
+  // would mean two things deciding the same thing and disagreeing on the third
+  // preview. CSS hides the editing surface; nothing else has to remember.
+  $('main').classList.toggle('previewing', on);
+  // The title stays visible, because a parent sees it. It must not stay
+  // EDITABLE: a preview you can type into is not a preview, and a stray
+  // keystroke here would edit the document while claiming to be showing it.
+  $('title').contentEditable = String(!on);
+  if (on) renderParentView(); else { parentBook?.destroy(); parentBook = null; }
+  scrollTo({ top: 0, behavior: 'auto' });
+}
+
+$('parentBtn').addEventListener('click', () => setParentView($('parentView').hidden));
+$('pvPrev').addEventListener('click', () => parentBook?.go(parentBook.at() - 1));
+$('pvNext').addEventListener('click', () => parentBook?.go(parentBook.at() + 1));
 
 // ---- suggest / save / publish ----
 
