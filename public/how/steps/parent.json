@@ -1,0 +1,61 @@
+{
+  "role": "parent",
+  "title": "Reading and initialing as a parent",
+  "blurb": "How a parent or guardian signs in with the mailed access code, reads the syllabus a section at a time, initials each one, and confirms the whole thing.",
+  "steps": [
+    {
+      "title": "Start on the home page",
+      "body": "Open the link your school gave you. Under \"I'm a parent or guardian,\" tap \"Read and sign the syllabus.\"",
+      "clip": "parent-home.mp4",
+      "n": 1
+    },
+    {
+      "title": "Know your access code",
+      "body": "You need two things: your student's ID number, and an access code -- eight characters, from the email your teacher sent you. That code is what tells the app you're the parent and not the student, so use the one from your own email, not one your child gives you.",
+      "clip": "parent-codes.mp4",
+      "n": 2
+    },
+    {
+      "title": "Open the syllabus",
+      "body": "Type the student ID and your access code exactly as they appear, then tap \"Open the syllabus.\" If it doesn't work after a couple of tries, wait a few minutes before trying again, or ask your teacher to resend the code.",
+      "clip": "parent-sign-in.mp4",
+      "n": 3
+    },
+    {
+      "title": "Turn the pages",
+      "body": "The syllabus reads like a notebook, one section per page. Use Back and Next page at the bottom, or the left and right arrow keys on a keyboard. You can move around freely -- nothing is locked.",
+      "clip": "parent-pages.mp4",
+      "n": 4
+    },
+    {
+      "title": "Initial each section",
+      "body": "Some sections end in a small box asking for your initials. Type them in and tap Initial. The box then shows your initials and the date, so it's clear the section is done.",
+      "clip": "parent-initial.mp4",
+      "n": 5
+    },
+    {
+      "title": "Work through the rest",
+      "body": "Keep turning pages the same way. A section you've already initialed shows a stamp instead of a blank box, so you always know what's left. You don't have to finish in one sitting.",
+      "clip": "parent-finish.mp4",
+      "n": 6
+    },
+    {
+      "title": "Agree to the whole syllabus",
+      "body": "The last page asks you to confirm you've read the syllabus in full, not just one section. It works the same as the others -- type your initials and tap Initial.",
+      "clip": "parent-final-agree.mp4",
+      "n": 7
+    },
+    {
+      "title": "You're done",
+      "body": "Once every section is initialed, a banner at the top says so. Tap Print a copy any time you want a paper copy for your records.",
+      "clip": "parent-banner-print.mp4",
+      "n": 8
+    },
+    {
+      "title": "Coming back later",
+      "body": "Didn't finish, or want to check what you signed? Go back to the same link and sign in again with the same student ID and access code. The syllabus opens back up already showing everything you've initialed -- nothing is lost between visits.",
+      "clip": "parent-come-back.mp4",
+      "n": 9
+    }
+  ]
+}

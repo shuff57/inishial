@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to use · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+<!-- The stored theme, applied before the first paint. Inline and tiny on
+     purpose: a blocking <script src> here costs first paint for no reason. -->
+<script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script src="/ui.js" defer></script>
+<!--
+  Three audiences, one page. The steps are NOT in this file: each one is
+  written by the recorder that produced its clip (scripts/record/*.mjs) into
+  public/how/steps/*.json, so rewording a step or re-recording a clip never
+  touches markup, and a step can never name a video that was not made -- the
+  recorder checks that on disk before it writes the manifest.
+-->
+<style>
+  /* Wider than the reading pages. Two columns of a third and two thirds only
+     works if the narrow one still holds a readable measure -- at 52rem the
+     step text came out around 35 characters a line, which is a column of
+     wreckage rather than prose. */
+  main { max-width: 68rem; }
+
+  /* The step: what to do on the left, what it looks like on the right.
+   *
+   * Both columns are whole numbers of rules on their own, so the row is too,
+   * whichever of them is taller -- which is what lets the ruled paper survive
+   * a layout where the two halves are never the same height. row-gap stays 0
+   * for the same reason it does on the tab strip: a fractional gap between
+   * rows walks everything below it off the lines. The separation comes from
+   * the next heading's own margin, which is already a rule. */
+  .step {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    column-gap: 1.6rem;
+    row-gap: 0;
+    /* NOT align-items: center. Centring in CSS splits the leftover height in
+       half, and half of an odd number of rules is 16px -- which puts the step
+       text exactly between two ruled lines for the rest of the page. The text
+       is centred by sizeClips() instead, which rounds the offset to a whole
+       rule before applying it. */
+    align-items: start;
+  }
+
+  /* The gap under a clip is the next heading's own margin and nothing else.
+     A margin here as well stacked with it into two blank ruled lines, which
+     read as a tall band separating nothing from nothing. */
+  .say > p:last-child { margin-bottom: 0; }
+
+  /* One column once there is no room for two. The video goes first here --
+     on a phone the recording is the thing worth seeing, and scrolling past a
+     paragraph to reach it every time is the reason help pages get abandoned. */
+  @media (max-width: 62rem) {
+    .step { grid-template-columns: minmax(0, 1fr); }
+    .step .clip { order: -1; }
+  }
+
+  /* The clip.
+   *
+   * A video is a filled box, so it obeys the same rule as the banners and the
+   * drop zone: 26px of padding above and 6px below puts its top and bottom
+   * edges on DRAWN rules rather than 6px under them, and costs exactly one
+   * rule of the grid. The video's own height is set in whole rules by
+   * sizeClips() below, which is what keeps the arithmetic true. */
+  .clip {
+    margin: 0;
+    padding: calc(var(--baseline) + var(--sit)) 0 var(--lift);
+  }
+  .clip video {
+    display: block;
+    width: 100%;
+    height: calc(var(--rule) * var(--clip-rules, 13));
+    object-fit: contain;
+    background: var(--sand);
+    border-radius: var(--radius-md);
+    /* A ring rather than a border: a 1px border is 2px of height, and 2px is
+       all it takes to walk every line below this off the paper. box-shadow
+       does not participate in layout. */
+    box-shadow: 0 0 0 1px var(--border-warm);
+  }
+
+  /* Steps are numbered by the manifest, not by an <ol> -- the number is part of
+     the heading line so it sits on a rule with the title rather than in a
+     gutter the ruled paper knows nothing about. */
+  .steps { list-style: none; margin: 0; padding: 0; }
+  .step h3 { margin: var(--rule) 0 0; }
+  /* `main .step` rather than a bare `.zoom` is specificity, not nesting for
+     its own sake: the tape rule is `main :is(button, .button):not(.danger)` at
+     (0,2,1) and sets `background`/`border-color` to transparent. A plain
+     `.zoom` is (0,1,0) and loses, which left this rendering as a stray word in
+     the margin with no chip around it. (0,2,2) wins. */
+  main .step .zoom {
+    background: transparent; color: var(--ink-stone); border-color: var(--border-warm);
+  }
+  main .step .zoom:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
+  @media (max-width: 62rem) { .zoom { display: none; } }
+  /* vertical-align is the whole point of this rule, not a detail.
+   *
+   * An inline-block is aligned by ITS baseline against the line's, and a
+   * 13.6px mono digit's baseline does not sit where a 16.8px display serif's
+   * does. Reconciling the two made every <h3> 33px instead of 32 -- one pixel
+   * per step, accumulating, so by step four the paper was off by four and by
+   * the end of the teacher list it was off by twenty. `top` takes the box out
+   * of baseline alignment entirely and the line stays exactly one rule. */
+  .step .n {
+    display: inline-block;
+    width: 1.7rem;
+    vertical-align: top;
+    line-height: var(--rule);
+    color: var(--ink-silver);
+    font-family: var(--font-mono);
+    font-size: .85rem;
+  }
+  .step p { margin: 0 0 var(--rule); }
+
+  /* A step with no recording. Not a failure state -- some of what a teacher can
+     do needs an AI model configured, and describing it beats faking it. */
+  .step .instead {
+    padding: calc(var(--baseline) + var(--sit)) .9rem var(--lift);
+    color: var(--ink-stone);
+    font-size: .875rem;
+    line-height: var(--rule);
+    border-left: 2px solid var(--border-warm);
+  }
+
+  /* The tab strip. Chrome for the page, so one rule tall and un-taped -- .tabs
+     and .compact are both already on app.css's opt-out list. The selected one
+     is marked rather than boxed, which is the same gesture every other "this
+     one" on the site uses. */
+  /* No row-gap. .row carries a .6rem gap for both axes, and on a phone the
+     three tabs wrap to two lines -- which added 9.6px between them and walked
+     the entire page below off the paper. Each chip is already exactly one rule
+     tall, so stacked rows land on consecutive ruled lines with no gap at all,
+     which is what writing on lined paper does anyway. */
+  .tabs { row-gap: 0; }
+  .tabs button { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
+  .tabs button:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
+  .tabs button.on { background: var(--mark); color: var(--ink); border-color: var(--mark); font-weight: 600; }
+
+  .panel[hidden] { display: none; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/">Start</a></li>
+    <li><a href="/how/">How to use</a></li>
+    <li><a href="/register/">Set up my account</a></li>
+    <li><a href="/sign/">Read &amp; initial</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <a href="/admin/login/">Teacher sign-in</a>
+  </div>
+</nav></header>
+
+<main id="main" tabindex="-1">
+  <h1>How to use iniSHial</h1>
+  <p class="muted">Every step below has a short recording of the real thing. Nothing
+    plays on its own — press play on the one you need.</p>
+
+  <div class="tabs row" role="tablist" aria-label="Who you are">
+    <button class="compact" role="tab" id="tab-student" aria-controls="panel-student" data-tab="student">I'm a student</button>
+    <button class="compact" role="tab" id="tab-parent" aria-controls="panel-parent" data-tab="parent">I'm a parent</button>
+    <button class="compact" role="tab" id="tab-teacher" aria-controls="panel-teacher" data-tab="teacher">I'm a teacher</button>
+  </div>
+
+  <div id="msg" hidden></div>
+
+  <section class="panel" id="panel-student" role="tabpanel" aria-labelledby="tab-student" tabindex="-1" hidden></section>
+  <section class="panel" id="panel-parent" role="tabpanel" aria-labelledby="tab-parent" tabindex="-1" hidden></section>
+  <section class="panel" id="panel-teacher" role="tabpanel" aria-labelledby="tab-teacher" tabindex="-1" hidden></section>
+
+  <noscript>
+    <p class="notice error">This page needs JavaScript. The steps and their recordings are
+      loaded from a manifest so that rewording one never means editing this page.</p>
+  </noscript>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// A tab can hold more than one manifest. The teacher path is recorded in two
+// halves -- building a syllabus, and running the class -- because they are
+// separate jobs done at separate times, and one twenty-step list reads as a
+// wall rather than as two short ones.
+const TABS = {
+  student: ['student'],
+  parent: ['parent'],
+  teacher: ['teacher-setup', 'teacher-manage'],
+};
+
+function stepHtml(s) {
+  const media = s.clip
+    ? `<figure class="clip"><video controls muted loop playsinline preload="metadata"
+         aria-label="${esc(s.title)}" src="/how/media/${esc(s.clip)}"></video></figure>`
+    : (s.note ? `<p class="instead">${esc(s.note)}</p>` : '');
+  // No enlarge control. The video's own controls already carry a fullscreen
+  // button, and a second way to do the same thing was just a button taking up
+  // a rule of the page.
+  return `<li class="step">
+      <div class="say">
+        <h3><span class="n">${s.n}</span>${esc(s.title)}</h3>
+        <p class="muted">${esc(s.body)}</p>
+      </div>
+      ${media}
+    </li>`;
+}
+
+const sectionHtml = (m) => `<h2>${esc(m.title)}</h2>
+  <p class="muted">${esc(m.blurb)}</p>
+  <ul class="steps">${m.steps.map(stepHtml).join('')}</ul>`;
+
+/**
+ * A video is the one box on the page whose height cannot be written down in
+ * advance: it has to be a whole number of rules AND match the 16:10 the clips
+ * were recorded at, and the second depends on how wide the window is.
+ *
+ * So it is measured. Rounding the ideal height to the nearest rule leaves at
+ * most half a rule of letterboxing -- invisible against the mount -- and keeps
+ * every line below the clip on the paper, which a raw aspect-ratio would not.
+ */
+function sizeClips() {
+  const rule = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rule')) || 32;
+  for (const fig of document.querySelectorAll('.clip')) {
+    const rules = Math.max(5, Math.round(fig.clientWidth / 1.6 / rule));
+    fig.style.setProperty('--clip-rules', rules);
+  }
+
+  // Centre the step text against the clip beside it -- but in whole rules.
+  //
+  // This is the reason it is not `align-items: center`. A clip fifteen rules
+  // tall next to four rules of text leaves eleven rules over, and CSS would
+  // split that into five and a half, putting every line of that paragraph
+  // 16px off the ruled lines. Rounding to a rule first costs at most half a
+  // line of asymmetry and keeps the writing on the paper.
+  //
+  // Read in a second pass so the clip heights set above have been applied.
+  const stacked = matchMedia('(max-width: 62rem)').matches;
+  for (const step of document.querySelectorAll('.step')) {
+    const say = step.querySelector('.say');
+    const clip = step.querySelector('.clip');
+    if (!say) continue;
+    say.style.paddingTop = '0px';
+    if (stacked || !clip) continue;
+    const over = clip.offsetHeight - say.offsetHeight;
+    if (over > rule) say.style.paddingTop = `${Math.round(over / 2 / rule) * rule}px`;
+  }
+}
+
+function select(name, { push = true } = {}) {
+  if (!TABS[name]) name = 'student';
+  for (const [key] of Object.entries(TABS)) {
+    const on = key === name;
+    $('tab-' + key).setAttribute('aria-selected', String(on));
+    $('tab-' + key).classList.toggle('on', on);
+    $('panel-' + key).hidden = !on;
+  }
+  // Pausing on the way out matters: a clip left playing in a hidden panel keeps
+  // going, and the sound of a video you cannot see is the classic version of
+  // this bug. These are muted, but it still burns battery on a phone.
+  for (const v of document.querySelectorAll('.panel[hidden] video')) v.pause();
+  if (push && location.hash !== '#' + name) history.replaceState({}, '', '#' + name);
+  sizeClips();
+}
+
+$('main').addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-tab]');
+  if (tab) { select(tab.dataset.tab); return; }
+
+});
+
+// Left/right through the tab strip, which is what a tablist is expected to do.
+$('main').addEventListener('keydown', (e) => {
+  if (!e.target.closest('[data-tab]')) return;
+  const keys = Object.keys(TABS);
+  const at = keys.indexOf(e.target.dataset.tab);
+  const to = e.key === 'ArrowRight' ? at + 1 : e.key === 'ArrowLeft' ? at - 1 : -1;
+  if (to < 0 || to >= keys.length) return;
+  e.preventDefault();
+  select(keys[to]);
+  $('tab-' + keys[to]).focus();
+});
+
+addEventListener('resize', sizeClips);
+
+(async function load() {
+  const names = [...new Set(Object.values(TABS).flat())];
+  const manifests = {};
+  const missing = [];
+
+  await Promise.all(names.map(async (name) => {
+    try {
+      const res = await fetch(`/how/steps/${name}.json`);
+      if (!res.ok) throw new Error(String(res.status));
+      manifests[name] = await res.json();
+    } catch {
+      missing.push(name);
+    }
+  }));
+
+  for (const [tab, parts] of Object.entries(TABS)) {
+    const have = parts.map((p) => manifests[p]).filter(Boolean);
+    $('panel-' + tab).innerHTML = have.length
+      ? have.map(sectionHtml).join('')
+      : '<p class="muted">These steps have not been written yet.</p>';
+  }
+
+  if (missing.length) {
+    const m = $('msg');
+    m.hidden = false;
+    m.className = 'notice error';
+    m.textContent = `Some steps could not be loaded (${missing.join(', ')}). `
+      + 'Re-run the recorder for those to rebuild them.';
+  }
+
+  select((location.hash || '').slice(1));
+})();
+</script>
+</body>
+</html>

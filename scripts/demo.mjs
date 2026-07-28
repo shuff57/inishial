@@ -30,36 +30,47 @@ const PERIOD = '6';
 export const demoCode = (extId) => 'DEMO' + String(extId).slice(-4);
 export const demoStudentCode = (extId) => 'STUD' + String(extId).slice(-4);
 
-// Fake students. Deliberately varied, because every one of these shapes has
-// its own path through the app and its own way of going wrong:
+// Fake students, and visibly so.
+//
+// This roster is what the recordings on /how/ film -- a public, long-lived
+// page -- so nothing here may read like a person. A plausible name beside a
+// plausible ID beside a plausible school address invites the question of
+// whether it is a real student, and that is a much worse thing to publish than
+// an obviously synthetic roster. Letters for given names, "Student" for family
+// names, sequential IDs, and example.com, which RFC 2606 reserves for this.
+//
+// The SHAPES are still deliberately varied, because every one of them has its
+// own path through the app and its own way of going wrong:
 //   - a missing parent email  -> the export's "missing" column, /register's fallback
 //   - a dropped student       -> must stay in the roster, never be deleted
 //   - names with punctuation  -> CSV quoting, and the formula-injection guard
+// So the apostrophe, the hyphen and the diacritic all survive the rename. They
+// are load-bearing, not flavour.
 const STUDENTS = [
-  ['880101', 'Ava', 'Ramirez', 'ramirez.home@example.com'],
-  ['880102', 'Noah', "O'Connell", 'oconnell.family@example.com'],
-  ['880103', 'Mia', 'Nguyễn', 'nguyen.parent@example.com'],
-  ['880104', 'Liam', 'Fitzgerald', 'fitz.household@example.com'],
-  ['880105', 'Zoe', 'Adeyemi', 'adeyemi.k@example.com'],
-  ['880106', 'Ethan', 'Kowalski', null],
-  ['880107', 'Isabella', 'Santos-Cruz', 'santoscruz@example.com'],
-  ['880108', 'Mason', 'Whitfield', 'whitfield.d@example.com'],
-  ['880109', 'Amara', 'Okonkwo', 'okonkwo.family@example.com'],
-  ['880110', 'Lucas', 'Brennan', null],
-  ['880111', 'Harper', 'Delgado', 'delgado.r@example.com'],
-  ['880112', 'Jonah', 'Petrov', 'petrov.home@example.com'],
-  ['880113', 'Riley', 'Chamberlain', 'chamberlain@example.com'],
-  ['880114', 'Sofia', 'Marchetti', 'marchetti.a@example.com'],
-  ['880115', 'Caleb', 'Ndiaye', 'ndiaye.family@example.com'],
-  ['880116', 'Elena', 'Vasquez', 'vasquez.m@example.com'],
-  ['880117', 'Tobias', 'Lindqvist', null],
-  ['880118', 'Nadia', 'Haddad', 'haddad.parent@example.com'],
+  ['100001', 'A', 'Student', 'parent.a@example.com'],
+  ['100002', 'B', "O'Student", 'parent.b@example.com'],
+  ['100003', 'C', 'Stüdent', 'parent.c@example.com'],
+  ['100004', 'D', 'Student-Case', 'parent.d@example.com'],
+  ['100005', 'E', 'Student', 'parent.e@example.com'],
+  ['100006', 'F', 'Student', null],
+  ['100007', 'G', 'Student', 'parent.g@example.com'],
+  ['100008', 'H', 'Student', 'parent.h@example.com'],
+  ['100009', 'I', 'Student', 'parent.i@example.com'],
+  ['100010', 'J', 'Student', null],
+  ['100011', 'K', 'Student', 'parent.k@example.com'],
+  ['100012', 'L', 'Student', 'parent.l@example.com'],
+  ['100013', 'M', 'Student', 'parent.m@example.com'],
+  ['100014', 'N', 'Student', 'parent.n@example.com'],
+  ['100015', 'O', 'Student', 'parent.o@example.com'],
+  ['100016', 'P', 'Student', 'parent.p@example.com'],
+  ['100017', 'Q', 'Student', null],
+  ['100018', 'R', 'Student', 'parent.r@example.com'],
   // Dropped: still on the roster, marked, never deleted. Re-uploading a file
   // that includes them again brings them back with their account intact.
-  ['880119', 'Grace', 'Whitmore', 'whitmore@example.com'],
-  ['880120', 'Dev', 'Patel', 'patel.family@example.com'],
+  ['100019', 'S', 'Student', 'parent.s@example.com'],
+  ['100020', 'T', 'Student', 'parent.t@example.com'],
 ];
-const DROPPED = new Set(['880119', '880120']);
+const DROPPED = new Set(['100019', '100020']);
 
 const h2 = (t) => ['heading', `<h2>${t}</h2>`, 0, 2];
 const h3 = (t) => ['heading', `<h3>${t}</h3>`, 0, 3];
@@ -75,8 +86,11 @@ const agree = (t) => ['agree', t, 1, 2];
  * that always sit at the end of what they attest to.
  */
 const VERSION_1 = [
-  h2('Ms. Rivera — Biology 1, Period 6'),
-  p('Room 214 · rivera@example.edu · Prep periods 2 and 4'),
+  // Not a person, for the same reason the roster is not: this heading is the
+  // first thing on screen in the recordings on /how/, and a plausible teacher
+  // name reads as a real one.
+  h2('T. Teacher — Biology 1, Period 6'),
+  p('Room 214 · teacher@example.edu · Prep periods 2 and 4'),
   p('The fastest way to reach me is email. I answer during the school day and usually within one school day — not evenings or weekends.'),
 
   h2('Course Description'),
@@ -194,7 +208,10 @@ export async function seedDemo(db, { hashCode, seal = async () => null, reset = 
   for (const [extId, first, last] of registered) {
     const hasCode = withCode.some(([id]) => id === extId);
     // The school address, which is what registration asks for now.
-    const username = `${(first[0] + last).toLowerCase().replace(/[^a-z0-9]/g, '')}@chicousd.org`;
+    // Keyed off the ID, not the name. Names collide once they are generic --
+    // "A Student" exists in both seeded classes -- and accounts.username is
+    // UNIQUE, so a name-derived address made the second class fail to seed.
+    const username = `student${extId}@student.example.com`;
     accountIds.set(extId, Number(db.prepare(
       `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
                              student_code_hash, student_code_issued_at, code_enc, student_code_enc)

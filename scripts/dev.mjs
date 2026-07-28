@@ -24,7 +24,9 @@ import { seedDemo } from './demo.mjs';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PUBLIC = join(ROOT, 'public');
 const PORT = Number(process.env.PORT || 8788);
-const DB_FILE = join(ROOT, '.dev.sqlite');
+// DEV_DB lets several servers run at once on different ports without fighting
+// over one file. The recorders in scripts/record/ each get their own.
+const DB_FILE = process.env.DEV_DB ? join(ROOT, process.env.DEV_DB) : join(ROOT, '.dev.sqlite');
 const DEV_ADMIN = 'teacher@school.edu';
 const DEMO_CODE = 'DEMO2345';
 
@@ -126,12 +128,21 @@ async function seed() {
   const courseId = Number(db.prepare('INSERT INTO courses (name, created_at) VALUES (?, ?)')
     .run('Algebra I', Math.floor(Date.now() / 1000)).lastInsertRowid);
 
+  // Deliberately not people.
+  //
+  // These names, ID numbers and addresses appear on screen in the recordings on
+  // /how/, which are public and long-lived. Anything that reads like a real
+  // student invites the question of whether it is one, and a plausible name
+  // beside a plausible ID beside a plausible school address is a worse thing to
+  // publish than an obviously fake one -- so every field here is visibly
+  // synthetic. example.com is reserved for exactly this by RFC 2606.
+  //
   // Parent emails come from the roster export, as they would in reality.
-  // Robert has none on file, so /register's fallback path is exercisable.
+  // Student C has none on file, so /register's fallback path is exercisable.
   const students = [
-    ['904511', 'Maria', 'Alvarez', '3', 'alvarez.family@example.com'],
-    ['904512', 'Kevin', 'Chen', '3', 'k.chen.parent@example.com'],
-    ['904513', 'Robert', 'Doyle', '4', null],
+    ['123456', 'A', 'Student', '3', 'parent.a@example.com'],
+    ['123457', 'B', 'Student', '3', 'parent.b@example.com'],
+    ['123458', 'C', 'Student', '4', null],
   ];
   const rosterIds = students.map(([extId, first, last, period, parentEmail]) =>
     Number(db.prepare(
@@ -139,8 +150,8 @@ async function seed() {
     ).run(courseId, period, extId, first, last, parentEmail).lastInsertRowid));
 
   // All three registered, with both codes, so /admin/codes/ has a full small
-  // class to look at the moment you sign in. Maria keeps the fixed DEMO2345 the
-  // banner prints; the other two get codes derived from their student ID the
+  // class to look at the moment you sign in. Student A keeps the fixed DEMO2345
+  // the banner prints; the other two get codes derived from their student ID the
   // same way the demo class does, so every one of them is typeable from here
   // without looking anything up.
   //
@@ -156,7 +167,7 @@ async function seed() {
       `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
                              student_code_hash, student_code_issued_at, code_enc, student_code_enc)
        VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
-    ).run(rosterIds[i], `${first[0]}${last}`.toLowerCase() + '@chicousd.org',
+    ).run(rosterIds[i], `student${extId}@student.example.com`,
       await hashCode(parentCode), 1000, 1000,
       await hashCode(studentCode), 1000,
       await sealCode(env, parentCode), await sealCode(env, studentCode));
@@ -214,6 +225,7 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.mp4': 'video/mp4',
   '.csv': 'text/csv; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.ttf': 'font/ttf',
@@ -356,15 +368,15 @@ createServer(async (req, res) => {
   iniSHial — No backpack required.
 
   http://localhost:${PORT}/              landing
-  http://localhost:${PORT}/register/     student sign-up   (Biology has three unregistered: 880116 Vasquez)
-  http://localhost:${PORT}/sign/         parent or student (ID 904511 -- ${DEMO_CODE} = parent, STU04511 = student)
+  http://localhost:${PORT}/register/     student sign-up   (Biology has three unregistered: 100016, 100017, 100018)
+  http://localhost:${PORT}/sign/         parent or student (ID 123456 -- ${DEMO_CODE} = parent, STU23456 = student)
   http://localhost:${PORT}/admin/login/  teacher sign-in   (password ${DEV_PASSWORD})
   http://localhost:${PORT}/admin/signup/ teacher sign-up   (any @school.edu address)
 
   Demo class: ${demo.course}
 ${demoLines}
 
-  Database: .dev.sqlite  (delete it to reseed)
+  Database: ${process.env.DEV_DB || '.dev.sqlite'}  (delete it to reseed)
   Ollama:   ${env.OLLAMA_API_KEY ? 'key loaded from .secrets.local (' + (env.OLLAMA_MODEL || 'default model') + ')' : 'no key — AI steps stay disabled, everything else works'}
 `);
 });

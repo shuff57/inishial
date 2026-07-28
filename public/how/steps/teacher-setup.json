@@ -1,0 +1,79 @@
+{
+  "role": "teacher-setup",
+  "title": "Building your syllabus",
+  "blurb": "Sign in, open the editor, turn a Word document into a syllabus, and publish it.",
+  "steps": [
+    {
+      "title": "Sign in",
+      "body": "Go to Teacher sign-in and enter your school email and password. If your school is using the shared admin password instead of individual accounts, leave the email blank.",
+      "clip": "teacher-setup-signin.mp4",
+      "n": 1
+    },
+    {
+      "title": "Find your class on the Classes page",
+      "body": "Every class you teach is a row here, with how many students are active, dropped, registered, and holding an access code. Syllabus opens the editor below; Who has signed and Access codes are covered in the rest of this guide.",
+      "clip": "teacher-setup-classes.mp4",
+      "n": 2
+    },
+    {
+      "title": "Open the syllabus editor",
+      "body": "A brand new class opens straight to \"Start from a document,\" because there is nothing in the draft yet to show instead. The editor works one page at a time — the same page a parent turns to — with Fix headings, Suggest initials, Save draft, and Publish along the top. Nothing here is visible to parents until you publish it.",
+      "clip": "teacher-setup-editor-open.mp4",
+      "n": 3
+    },
+    {
+      "title": "Start from a document",
+      "body": "Drop a .docx here, or paste text straight from Word or Google Docs — the box grows to fit whatever you paste. Pasted text is split into blocks automatically: a short line with no punctuation becomes a heading, everything else becomes a paragraph or a list.",
+      "clip": "teacher-setup-start-paste.mp4",
+      "n": 4
+    },
+    {
+      "title": "Choose the AI model in Settings",
+      "body": "The gear icon next to Sign out holds one setting: which AI model answers Fix headings and Suggest initials. Your choice is remembered on this computer.",
+      "clip": "teacher-setup-settings.mp4",
+      "n": 5
+    },
+    {
+      "title": "Fix headings straightens out the structure",
+      "body": "A pasted document often has real headings that do not look like headings to a simple rule — a title that ends with a period, or a line that got bolded instead of styled. Fix headings asks an AI model to tell headings from body text and retags them. It never rewrites a word; only the tag around a line ever changes.",
+      "clip": "teacher-setup-fix-headings.mp4",
+      "n": 6
+    },
+    {
+      "title": "Suggest initials flags sections worth a signature",
+      "body": "This asks the same model which sections a parent should have to initial individually — grading and late work, attendance, safety, academic honesty, anything that costs money. Suggestions show up as a note in the margin; nothing is required until you click Require initials on a page yourself.",
+      "clip": "teacher-setup-suggest-initials.mp4",
+      "n": 7
+    },
+    {
+      "title": "Edit text and add a block",
+      "body": "Double-click any line to place a cursor and type. Below the page, \"Add to this page\" adds a paragraph, a list, a subheading, or an initials box wherever you are reading.",
+      "clip": "teacher-setup-edit-blocks.mp4",
+      "n": 8
+    },
+    {
+      "title": "Reorder or delete a block",
+      "body": "Click a block once to pick it up, then drag it — or use the ↑ / ↓ arrows to nudge it a line at a time. The ✕ on the right deletes it. A heading carries its whole page with it when you drag it; a loose line moves on its own.",
+      "clip": "teacher-setup-reorder-delete.mp4",
+      "n": 9
+    },
+    {
+      "title": "Save draft keeps it private",
+      "body": "Save draft writes your changes to the server, but nothing changes for parents — they still see whatever was last published. Save often; there is no autosave, and the page warns you before you navigate away with unsaved changes.",
+      "clip": "teacher-setup-save-draft.mp4",
+      "n": 10
+    },
+    {
+      "title": "Review what changed before publishing",
+      "body": "This class already has a published syllabus and an open draft with real edits: a softened late-work policy, and a new Tutoring and Extra Help page. Read through a draft before publishing it — Publish shows you a count of what changed, but not the actual wording.",
+      "clip": "teacher-setup-biology-preview.mp4",
+      "n": 11
+    },
+    {
+      "title": "Publish when it is ready",
+      "body": "Publishing asks you to confirm how many sections are new or changed, how many are unchanged, and how many changed sections require initials — then makes the new version live immediately. Anyone who already initialed a section that changed now shows as having signed an older version and has to initial it again, even if the change was small.",
+      "clip": "teacher-setup-publish.mp4",
+      "n": 12
+    }
+  ]
+}
