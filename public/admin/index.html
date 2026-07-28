@@ -272,6 +272,14 @@ async function loadCourses() {
     }
     const { courses } = await res.json();
     const body = $('coursesTable').querySelector('tbody');
+    // "Access codes" is a page, not a file. It used to be a download attribute
+    // straight onto the CSV endpoint, so the link put a spreadsheet in your
+    // downloads folder before you had seen a single code. The CSV is still on
+    // that page for a mail merge.
+    //
+    // Comments about this row live HERE and not inside the template literal
+    // below: a backtick in a comment inside a template literal ends the string,
+    // and the whole page dies with "missing ) after argument list".
     body.innerHTML = courses.map((c) => `<tr>
         <td>${esc(c.name)}</td>
         <td class="num">${c.students ?? 0}</td>
@@ -282,7 +290,7 @@ async function loadCourses() {
             &nbsp;·&nbsp;
             <a href="/admin/editor/?course_id=${c.id}">Syllabus</a>
             &nbsp;·&nbsp;
-            <a href="/api/admin/credentials?course_id=${c.id}" download>Credentials</a></td>
+            <a href="/admin/codes/?course_id=${c.id}">Access codes</a></td>
       </tr>`).join('');
     $('coursesEmpty').hidden = courses.length > 0;
   } catch {

@@ -44,6 +44,12 @@ export async function onRequestGet({ request, env }) {
 
   // The roster address is authoritative; a student-supplied one overrides it
   // only when they bothered to enter one, which is the "not on file" case.
+  // Driven from the ROSTER, not from accounts, so a student who has not
+  // registered is a row saying so rather than a name missing from the page.
+  // The join used to be the other way round and a class of three showed one
+  // student, which reads as "the other two are gone" rather than "the other
+  // two have not signed up". There is nothing to hand out for them yet -- the
+  // codes live on the account -- and that is the thing worth seeing.
   const { results } = await env.DB.prepare(
     `SELECT a.id, a.username, a.code_hash, a.student_code_hash,
             a.code_enc, a.student_code_enc,
@@ -55,8 +61,8 @@ export async function onRequestGet({ request, env }) {
               ELSE 'missing'
             END AS email_source,
             r.first, r.last, r.period, r.student_ext_id
-       FROM accounts a
-       JOIN roster r ON r.id = a.roster_id
+       FROM roster r
+       LEFT JOIN accounts a ON a.roster_id = r.id
       WHERE r.course_id = ?1 AND r.status = 'active'
       ORDER BY r.period, r.last, r.first`,
   ).bind(courseId).all();
@@ -74,6 +80,11 @@ export async function onRequestGet({ request, env }) {
    * tell -- so both columns move in the same statement or neither does.
    */
   const settle = async (row, kind) => {
+    // No account: there is nowhere to put a code. Minting one would need a row
+    // that registration is going to create anyway, and creating it here would
+    // mark a student as registered when they have never opened the app.
+    if (row.id == null) return { code: null, issued_at: null, fresh: false, recoverable: false, no_account: true };
+
     const hashCol = kind === 'parent' ? 'code_hash' : 'student_code_hash';
     const encCol = kind === 'parent' ? 'code_enc' : 'student_code_enc';
     const atCol = kind === 'parent' ? 'code_issued_at' : 'student_code_issued_at';

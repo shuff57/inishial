@@ -78,7 +78,7 @@
     </tr></thead>
     <tbody id="rows"></tbody>
   </table>
-  <p id="empty" class="muted small" hidden>Nobody on this roster has registered yet.</p>
+  <p id="empty" class="muted small" hidden>No active students on this roster.</p>
 </main>
 
 <script>
@@ -99,19 +99,23 @@ const when = (secs) => secs ? new Date(secs * 1000).toLocaleDateString() : '';
  *                         only way back, and it invalidates the working one. */
 function codeCell(c) {
   if (c.code) return `<span class="code">${esc(c.code)}</span>`;
+  if (c.no_account) return '<span class="code none">—</span>';
   if (!c.issued_at && !c.recoverable) return '<span class="code none">not issued yet</span>';
   return `<span class="code none" title="Issued ${esc(when(c.issued_at))}. Reissue to see a code — the current one stops working.">cannot be shown</span>`;
 }
 
 function render() {
-  $('sub').textContent = `${data.course} — ${data.students.length} registered`;
-  $('rows').innerHTML = data.students.map((s) => `<tr data-id="${s.account_id}">
+  const registered = data.students.filter((s) => s.account_id).length;
+  $('sub').textContent = `${data.course} — ${registered} of ${data.students.length} registered`;
+  $('rows').innerHTML = data.students.map((s) => `<tr data-id="${s.account_id ?? ''}">
       <td>${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
       <td>${esc(s.period)}</td>
       <td class="small">${esc(s.email || '—')}</td>
       <td>${codeCell(s.parent)}</td>
       <td>${codeCell(s.student_code)}</td>
-      <td class="act"><button class="compact" data-reissue="${s.account_id}">Reissue both</button></td>
+      <td class="act">${s.account_id
+        ? `<button class="compact" data-reissue="${s.account_id}">Reissue both</button>`
+        : '<span class="muted" style="font-size:.78rem">not registered yet</span>'}</td>
     </tr>`).join('');
   $('empty').hidden = data.students.length > 0;
 

@@ -138,11 +138,29 @@ async function seed() {
       "INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
     ).run(courseId, period, extId, first, last, parentEmail).lastInsertRowid));
 
-  // Maria is already registered and has a code, so the sign flow is clickable
-  // immediately. Kevin and Robert are left unregistered to exercise /register.
-  db.prepare(
-    'INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-  ).run(rosterIds[0], 'malvarez', await hashCode(DEMO_CODE), 1000, null, 1000);
+  // All three registered, with both codes, so /admin/codes/ has a full small
+  // class to look at the moment you sign in. Maria keeps the fixed DEMO2345 the
+  // banner prints; the other two get codes derived from their student ID the
+  // same way the demo class does, so every one of them is typeable from here
+  // without looking anything up.
+  //
+  // /register is still exercisable -- the Biology demo class leaves three
+  // students unregistered for exactly that, and the Access codes page shows
+  // them as rows saying so.
+  const devParent = (extId) => 'PAR' + String(extId).slice(-5);
+  const devStudent = (extId) => 'STU' + String(extId).slice(-5);
+  for (const [i, [extId, first, last]] of students.entries()) {
+    const parentCode = i === 0 ? DEMO_CODE : devParent(extId);
+    const studentCode = devStudent(extId);
+    db.prepare(
+      `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
+                             student_code_hash, student_code_issued_at, code_enc, student_code_enc)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+    ).run(rosterIds[i], `${first[0]}${last}`.toLowerCase() + '@chicousd.org',
+      await hashCode(parentCode), 1000, 1000,
+      await hashCode(studentCode), 1000,
+      await sealCode(env, parentCode), await sealCode(env, studentCode));
+  }
 
   const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')
     .run(courseId, 'Algebra I — Course Syllabus', 'algebra-i').lastInsertRowid);
@@ -338,8 +356,8 @@ createServer(async (req, res) => {
   iniSHial — No backpack required.
 
   http://localhost:${PORT}/              landing
-  http://localhost:${PORT}/register/     student sign-up   (try ID 904512, last name Chen)
-  http://localhost:${PORT}/sign/         parent signing    (ID 904511, code ${DEMO_CODE})
+  http://localhost:${PORT}/register/     student sign-up   (Biology has three unregistered: 880116 Vasquez)
+  http://localhost:${PORT}/sign/         parent or student (ID 904511 -- ${DEMO_CODE} = parent, STU04511 = student)
   http://localhost:${PORT}/admin/login/  teacher sign-in   (password ${DEV_PASSWORD})
   http://localhost:${PORT}/admin/signup/ teacher sign-up   (any @school.edu address)
 
