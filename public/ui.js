@@ -67,6 +67,26 @@ document.addEventListener('DOMContentLoaded', () => {
   swipeMarks();
 });
 
+/**
+ * Shade the crease just before the page is photographed for the turn.
+ *
+ * The idea is turn.js's -- it paints a linear-gradient across the fold so the
+ * paper reads as bending rather than pivoting flat. None of its code is used
+ * (it is non-commercial licensed); this is the technique, not the source.
+ *
+ * It has to happen HERE rather than in the transition itself: a
+ * ::view-transition-old() pseudo-element is a replaced element showing a
+ * snapshot, so nothing can be layered inside it. `pageswap` fires on the
+ * outgoing document BEFORE that snapshot is taken, which is the one moment the
+ * shading can still be painted into the page it belongs to.
+ */
+addEventListener('pageswap', (event) => {
+  // No transition (unsupported browser, reduced motion, cross-origin) means no
+  // snapshot, and shading a page nobody is about to photograph would just be a
+  // dark flash on the way out.
+  if (event.viewTransition) document.documentElement.classList.add('turning');
+});
+
 /** Publish the nav's height as --nav-h so the OTHER sticky bars (the editor
  *  toolbar, the signing progress spine) can park directly under it.
  *

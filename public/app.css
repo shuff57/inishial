@@ -984,11 +984,44 @@ header.site { view-transition-name: chrome; }
     transform-origin: left center;
     animation: page-turn 520ms cubic-bezier(.42, 0, .3, 1) both;
   }
+  /* Two ideas taken from turn.js, reimplemented rather than imported: a crease
+     shaded across the fold, and a shadow that grows as the sheet lifts off the
+     one underneath. Between them the page reads as bending instead of pivoting
+     like a flat board.
+     drop-shadow is the only one of the pair that can live out here -- the
+     crease is painted into the page itself at pageswap, see ui.js. */
   @keyframes page-turn {
-    0%   { transform: perspective(2400px) rotateY(0) rotate(0); opacity: 1; }
+    0%   { transform: perspective(2400px) rotateY(0) rotate(0); opacity: 1;
+           filter: drop-shadow(0 0 0 rgba(0,0,0,0)); }
+    35%  { filter: drop-shadow(-10px 6px 18px rgba(0,0,0,.22)); }
+    70%  { filter: drop-shadow(-26px 10px 34px rgba(0,0,0,.30)); }
     88%  { opacity: 1; }
-    100% { transform: perspective(2400px) rotateY(92deg) rotate(-1.2deg); opacity: 0; }
+    100% { transform: perspective(2400px) rotateY(92deg) rotate(-1.2deg); opacity: 0;
+           filter: drop-shadow(-38px 12px 44px rgba(0,0,0,0)); }
   }
+}
+
+/* The crease itself. Added to <html> at pageswap, so it is part of the snapshot
+   the turn animates and is never seen on a page that is just sitting there.
+ *
+ * It goes on the sheet's existing background stack rather than a pseudo-element
+ * because both of main's are already spent -- ::before is the binder holes,
+ * ::after is the margin rule. Darkest at the left, where the paper bends up out
+ * of the spine, clearing by a third of the way across. */
+:root.turning main {
+  background-image:
+    linear-gradient(96deg,
+      color-mix(in srgb, var(--ink) 22%, transparent) 0%,
+      color-mix(in srgb, var(--ink) 9%, transparent) 11%,
+      transparent 32%),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--rule) - 1px),
+      color-mix(in srgb, var(--ring) 55%, transparent) calc(var(--rule) - 1px),
+      color-mix(in srgb, var(--ring) 55%, transparent) var(--rule));
+  background-position: 0 0, 0 calc(var(--baseline) + var(--sit));
+  background-repeat: no-repeat, repeat;
 }
 
 /* ---- motion off ----
