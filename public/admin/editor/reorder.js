@@ -35,17 +35,11 @@ export function unitStartBefore(blocks, from) {
   return i;
 }
 
-/** [from, to) for each section: a heading and everything under it. Blocks before
- *  the first heading form a leading section with no heading of its own. */
-export function sectionRanges(blocks) {
-  const out = [];
-  let start = 0;
-  for (let i = 0; i < blocks.length; i++) {
-    if (blocks[i].type === 'heading' && i > start) { out.push([start, i]); start = i; }
-  }
-  if (blocks.length) out.push([start, blocks.length]);
-  return out;
-}
+// The section split moved to shared/sections.js when the signing page started
+// paging by section too. Re-exported so this module still reads as the editor's
+// complete model, but there is exactly one definition and it is over there.
+export { sectionRanges } from '../../shared/sections.js';
+import { sectionRanges } from '../../shared/sections.js';
 
 const PROMPT_TYPES = new Set(['initial', 'agree']);
 const RETAGGABLE = new Set(['text', 'heading']);

@@ -65,6 +65,17 @@
     <h1 id="docTitle"></h1>
     <p class="muted small" id="docMeta"></p>
     <div id="blocks"></div>
+
+    <!-- Turning the notebook. The buttons are the real control: the stacked
+         page edge is a nicety for a pointer, and is aria-hidden. -->
+    <div class="book-bar" id="bookBar" hidden>
+      <button class="secondary" id="prevPage">← Back</button>
+      <button class="secondary" id="nextPage">Next page →</button>
+      <span class="spacer"></span>
+      <span class="where" id="where" role="status"></span>
+      <button class="secondary" id="readAll">Read as one page</button>
+    </div>
+
     <div id="doneBanner" class="done-banner" hidden>
       <h2>All sections initialed</h2>
       <p class="muted">Your teacher can see this is complete. Nothing else to do.</p>
@@ -73,9 +84,18 @@
   </section>
 </main>
 
-<script>
+<script type="module">
+import { createBook, sections, sectionTitle } from './book.js';
+
 const $ = (id) => document.getElementById(id);
 let state = null;
+let book = null;
+
+// Paged is the default, but it is a reading preference and it sticks. Somebody
+// who wants the whole document at once should not have to ask for it again on
+// every section.
+const PAGED_KEY = 'inishial:paged';
+let paged = (() => { try { return localStorage.getItem(PAGED_KEY) !== 'off'; } catch { return true; } })();
 
 function notice(el, text, kind) {
   el.hidden = false;
@@ -132,12 +152,38 @@ async function loadSyllabus() {
   render();
 }
 
+// One sheet per section, so the syllabus is turned rather than scrolled. The
+// section split is shared/sections.js -- the same definition the editor drags
+// by and the same one a signature is hashed against, because a parent must
+// initial exactly the span of text they were shown.
 function render() {
+  const wasOn = book?.at() ?? 0;
   const host = $('blocks');
   host.textContent = '';
-  for (const block of state.blocks) {
-    host.appendChild(block.needs_initials ? initialBox(block) : contentBlock(block));
+  host.className = 'book';
+
+  for (const section of sections(state.blocks)) {
+    const sheet = document.createElement('section');
+    sheet.className = 'sheet';
+    const title = sectionTitle(section);
+    if (title) sheet.setAttribute('aria-label', title);
+    for (const block of section) {
+      sheet.appendChild(block.needs_initials ? initialBox(block) : contentBlock(block));
+    }
+    host.appendChild(sheet);
   }
+
+  book = createBook(host, {
+    onTurn: (i, n) => {
+      $('where').textContent = `Page ${i + 1} of ${n}`;
+      $('prevPage').disabled = i === 0;
+      $('nextPage').disabled = i === n - 1;
+    },
+  });
+  $('bookBar').hidden = !book;
+  if (book && paged) book.showSection(Math.min(wasOn, book.count() - 1));
+  else if (book) book.unpage();
+
   updateProgress();
 }
 
@@ -219,6 +265,20 @@ function updateProgress() {
   $('progressBar').style.width = required.length ? (signed / required.length * 100) + '%' : '0%';
   $('doneBanner').hidden = !(required.length && signed === required.length);
 }
+
+// ---- turning the notebook ----
+
+$('prevPage').addEventListener('click', () => book?.go(book.at() - 1));
+$('nextPage').addEventListener('click', () => book?.go(book.at() + 1));
+
+$('readAll').addEventListener('click', () => {
+  paged = !paged;
+  try { localStorage.setItem(PAGED_KEY, paged ? 'on' : 'off'); } catch { /* not fatal */ }
+  $('readAll').textContent = paged ? 'Read as one page' : 'Turn page by page';
+  // The page-turn controls mean nothing in one continuous document.
+  for (const id of ['prevPage', 'nextPage', 'where']) $(id).hidden = !paged;
+  if (paged) book?.repage(); else book?.unpage();
+});
 
 // An existing session skips the form.
 loadSyllabus();

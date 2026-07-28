@@ -848,6 +848,93 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
 .bar { height: 3px; background: color-mix(in srgb, var(--desk-ink) 20%, transparent); border-radius: 2px; margin-top: .4rem; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--mark-deep); width: 0; transition: width .3s ease-out; }
 
+/* ---- the syllabus as a notebook ----
+ *
+ * One section per sheet, turned rather than scrolled. This is the one place in
+ * the app where a page turn is not decoration: a parent genuinely works through
+ * the syllabus a section at a time, initialling each, and the progress spine
+ * has been counting those sections all along.
+ *
+ * The grab target is the STACKED EDGE on the right -- the remaining pages seen
+ * side-on. It is always on screen, which is what the corner peel got wrong: that
+ * one sat past the bottom of a sheet taller than the viewport, so nobody ever
+ * found it. An edge cannot hide.
+ */
+.book {
+  position: relative;
+  perspective: 2400px;
+  margin: var(--rule) 0;
+}
+
+.sheet {
+  position: relative;
+  transform-origin: left center;
+  backface-visibility: hidden;
+}
+/* Sheets behind the current one are stacked, not shown. They stay in the DOM so
+   print, find-in-page and "read as one page" all still see the whole document. */
+.book[data-paged] .sheet { position: absolute; inset: 0; visibility: hidden; }
+.book[data-paged] .sheet[data-current] { position: relative; visibility: visible; z-index: 2; }
+/* The next sheet is rendered UNDERNEATH the current one, so turning reveals the
+   real thing rather than a placeholder. */
+.book[data-paged] .sheet[data-next] { visibility: visible; z-index: 1; }
+
+/* Mid-turn: shaded across the fold, lifted off the sheet below. */
+.sheet[data-turning] {
+  z-index: 3;
+  box-shadow: -14px 8px 30px rgba(0,0,0,.24);
+}
+.sheet[data-turning]::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(96deg,
+    color-mix(in srgb, var(--ink) 20%, transparent) 0%,
+    color-mix(in srgb, var(--ink) 7%, transparent) 12%,
+    transparent 34%);
+}
+.sheet[data-settling] { transition: transform 380ms cubic-bezier(.3, 0, .2, 1); }
+
+/* The stacked page edge. Thickness tracks how many sheets are left, so the
+   notebook visibly thins out as you work through it. */
+.page-edge {
+  position: absolute; top: 0; bottom: 0;
+  right: calc(var(--edge, 0px) * -1);
+  width: var(--edge, 0px);
+  z-index: 4;
+  cursor: grab;
+  touch-action: none;
+  background:
+    repeating-linear-gradient(to right,
+      var(--paper) 0 2px,
+      color-mix(in srgb, var(--ring) 60%, transparent) 2px 3px);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 2px 0 6px rgba(0,0,0,.10);
+}
+.page-edge:hover { filter: brightness(.97); }
+.page-edge[data-grabbing] { cursor: grabbing; }
+.page-edge::before {                 /* a wider hit area than the visible edge */
+  content: ''; position: absolute; top: 0; bottom: 0; left: -10px; right: -14px;
+}
+
+.book-bar {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  margin: var(--rule) 0 0;
+}
+.book-bar .spacer { flex: 1; }
+.book-bar .where { font-size: .95rem; color: var(--ink-stone); line-height: var(--rule); }
+
+/* Print, and "read as one page", are the same thing: no stacking, no edge. */
+.book:not([data-paged]) .sheet { position: relative; visibility: visible; }
+@media print {
+  .book .sheet { position: relative !important; visibility: visible !important;
+                 transform: none !important; break-inside: auto; }
+  .page-edge, .book-bar { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet[data-settling] { transition: none; }
+}
+
 /* ---- syllabus blocks ---- */
 
 .block { margin: 0 0 var(--rule); }
