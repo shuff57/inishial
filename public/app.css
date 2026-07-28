@@ -788,6 +788,12 @@ main :is(button, .button):not(.danger):hover:not([disabled]), .toolbar button:ho
  * cut by it, which is what tape over a line actually looks like -- and a 3px
  * fibre gradient at about 2% contrast. */
 main :is(button, .button):not(.danger)::before, .toolbar button::before {
+  /* `display` is set here on purpose. A link in prose wears the marker band as
+     its own ::before, and `a.button::before { display: none }` above turns that
+     off for a link styled as a button -- which silently swallowed the tape too,
+     because the cascade is settled per PROPERTY and nothing else here declares
+     one. The landing page's two calls to action were bare words for it. */
+  display: block;
   content: ''; position: absolute; z-index: -1; inset: 0;
   background:
     repeating-linear-gradient(90deg,
