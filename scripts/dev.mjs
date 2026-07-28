@@ -83,14 +83,26 @@ function localSecrets() {
 }
 const secrets = localSecrets();
 
+/** TEACHER_DOMAINS as configured for production. A regex rather than a TOML
+ *  parser: this is one flat string in a file we control, and a dependency to
+ *  read it would cost more than the whole dev server. */
+function configuredDomains() {
+  const toml = readFileSync(join(ROOT, 'wrangler.toml'), 'utf8');
+  return (toml.match(/^\s*TEACHER_DOMAINS\s*=\s*"([^"]*)"/m) || [])[1] || '';
+}
+
 const env = {
   DB: d1(db),
   SESSION_SECRET: 'local-dev-secret-do-not-use-in-production',
   ADMIN_EMAILS: DEV_ADMIN,
-  // Self-service teacher sign-up, gated on this domain. DEV_ADMIN is at
-  // school.edu, so signing up as that address also exercises the
-  // adopt-the-unowned-courses path in signup.js.
-  TEACHER_DOMAINS: 'school.edu',
+  // Self-service teacher sign-up. The real domain is read out of wrangler.toml
+  // rather than repeated here, so testing sign-up locally exercises the same
+  // allowlist production enforces -- a second copy of it would drift, and the
+  // failure would be "it worked on my machine" for the one check whose whole
+  // job is to refuse people.
+  //
+  // school.edu is appended because the seeded DEV_ADMIN lives there.
+  TEACHER_DOMAINS: [configuredDomains(), 'school.edu'].filter(Boolean).join(','),
   // `.secrets.local` wins over the ambient environment for these three, which is
   // the opposite of the usual precedence and deliberate: a machine-wide
   // OLLAMA_HOST pointing at somebody's local daemon (0.0.0.0:11434) otherwise
