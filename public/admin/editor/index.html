@@ -1596,15 +1596,32 @@ document.addEventListener('keydown', (e) => {
 (async () => {
   const chosen = localStorage.getItem(AI_MODEL_KEY) || '';
   try {
-    const body = await (await fetch('/api/admin/models')).json();
+    const res = await fetch('/api/admin/models');
+    // Checked, because the 401 body is `{error}` and has no `configured` on it.
+    // Without this the line below interpolated undefined and the only thing in
+    // the menu was the literal word "undefined" -- which reads as the feature
+    // being broken rather than as the session having lapsed.
+    if (!res.ok) throw new Error(`models: ${res.status}`);
+    const body = await res.json();
+    const configured = typeof body.configured === 'string' ? body.configured : '';
     for (const name of body.models || []) {
       const opt = document.createElement('option');
       opt.value = name;
-      opt.textContent = name === body.configured ? `${name} (default)` : name;
+      opt.textContent = name === configured ? `${name} (default)` : name;
       aiModel.appendChild(opt);
     }
-    aiModel.firstChild.textContent = body.available ? 'default' : `${body.configured} (default)`;
-  } catch { /* the single default option is already there */ }
+    aiModel.firstChild.textContent = body.available || !configured ? 'default' : `${configured} (default)`;
+  } catch {
+    // Say so. The picker failing soft is right; failing soft and silently is
+    // how you end up staring at a menu with one option wondering whether that
+    // is the whole list.
+    aiModel.firstChild.textContent = 'default';
+    const note = document.createElement('p');
+    note.className = 'hint';
+    note.textContent = 'Could not load the model list — you may need to sign in again. '
+      + 'The default model still works.';
+    aiModel.after(note);
+  }
   // Only re-select a remembered model the host still offers; one that has gone
   // away would otherwise sit selected and fail on every run.
   if (chosen && [...aiModel.options].some((o) => o.value === chosen)) aiModel.value = chosen;
