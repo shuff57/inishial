@@ -7,25 +7,29 @@
       "title": "Find your card on the home page",
       "body": "Go to the site and pick the card that says \"I'm a student.\" It opens the sign-up form.",
       "clip": "student-home.mp4",
-      "n": 1
+      "n": 1,
+      "clipDark": "student-home-dark.mp4"
     },
     {
       "title": "Fill in your information",
       "body": "Enter your student ID number and last name exactly as they appear on your school ID, then your school email. The parent or guardian email is optional — only fill it in if the syllabus should go to an address different from the one your school already has on file.",
       "clip": "student-register-fill.mp4",
-      "n": 2
+      "n": 2,
+      "clipDark": "student-register-fill-dark.mp4"
     },
     {
       "title": "Write down your access code",
       "body": "After you submit the form, your own access code is shown once, right there on the screen. Write it down before you go on. This is the only time you will see it, and you need it to come back and finish later.",
       "clip": "student-register-code.mp4",
-      "n": 3
+      "n": 3,
+      "clipDark": "student-register-code-dark.mp4"
     },
     {
       "title": "Coming back later",
       "body": "Already set up your account? Go back to the same form and enter just your student ID and last name, leaving the rest blank. That takes you straight to your syllabus instead of asking you to register again.",
       "clip": "student-register-returning.mp4",
-      "n": 4
+      "n": 4,
+      "clipDark": "student-register-returning-dark.mp4"
     }
   ]
 }

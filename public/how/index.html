@@ -68,17 +68,66 @@
     margin: 0;
     padding: calc(var(--baseline) + var(--sit)) 0 var(--lift);
   }
-  .clip video {
-    display: block;
-    width: 100%;
+  /* The mount is the box; the video floats inside it. Separating the two is
+     what leaves somewhere for the doodle to live -- an opaque <video> painted
+     its own sand background over anything behind it. */
+  .clip .mount {
+    position: relative;
     height: calc(var(--rule) * var(--clip-rules, 13));
-    object-fit: contain;
     background: var(--sand);
     border-radius: var(--radius-md);
+    overflow: hidden;
     /* A ring rather than a border: a 1px border is 2px of height, and 2px is
        all it takes to walk every line below this off the paper. box-shadow
        does not participate in layout. */
     box-shadow: 0 0 0 1px var(--border-warm);
+  }
+  .clip video {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: transparent;
+    transition: opacity 220ms ease-out;
+  }
+  /* Hidden until there is a frame. A <video> with controls paints its OWN dark
+     loading state and a spinner, which sat on top of the doodle and defeated
+     the whole point -- and a control bar under an empty box is furniture for
+     something that is not there yet. */
+  .mount:not(.ready) video { opacity: 0; }
+
+  /* Something to watch while the clip arrives.
+   *
+   * A browser's own spinner is a piece of chrome from a different application
+   * sitting in the middle of a sheet of ruled paper. This is a line being
+   * drawn and rubbed out, which is what the rest of the page is made of.
+   *
+   * pathLength="1" normalises the path so the dash maths is 1 -> 0 -> -1 and
+   * does not have to be re-measured if the squiggle is ever redrawn. */
+  .doodle {
+    position: absolute; inset: 0; margin: auto;
+    width: 8rem; height: 2.4rem;
+    color: var(--ink-silver);
+    transition: opacity 200ms ease-out;
+  }
+  .doodle path {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: scribble 2.1s ease-in-out infinite;
+  }
+  @keyframes scribble {
+    0%   { stroke-dashoffset: 1; }
+    50%  { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: -1; }
+  }
+  /* Once there are frames to show, the doodle has done its job. Kept in the
+     DOM rather than removed so a theme swap can bring it straight back. */
+  .mount.ready .doodle { opacity: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .doodle path { animation: none; stroke-dashoffset: 0; }
   }
 
   /* Steps are numbered by the manifest, not by an <ol> -- the number is part of
@@ -86,16 +135,6 @@
      gutter the ruled paper knows nothing about. */
   .steps { list-style: none; margin: 0; padding: 0; }
   .step h3 { margin: var(--rule) 0 0; }
-  /* `main .step` rather than a bare `.zoom` is specificity, not nesting for
-     its own sake: the tape rule is `main :is(button, .button):not(.danger)` at
-     (0,2,1) and sets `background`/`border-color` to transparent. A plain
-     `.zoom` is (0,1,0) and loses, which left this rendering as a stray word in
-     the margin with no chip around it. (0,2,2) wins. */
-  main .step .zoom {
-    background: transparent; color: var(--ink-stone); border-color: var(--border-warm);
-  }
-  main .step .zoom:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
-  @media (max-width: 62rem) { .zoom { display: none; } }
   /* vertical-align is the whole point of this rule, not a detail.
    *
    * An inline-block is aligned by ITS baseline against the line's, and a
@@ -125,19 +164,62 @@
     border-left: 2px solid var(--border-warm);
   }
 
-  /* The tab strip. Chrome for the page, so one rule tall and un-taped -- .tabs
-     and .compact are both already on app.css's opt-out list. The selected one
-     is marked rather than boxed, which is the same gesture every other "this
-     one" on the site uses. */
-  /* No row-gap. .row carries a .6rem gap for both axes, and on a phone the
-     three tabs wrap to two lines -- which added 9.6px between them and walked
-     the entire page below off the paper. Each chip is already exactly one rule
-     tall, so stacked rows land on consecutive ruled lines with no gap at all,
-     which is what writing on lined paper does anyway. */
-  .tabs { row-gap: 0; }
-  .tabs button { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
-  .tabs button:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
-  .tabs button.on { background: var(--mark); color: var(--ink); border-color: var(--mark); font-weight: 600; }
+  /* Three strips of tape stuck to the page, one per reader.
+   *
+   * The class is `.roles` and NOT `.tabs`, and that is the whole trick. `.tabs`
+   * sits on app.css's tape opt-out list -- as does `.compact`, which these
+   * buttons also used to carry -- so as a tab strip they were opted out twice
+   * over, and no styling here would have brought the strip back without a
+   * specificity fight against a rule that is right to exist. Not matching the
+   * opt-out at all is cheaper and truer than out-ranking it.
+   *
+   * Dropping `.compact` also makes them two rules tall, which is the height the
+   * torn clip-path was drawn for. On a one-rule chip the same tear reads as a
+   * serrated edge rather than something ripped off a roll.
+   *
+   * The opt-out list is for furniture -- rails, chips, block tools. These are
+   * the only navigation on the page and the first thing a reader touches, so
+   * they are actions in the reading flow, which is the line app.css draws.
+   *
+   * No row-gap: .row carries .6rem on both axes, and on a phone these wrap to
+   * two lines, which added 9.6px and walked the whole page off the paper. Each
+   * is a whole number of rules, so stacked rows land on consecutive lines. */
+  .roles { row-gap: 0; }
+  .roles button { color: var(--ink-stone); }
+  .roles button:hover:not([disabled]) { color: var(--ink); }
+
+  /* Lay the strip BETWEEN two ruled lines instead of across them.
+   *
+   * A two-rule button spans exactly from one drawn line to the next but one,
+   * so an opaque fill covers the line at its top edge and the line at its
+   * bottom edge. On a button sitting in a paragraph nobody notices; on three
+   * strips alone in a band of white space it reads as two missing lines and a
+   * hole in the paper.
+   *
+   * 4px in from top and bottom leaves both lines drawn and untouched, and the
+   * one running underneath still ghosts through the 94% fill. It also looks
+   * more like tape: a strip pressed onto a page lands between the lines, not
+   * measured onto them. The box does not move, so the grid is untouched.
+   *
+   * `:not(.danger)` is here for specificity and nothing else. Without it the
+   * selector is (0,1,3) and the tape's own `inset: 0` at (0,2,2) wins -- one
+   * class outranks any number of elements. */
+  main .roles button:not(.danger)::before { inset: 4px 0; }
+
+  /* The one you are reading keeps the marker band swiped across it for good.
+     That band is already how the whole site says "this one" -- prose links,
+     .mark, and every tape button on hover -- so a selected tab is not a new
+     idea, just that same gesture held down. */
+  main .roles button.on { color: var(--ink); font-weight: 600; }
+  main .roles button.on::after { transform: scaleX(1) rotate(-.5deg); }
+
+  /* One blank ruled line between the tape strip and the first heading, not two.
+     A two-rule button's bottom edge lands exactly ON a drawn rule and covers
+     it, so the default two rules of air above an <h2> read as a missing line
+     followed by a gap twice the size of every other gap on the page. Only the
+     FIRST heading in a panel: the teacher tab holds two sections, and the
+     second one still wants its full separation. */
+  .panel > h2:first-child { margin-top: var(--rule); }
 
   .panel[hidden] { display: none; }
 </style>
@@ -163,10 +245,10 @@
   <p class="muted">Every step below has a short recording of the real thing. Nothing
     plays on its own — press play on the one you need.</p>
 
-  <div class="tabs row" role="tablist" aria-label="Who you are">
-    <button class="compact" role="tab" id="tab-student" aria-controls="panel-student" data-tab="student">I'm a student</button>
-    <button class="compact" role="tab" id="tab-parent" aria-controls="panel-parent" data-tab="parent">I'm a parent</button>
-    <button class="compact" role="tab" id="tab-teacher" aria-controls="panel-teacher" data-tab="teacher">I'm a teacher</button>
+  <div class="roles row" role="tablist" aria-label="Who you are">
+    <button type="button" role="tab" id="tab-student" aria-controls="panel-student" data-tab="student">I'm a student</button>
+    <button type="button" role="tab" id="tab-parent" aria-controls="panel-parent" data-tab="parent">I'm a parent</button>
+    <button type="button" role="tab" id="tab-teacher" aria-controls="panel-teacher" data-tab="teacher">I'm a teacher</button>
   </div>
 
   <div id="msg" hidden></div>
@@ -195,10 +277,35 @@ const TABS = {
   teacher: ['teacher-setup', 'teacher-manage'],
 };
 
+/**
+ * One pen stroke, looping along a line, the way you doodle in a margin while
+ * waiting for something.
+ *
+ * Nine identical cubics. Each one is a loop rather than a wave because the
+ * control points overshoot in BOTH directions: the first reaches well past
+ * where the segment ends (30 against a pitch of 13) and the second doubles
+ * back behind where it started (-18), so the curve crosses itself on the way
+ * round. Narrow that overshoot and the loop collapses into a spike -- the
+ * first attempt used 14 and -2 against a pitch of 12 and drew a zigzag.
+ *
+ * pathLength="1" normalises the stroke so the dash animation is 1 -> 0 -> -1
+ * and never has to be re-measured if the squiggle is redrawn.
+ */
+const DOODLE = `<svg class="doodle" viewBox="0 0 145 44" aria-hidden="true"
+  fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+  <path pathLength="1" d="M8 34${' c30,-26 -18,-26 13,0'.repeat(9)}"/>
+</svg>`;
+
 function stepHtml(s) {
+  // Both sources ride on the element; theme() picks one. A step with no dark
+  // variant recorded keeps showing its light clip rather than 404ing, which is
+  // what makes recording the two themes independent of each other.
   const media = s.clip
-    ? `<figure class="clip"><video controls muted loop playsinline preload="metadata"
-         aria-label="${esc(s.title)}" src="/how/media/${esc(s.clip)}"></video></figure>`
+    ? `<figure class="clip"><div class="mount">${DOODLE}<video
+         controls muted loop playsinline preload="metadata"
+         aria-label="${esc(s.title)}"
+         data-light="/how/media/${esc(s.clip)}"
+         data-dark="/how/media/${esc(s.clipDark || s.clip)}"></video></div></figure>`
     : (s.note ? `<p class="instead">${esc(s.note)}</p>` : '');
   // No enlarge control. The video's own controls already carry a fullscreen
   // button, and a second way to do the same thing was just a button taking up
@@ -225,6 +332,57 @@ const sectionHtml = (m) => `<h2>${esc(m.title)}</h2>
  * most half a rule of letterboxing -- invisible against the mount -- and keeps
  * every line below the clip on the paper, which a raw aspect-ratio would not.
  */
+/** Light or dark, the way the rest of the site decides it: an explicit choice
+ *  on <html> if the reader has made one, the OS preference otherwise. */
+const theme = () => {
+  const set = document.documentElement.getAttribute('data-theme');
+  return set === 'light' || set === 'dark'
+    ? set
+    : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+};
+
+/**
+ * Point every clip at the recording for the current theme.
+ *
+ * A screen recording is a picture of the app, so a light-mode recording sitting
+ * on a dark page is a bright rectangle in the middle of the sheet -- the one
+ * element that did not follow the toggle.
+ *
+ * Position and paused state are carried across the swap: changing `src` reloads
+ * the element, and a reader who toggles the theme half way through a clip
+ * should not be sent back to the start of it.
+ */
+function themeClips() {
+  const want = theme();
+  for (const v of document.querySelectorAll('video[data-light]')) {
+    const src = v.dataset[want] || v.dataset.light;
+    if (!src || v.getAttribute('src') === src) continue;
+    const at = v.currentTime;
+    const playing = !v.paused && !v.ended;
+    v.closest('.mount')?.classList.remove('ready');   // doodle back while the swap loads
+    v.setAttribute('src', src);
+    // Seeking before the new file has metadata silently does nothing.
+    v.addEventListener('loadedmetadata', () => {
+      if (at) v.currentTime = Math.min(at, v.duration || at);
+      if (playing) v.play().catch(() => { /* a blocked resume is not worth reporting */ });
+    }, { once: true });
+  }
+}
+
+// `loadeddata` means there is a frame to show, which is the moment the doodle
+// stops being the answer to "is anything happening". It does not bubble, so
+// this listens on the capture phase -- which still reaches the target.
+document.addEventListener('loadeddata', (e) => {
+  if (e.target.tagName === 'VIDEO') e.target.closest('.mount')?.classList.add('ready');
+}, true);
+
+// ui.js's toggle writes data-theme on <html>; with no explicit choice stored,
+// the OS preference is what applies, so both have to be watched.
+new MutationObserver(themeClips).observe(document.documentElement, {
+  attributes: true, attributeFilter: ['data-theme'],
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeClips);
+
 function sizeClips() {
   const rule = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rule')) || 32;
   for (const fig of document.querySelectorAll('.clip')) {
@@ -319,6 +477,7 @@ addEventListener('resize', sizeClips);
       + 'Re-run the recorder for those to rebuild them.';
   }
 
+  themeClips();
   select((location.hash || '').slice(1));
 })();
 </script>

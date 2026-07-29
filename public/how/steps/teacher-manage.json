@@ -7,43 +7,50 @@
       "title": "Import a roster",
       "body": "On the Classes page, drop a CSV under \"Import a roster,\" or paste rows copied straight from a spreadsheet. Columns are matched by name — Student ID, First/Last Name, Period, and PEM for the parent's email — so most exports from your SIS work unchanged. Give the class a name only if the file has no Course column. Preview shows exactly what the import will do; nothing is written until you apply it.",
       "clip": "teacher-manage-roster-import.mp4",
-      "n": 1
+      "n": 1,
+      "clipDark": "teacher-manage-roster-import-dark.mp4"
     },
     {
       "title": "A student who leaves is marked dropped, not deleted",
       "body": "Upload the same class again later in the term and anyone missing from the new file is not removed — they are marked dropped. Preview always lists who that would be before you commit, so a file that is missing a period by mistake does not quietly drop half the roster.",
       "clip": "teacher-manage-roster-drop.mp4",
-      "n": 2
+      "n": 2,
+      "clipDark": "teacher-manage-roster-drop-dark.mp4"
     },
     {
       "title": "Re-importing brings a returning student back",
       "body": "A student who shows up again in a later file goes straight back to active, on the same roster row they had before. Nothing to reissue or re-register — the next step shows why.",
       "clip": "teacher-manage-roster-return.mp4",
-      "n": 3
+      "n": 3,
+      "clipDark": "teacher-manage-roster-return-dark.mp4"
     },
     {
       "title": "The account comes back intact, not fresh",
       "body": "That student's account, their codes, and anything already signed came back with them. The code on screen here is the same one they had before they dropped off the roster — not a new one minted for the occasion.",
       "clip": "teacher-manage-roster-account-intact.mp4",
-      "n": 4
+      "n": 4,
+      "clipDark": "teacher-manage-roster-account-intact-dark.mp4"
     },
     {
       "title": "Every code is right here, ready to read back",
       "body": "Each student has two codes: the parent's, mailed home, and the student's own, shown to them once when they set up their account. Which one is typed in at sign-in decides whose initials get written, so the two are never the same string — and both are visible on this page if a parent calls asking for theirs again.",
       "clip": "teacher-manage-codes-read.mp4",
-      "n": 5
+      "n": 5,
+      "clipDark": "teacher-manage-codes-read-dark.mp4"
     },
     {
       "title": "What an empty cell means",
       "body": "An em dash means no account exists yet, so there is nothing to hand out. \"Not issued yet\" is real, but you will rarely catch it on screen: opening this page mints a parent code for anyone missing one, so by the time the table renders it is usually already filled in. \"Cannot be shown\" is a third thing entirely, and does not resolve itself — that code exists and still works for sign-in, it just predates the code vault, or was sealed under a secret that has since rotated. Reissuing is the only way to see it on screen again.",
       "clip": "teacher-manage-codes-states.mp4",
-      "n": 6
+      "n": 6,
+      "clipDark": "teacher-manage-codes-states-dark.mp4"
     },
     {
       "title": "Reissue when a code is lost or compromised",
       "body": "Reissue both mints two new codes for one student on the spot. The pair already mailed out — yesterday or back in September — stops working the instant you confirm, so know where the new one is going before you click through the warning.",
       "clip": "teacher-manage-codes-reissue.mp4",
-      "n": 7
+      "n": 7,
+      "clipDark": "teacher-manage-codes-reissue-dark.mp4"
     },
     {
       "title": "Handle the CSV export carefully",
@@ -54,13 +61,15 @@
       "title": "See who has signed, and what each status means",
       "body": "Not registered, no code issued, not started, partly signed, signed an older version, or complete — the filters above the table narrow to any one of them. \"Signed an older version\" is the one worth watching: it appears the moment you publish a change, for every parent who had already initialed the syllabus before it.",
       "clip": "teacher-manage-progress.mp4",
-      "n": 9
+      "n": 9,
+      "clipDark": "teacher-manage-progress-dark.mp4"
     },
     {
       "title": "Teacher accounts keep every roster separate",
       "body": "Sign up at /admin/signup/ with a school address on the allowed domain, and you see only the classes, rosters and codes you have imported — a colleague's are invisible from your account, and yours from theirs. The domain check only decides who is allowed to sign up; it does not verify who is actually behind that address. If you need real identity, put Cloudflare Access in front of /admin/ instead — it is checked on every admin request, alongside this.",
       "clip": "teacher-manage-signup.mp4",
-      "n": 10
+      "n": 10,
+      "clipDark": "teacher-manage-signup-dark.mp4"
     }
   ]
 }

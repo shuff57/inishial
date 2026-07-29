@@ -135,10 +135,23 @@ function squeeze(from, to) {
 
 // ---- the browser ----
 
+/**
+ * Which theme this run records.
+ *
+ *   THEME=dark node scripts/record/parent.mjs
+ *
+ * Light is the base and dark is the variant: dark clips are written alongside
+ * with a `-dark` suffix and the page swaps to them when the reader's theme is
+ * dark. Run light FIRST on a clean tree -- writeSteps() verifies the light file
+ * exists for every step, and the dark run alone would have nothing to check.
+ */
+export const THEME = process.env.THEME === 'dark' ? 'dark' : 'light';
+const SUFFIX = THEME === 'dark' ? '-dark' : '';
+
 // Runs before every document, including after navigation. Kept to one function
 // with no imports because that is all addInitScript can serialise.
-function paintCursor() {
-  try { localStorage.setItem('inishial:theme', 'light'); } catch { /* ignore */ }
+function paintCursor(theme) {
+  try { localStorage.setItem('inishial:theme', theme); } catch { /* ignore */ }
 
   const dot = document.createElement('div');
   dot.style.cssText = [
@@ -181,10 +194,13 @@ export async function open(base, { prefix }) {
   mkdirSync(dir, { recursive: true });
   mkdirSync(MEDIA, { recursive: true });
 
-  // Old clips for THIS role only. A renamed step would otherwise leave an
-  // orphan clip in the repo that nothing on the page ever links to.
+  // Old clips for THIS role AND THIS THEME only. A renamed step would otherwise
+  // leave an orphan clip in the repo that nothing on the page ever links to --
+  // but a light run must not sweep away the dark variants beside it, which is
+  // why the suffix is part of the test rather than just of the output name.
   for (const f of readdirSync(MEDIA)) {
-    if (f.startsWith(prefix + '-') && f.endsWith('.mp4')) rmSync(join(MEDIA, f));
+    if (f.startsWith(prefix + '-') && f.endsWith(`${SUFFIX}.mp4`)
+      && (SUFFIX || !f.endsWith('-dark.mp4'))) rmSync(join(MEDIA, f));
   }
 
   const browser = await chromium.launch({ args: ['--force-color-profile=srgb'] });
@@ -192,9 +208,12 @@ export async function open(base, { prefix }) {
     viewport: SIZE,
     recordVideo: { dir, size: SIZE },
     deviceScaleFactor: 1,
-    colorScheme: 'light',
+    colorScheme: THEME,
   });
-  await context.addInitScript(paintCursor);
+  // Both, because the app reads its own stored choice and the OS preference is
+  // what it falls back to. Setting only one leaves the recording at the mercy
+  // of whichever the page happens to consult first.
+  await context.addInitScript(paintCursor, THEME);
 
   const made = [];
 
@@ -204,11 +223,17 @@ export async function open(base, { prefix }) {
 
     /**
      * One clip. `name` is the bare stem -- the file lands at
-     * public/how/media/<prefix>-<name>.mp4 and that is what a manifest step
-     * refers to.
+     * public/how/media/<prefix>-<name>.mp4, or -dark.mp4 on a dark run.
+     *
+     * RETURNS THE BASE NAME EITHER WAY, which is not a detail: some recorders
+     * feed this return value straight into their manifest, and returning the
+     * dark filename on a dark run wrote the dark clips in as the primary ones
+     * -- that panel then played dark recordings on a light page. A manifest
+     * always names the light clip; writeSteps() attaches the dark variant.
      */
     async clip(name, body) {
-      const file = `${prefix}-${name}.mp4`;
+      const base = `${prefix}-${name}.mp4`;
+      const file = `${prefix}-${name}${SUFFIX}.mp4`;
       const page = await context.newPage();
       page.on('pageerror', (e) => console.log(`  ! page error in ${file}: ${e}`));
       try {
@@ -224,7 +249,7 @@ export async function open(base, { prefix }) {
       made.push(file);
       const kb = Math.round(statSync(join(MEDIA, file)).size / 1024);
       console.log(`  recorded ${file}  ${kb} KB`);
-      return file;
+      return base;
     },
 
     /** A page that leaves no clip -- setup, seeding, navigating to a start state. */
@@ -308,15 +333,26 @@ export async function reveal(page, selector) {
  * What /how/ renders. Written by the recorder that owns the role so the words
  * and the clips are produced together and cannot drift.
  *
- *   { role, title, blurb, steps: [{ n, title, body, clip, note? }] }
+ *   { role, title, blurb, steps: [{ n, title, body, clip, clipDark?, note? }] }
  *
  * `clip` is a bare filename under public/how/media/. Checked here rather than
  * discovered at render time: a typo would otherwise be a silently missing
  * video on a help page, which is worse than a loud failure now.
+ *
+ * `clipDark` is added only when the dark variant is actually on disk, so a role
+ * that has not been recorded in dark yet simply keeps showing its light clips
+ * rather than pointing at a file that does not exist. That makes the dark pass
+ * an addition rather than a migration -- either theme can be re-recorded on its
+ * own without breaking the other.
  */
 export function writeSteps(role, manifest) {
   mkdirSync(STEPS, { recursive: true });
-  const steps = manifest.steps.map((s, i) => ({ ...s, n: i + 1 }));
+  const steps = manifest.steps.map((s, i) => {
+    const step = { ...s, n: i + 1 };
+    const dark = s.clip?.replace(/\.mp4$/, '-dark.mp4');
+    if (dark && existsSync(join(MEDIA, dark))) step.clipDark = dark;
+    return step;
+  });
 
   for (const s of steps) {
     if (!s.title || !s.body) throw new Error(`step ${s.n} of ${role} is missing title or body`);
