@@ -60,8 +60,16 @@
   }
   /* One rule tall and un-taped: these are chrome in a table, not actions in the
      reading flow. .compact is the class app.css already reserves for that. */
-  .compact { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .78rem; }
-  .compact:hover:not([disabled]) { background: var(--sand); color: var(--ink); }
+  /* `main` and `:not(.danger)` are specificity, not meaning. Without them this
+     is (0,1,0), the tape rule is (0,2,1), and its `border-color: transparent`
+     wins -- so the outline written here never appeared and Reissue rendered as
+     two bare words. A control that invalidates codes already in a parent's
+     inbox has to look like something you press. */
+  main .compact:not(.danger) {
+    background: transparent; color: var(--ink-stone);
+    border-color: var(--border-warm); font-size: .78rem;
+  }
+  main .compact:not(.danger):hover:not([disabled]) { background: var(--sand); color: var(--ink); }
 
   /* A code just minted, so the eye can find the one that changed in a class of
      thirty. Marker band, the same one everything else uses for "this one". */

@@ -59,6 +59,29 @@
   .filters { display: flex; gap: .4rem; flex-wrap: wrap; margin: var(--rule) 0; }
   .filters button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .84rem; }
   .filters button[aria-pressed=true] { background: var(--mark); color: var(--ink); border-color: var(--mark-deep); }
+
+  /* A strip of tape under the pointer, the way the editor's toolbar row works.
+   *
+   * These read as plain words at rest, which is the complaint: the outline set
+   * above never appeared, because `.filters button` is (0,1,1) and the tape
+   * rule -- `main :is(button, .button):not(.danger)` at (0,2,1) -- sets both
+   * background and border-color to transparent. The border was being painted
+   * over by a rule that exists to stop these being taped at all.
+   *
+   * So rather than fight it into being an outline, let it be what the rest of
+   * the app already does for one-rule controls: nothing at rest, a torn strip
+   * on hover and on focus. `.filters` sits on app.css's opt-out list, so the
+   * ::before has to be handed back explicitly, and `:not(.danger)` is what
+   * carries this to (0,2,3) so it outranks the (0,2,2) that cancelled it. */
+  /* `main` and `:not(.danger)` again, and for the custom properties too: the
+     tape rule sets `--tape-rest: 1` at (0,2,1), so a plain `.filters button`
+     does not merely fail to style the strip -- it fails to turn it OFF, and
+     every chip wore a permanent piece of tape. */
+  main .filters button:not(.danger) { --tape-rest: 0; --tape-inset: .7rem; }
+  main .filters button:not(.danger)::before { content: ''; }
+  /* The chosen one is already marked. Tape on top of the marker would say the
+     same thing twice, in two languages. */
+  main .filters button[aria-pressed=true]:not(.danger)::before { content: none; }
   .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr)); gap: .7rem; margin: var(--rule) 0; }
   .stat { border: 1px solid var(--border-warm); border-radius: var(--radius-sm); padding: .6rem .7rem; background: var(--ivory); }
   .stat b { display: block; font-size: 1.5rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
