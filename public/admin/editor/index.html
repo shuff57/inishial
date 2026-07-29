@@ -1604,11 +1604,18 @@ document.addEventListener('keydown', (e) => {
     if (!res.ok) throw new Error(`models: ${res.status}`);
     const body = await res.json();
     const configured = typeof body.configured === 'string' ? body.configured : '';
-    for (const name of body.models || []) {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name === configured ? `${name} (default)` : name;
-      aiModel.appendChild(opt);
+    // Shelved by the server -- smartest, balanced, fastest -- because which
+    // shelf a model belongs on is knowledge about models, not about menus.
+    for (const g of body.groups || []) {
+      const box = document.createElement('optgroup');
+      box.label = g.label;
+      for (const name of g.models || []) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name === configured ? `${name} (default)` : name;
+        box.appendChild(opt);
+      }
+      aiModel.appendChild(box);
     }
     aiModel.firstChild.textContent = body.available || !configured ? 'default' : `${configured} (default)`;
   } catch {
