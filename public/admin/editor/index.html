@@ -104,7 +104,7 @@
   .blk:hover .tools, .blk:focus-within .tools { opacity: 1; }
   /* Exactly one rule tall, so a row of tools beside a one-line block occupies
      that block's line rather than three quarters of it. */
-  .tools button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .45rem; font-size: .75rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm);
+  .tools button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .45rem; font-size: .8rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm);
                   /* Lifted onto the lines, so an outlined chip sits in the band
                      its block occupies rather than with a rule across it. */
                   position: relative; top: calc(-1 * var(--lift)); }
@@ -191,7 +191,7 @@
   /* A whole rule of air, not 1.2rem. At a 17px root that was 20.4px, and the
      5.6px left over put this row -- and its buttons -- off the lines. */
   .adders { display: flex; gap: .4rem; flex-wrap: wrap; margin: var(--rule) 0; }
-  .adders button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .85rem; }
+  .adders button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .8rem; }
   .adders button:hover { background: var(--sand); color: var(--ink); }
   /* Lifted onto the lines: a dashed box whose edges land 6px below a rule
      reads as a box the paper is cutting through. See --lift in app.css. */
@@ -349,7 +349,7 @@
   .page-tools { display: flex; gap: .3rem; align-items: center; height: var(--rule); margin: 0;
                 position: relative; top: calc(-1 * var(--lift)); }
   .page-tools .name { flex: 1; font-size: .82rem; color: var(--ink-stone); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .page-tools button { min-height: 0; height: calc(var(--rule) - 6px); line-height: calc(var(--rule) - 8px); padding: 0 .5rem; font-size: .75rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
+  .page-tools button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .5rem; font-size: .8rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
   .page-tools button:hover { background: var(--sand); color: var(--ink); }
   .page-tools button.on { background: var(--tab-3); color: var(--ink); border-color: var(--tab-3); }
 

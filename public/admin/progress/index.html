@@ -12,7 +12,7 @@
 <script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <script src="/ui.js" defer></script>
 <style>
-  main { max-width: 58rem; }
+  main { max-width: 62rem; }
   table { width: 100%; border-collapse: collapse; font-size: .9rem; }
   /* No borders. The paper already draws a line under every row, and a 1px
      border landed a few pixels above it -- two nearly-parallel rules per row,
@@ -57,7 +57,7 @@
   .pill.not_started, .pill.no_code { background: var(--sand); color: var(--ink-olive); }
   .pill.not_registered { background: var(--tab-3); color: #5a1f2c; }
   .filters { display: flex; gap: .4rem; flex-wrap: wrap; margin: var(--rule) 0; }
-  .filters button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .84rem; }
+  .filters button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .8rem; }
   .filters button[aria-pressed=true] { background: var(--mark); color: var(--ink); border-color: var(--mark-deep); }
 
   /* A strip of tape under the pointer, the way the editor's toolbar row works.
