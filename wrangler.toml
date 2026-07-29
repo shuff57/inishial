@@ -43,6 +43,16 @@ TEACHER_DOMAINS = "chicousd.org"
 # Ollama host for the authoring-time AI pass. Secret set out of band:
 #   npx wrangler pages secret put OLLAMA_API_KEY --project-name inishial
 OLLAMA_HOST = "https://ollama.com"
+# Which model answers Fix headings and Suggest initials when a teacher has not
+# picked one. Measured on the real prompt, five runs each: minimax-m3 averaged
+# 3.0s and got the answer right every time, against 5.2s for gpt-oss:120b,
+# which is the built-in fallback. A teacher clicks this and waits.
+OLLAMA_MODEL = "minimax-m3"
+# Models the host lists but this plan cannot run. kimi-k3 answers every request
+# with `402 this model uses extra usage only (not included in plan)`, so
+# offering it is offering a button that fails after you have waited for it.
+# A fact about the subscription, not about the software -- hence config.
+OLLAMA_HIDE = "kimi-k3"
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -53,3 +63,5 @@ database_id = "26a2ff24-a632-4b74-9034-3b40622b15fa"
 ADMIN_EMAILS = ""
 TEACHER_DOMAINS = "chicousd.org"
 OLLAMA_HOST = "https://ollama.com"
+OLLAMA_MODEL = "minimax-m3"
+OLLAMA_HIDE = "kimi-k3"

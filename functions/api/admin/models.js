@@ -40,7 +40,10 @@ export async function onRequestGet({ request, env }) {
     // list would look like it had stopped existing.
     if (!listed.includes(configured)) listed.push(configured);
 
-    return json({ ...group(listed, configured), configured });
+    // hide BEFORE group, and the order carries meaning: with kimi-k3 removed,
+    // kimi-k2.6 wins its bucket and is offered again. That is wanted -- the
+    // newest version you can actually run beats the newest that exists.
+    return json({ ...group(hide(listed, env, configured), configured), configured });
   } catch {
     return json({ available: false, groups: [], configured });
   }
@@ -52,6 +55,27 @@ export async function onRequestGet({ request, env }) {
  * know the answer to. Two things fix that, and both are done here rather than
  * in the editor so there is one place that decides.
  */
+
+/**
+ * Drop models this account cannot actually run.
+ *
+ * /api/tags lists what the HOST knows about, which is not the same as what the
+ * plan permits: kimi-k3 sits in that list and answers every request with
+ * `402 this model uses extra usage only (not included in plan)`. Offering it is
+ * offering a button that fails, and the failure arrives after the teacher has
+ * waited for it.
+ *
+ * Configuration rather than a constant, because it is a fact about a
+ * subscription and not about the software -- OLLAMA_HIDE in wrangler.toml, a
+ * comma-separated list. The configured default is never hidden: if it is
+ * unusable that is worth seeing, not concealing.
+ */
+export function hide(names, env, configured = '') {
+  const banned = new Set(String(env?.OLLAMA_HIDE || '')
+    .split(',').map((s) => s.trim()).filter(Boolean));
+  if (!banned.size) return names;
+  return names.filter((n) => n === configured || !banned.has(n));
+}
 
 const TIERS = [
   { id: 'smartest', label: 'Smartest — slower, best on messy documents' },

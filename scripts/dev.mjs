@@ -87,12 +87,16 @@ function localSecrets() {
 }
 const secrets = localSecrets();
 
-/** TEACHER_DOMAINS as configured for production. A regex rather than a TOML
- *  parser: this is one flat string in a file we control, and a dependency to
- *  read it would cost more than the whole dev server. */
-function configuredDomains() {
+/** A [vars] entry as configured for production. A regex rather than a TOML
+ *  parser: these are flat strings in a file we control, and a dependency to
+ *  read them would cost more than the whole dev server.
+ *
+ *  Read here rather than repeated, so local dev exercises the same values
+ *  production does -- a second copy of "which model, which allowlist" is a
+ *  copy that drifts, and the failure looks like "it worked on my machine". */
+function tomlVar(name) {
   const toml = readFileSync(join(ROOT, 'wrangler.toml'), 'utf8');
-  return (toml.match(/^\s*TEACHER_DOMAINS\s*=\s*"([^"]*)"/m) || [])[1] || '';
+  return (toml.match(new RegExp(`^\\s*${name}\\s*=\\s*"([^"]*)"`, 'm')) || [])[1] || '';
 }
 
 const env = {
@@ -111,7 +115,7 @@ const env = {
   // job is to refuse people.
   //
   // school.edu is appended because the seeded DEV_ADMIN lives there.
-  TEACHER_DOMAINS: [configuredDomains(), 'school.edu'].filter(Boolean).join(','),
+  TEACHER_DOMAINS: [tomlVar('TEACHER_DOMAINS'), 'school.edu'].filter(Boolean).join(','),
   // `.secrets.local` wins over the ambient environment for these three, which is
   // the opposite of the usual precedence and deliberate: a machine-wide
   // OLLAMA_HOST pointing at somebody's local daemon (0.0.0.0:11434) otherwise
@@ -119,7 +123,10 @@ const env = {
   // fault rather than a config one.
   OLLAMA_HOST: secrets.OLLAMA_HOST || process.env.OLLAMA_HOST || 'https://ollama.com',
   OLLAMA_API_KEY: secrets.OLLAMA_API_KEY || process.env.OLLAMA_API_KEY || '',
-  OLLAMA_MODEL: secrets.OLLAMA_MODEL || process.env.OLLAMA_MODEL || '',
+  OLLAMA_MODEL: secrets.OLLAMA_MODEL || process.env.OLLAMA_MODEL || tomlVar('OLLAMA_MODEL'),
+  // Models the plan cannot run, hidden from the picker. Same list production
+  // uses, read from the same place.
+  OLLAMA_HIDE: process.env.OLLAMA_HIDE || tomlVar('OLLAMA_HIDE'),
 };
 
 async function seed() {

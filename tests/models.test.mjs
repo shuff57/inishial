@@ -9,7 +9,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseModel, shortlist, tierOf } from '../functions/api/admin/models.js';
+import { parseModel, shortlist, tierOf, hide } from '../functions/api/admin/models.js';
 
 const LISTED = [
   'deepseek-v4-flash', 'deepseek-v4-pro', 'gemma4:31b', 'glm-5.1', 'glm-5.2',
@@ -79,6 +79,24 @@ test('every surviving model lands on exactly one shelf', () => {
   for (const name of shortlist(LISTED)) {
     assert.ok(shelves.has(tierOf(name)), `${name} landed on ${tierOf(name)}`);
   }
+});
+
+test('a model the plan cannot run is not offered', () => {
+  // kimi-k3 is listed by the host and answers 402 "extra usage only". A button
+  // that fails after you have waited for it is worse than no button.
+  const kept = hide(LISTED, { OLLAMA_HIDE: 'kimi-k3' });
+  assert.ok(!kept.includes('kimi-k3'));
+  assert.ok(kept.includes('kimi-k2.7-code'), 'and nothing else in the family goes with it');
+  assert.equal(hide(LISTED, {}).length, LISTED.length, 'no list configured hides nothing');
+  assert.equal(hide(LISTED, { OLLAMA_HIDE: ' kimi-k3 , glm-5.1 ' }).length, LISTED.length - 2,
+    'the list tolerates spaces');
+});
+
+test('the configured default is never hidden', () => {
+  // If what runs by default is unusable, that is worth seeing rather than
+  // concealing -- a menu with no entry for the model in use explains nothing.
+  const kept = hide(LISTED, { OLLAMA_HIDE: 'kimi-k3' }, 'kimi-k3');
+  assert.ok(kept.includes('kimi-k3'));
 });
 
 test('the menu is smaller than the raw list, and keeps the useful ones', () => {
