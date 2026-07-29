@@ -1375,7 +1375,18 @@ main .flags button::before, main .flags button::after { content: none; }
 
 @media (max-width: 44rem) {
   header.site nav { flex-wrap: wrap; row-gap: .3rem; padding: .45rem .7rem; }
-  .nav-main { order: 3; flex-basis: 100%; justify-content: flex-start; }
+  /* Wrap onto a second row rather than scroll sideways.
+   *
+   * The strip scrolls by default, with the scrollbar hidden, which is fine
+   * while everything fits and invisible when it does not: at 390px "Read &
+   * initial" sat entirely past the right edge with nothing on screen to
+   * suggest it was there. Four items is what tipped it over. A parent looking
+   * for the link that lets them sign is exactly who cannot afford to be asked
+   * to guess that the row swipes. */
+  .nav-main {
+    order: 3; flex-basis: 100%; justify-content: flex-start;
+    flex-wrap: wrap; overflow-x: visible; row-gap: .1rem;
+  }
   .nav-end { margin-left: auto; }
 }
 @media (max-width: 34rem) {

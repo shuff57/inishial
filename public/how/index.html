@@ -49,12 +49,16 @@
      read as a tall band separating nothing from nothing. */
   .say > p:last-child { margin-bottom: 0; }
 
-  /* One column once there is no room for two. The video goes first here --
-     on a phone the recording is the thing worth seeing, and scrolling past a
-     paragraph to reach it every time is the reason help pages get abandoned. */
+  /* One column once there is no room for two, in reading order: number,
+     instruction, then the recording of it.
+     The clip was hoisted above the text here at first, on the theory that the
+     recording is what a phone reader wants. On a real 390px screen that put an
+     unlabelled video directly under the section blurb, with the step it
+     belongs to only appearing underneath it -- you had to watch something
+     before being told what it was. Two lines of text is a cheap enough scroll
+     to be worth the caption. */
   @media (max-width: 62rem) {
     .step { grid-template-columns: minmax(0, 1fr); }
-    .step .clip { order: -1; }
   }
 
   /* The clip.
