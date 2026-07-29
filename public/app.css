@@ -365,6 +365,24 @@ main {
     color-mix(in srgb, var(--ring) 55%, transparent) calc(var(--rule) - 1px),
     color-mix(in srgb, var(--ring) 55%, transparent) var(--rule)
   );
+  /* One rule per tile, instead of one tile the size of the whole sheet.
+   *
+   * Visually identical -- the gradient repeats either way -- but it is the
+   * difference between the paper having lines on it and not. With the default
+   * `auto`, the tile IS the padding box, and a non-zero background-position
+   * (below) makes the browser rasterise that whole tile into an intermediate
+   * before repeating it. Past roughly four megapixels it downsamples that
+   * intermediate, and the 1px line inside each 32px band is what gets thrown
+   * away: a long page came out with rules at 64px, 128px, even 224px apart
+   * while the text on it stayed at 32px, so lines of writing floated in the
+   * middle of blank bands.
+   *
+   * It scales with tile AREA, so it arrived with a wide page rather than a
+   * long one: /how/ widens main to 68rem for its two-column steps, and that
+   * alone pushed a 4832px page over the edge. Measured: 29 rules at a uniform
+   * 32px pitch after this, against 7 before, on the same page.
+   */
+  background-size: 100% var(--rule);
   /* The rules are drawn at the BOTTOM of each band, so pushing the whole
      pattern down by --baseline puts a rule under the first baseline -- and,
      because every block below consumes whole rules, under every one after it.
