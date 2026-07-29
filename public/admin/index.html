@@ -93,9 +93,14 @@
   .drop { --drop-lift: 9px; border: 2px dashed var(--border-warm); border-radius: var(--radius-md); padding: calc(var(--rule) - 2px) 1rem calc(var(--rule) - 2px - var(--drop-lift)); margin-bottom: var(--drop-lift); text-align: center; color: var(--ink-stone); }
   .drop.over { border-color: var(--accent); background: var(--sand); color: var(--accent); }
   .plan { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: .8rem; margin: var(--rule) 0; }
-  .stat { border: 1px solid var(--border-warm); border-radius: 8px; padding: .7rem .8rem; }
+  /* Matched to the tiles on Who has signed, which were filled, rounder-cornered
+     and a shade tighter. Filled is the deliberate choice of the two: a card of
+     prose stays transparent so the ruled lines run through the writing and you
+     can see it sitting on them, but a stat is a number on a tile and there is
+     no writing here for a rule to sit under. */
+  .stat { border: 1px solid var(--border-warm); border-radius: var(--radius-sm); padding: .6rem .7rem; background: var(--ivory); }
   .stat b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
-  .stat span { font-size: .78rem; color: var(--ink-stone); text-transform: uppercase; letter-spacing: .04em; }
+  .stat span { font-size: .74rem; color: var(--ink-stone); text-transform: uppercase; letter-spacing: .04em; }
   .stat.danger b { color: var(--danger); }
   code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--paper); padding: .1rem .3rem; border-radius: 4px; }
 

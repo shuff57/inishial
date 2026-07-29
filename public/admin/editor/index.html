@@ -410,9 +410,25 @@
   main :is(.tools, .adders, .page-tools, .sec-tools) button:not(.danger):hover:not([disabled]) {
     background: var(--sand); color: var(--ink);
   }
-  /* The "this section is signed" state stays the marker colour it already had. */
+  /* ---- what the two colours mean ----
+   *
+   * --tab-3, the rose, means ONE thing: a parent has to initial this. It is the
+   * bar down a signing section, the flag on a page that asks for initials, and
+   * the "✍ Initials required" toggle. Nothing else may borrow it.
+   *
+   * --mark, the highlighter yellow, means "this one" -- the state you are in.
+   * It is the selected tab on /how/, the chosen filter on Who has signed, and
+   * the heading-level toggle here.
+   *
+   * They were the same colour until now. `on` is set by both the initials
+   * toggle and the SEC/sub toggle, so a heading that starts its own page came
+   * out rose and read as a page that needed signing -- which is a different
+   * claim, and on this screen a consequential one. `.lvl` separates them. */
   main :is(.tools, .page-tools, .sec-tools) button.on:not(.danger) {
     background: var(--tab-3); color: var(--ink); border-color: var(--tab-3);
+  }
+  main .tools button.lvl.on:not(.danger) {
+    background: var(--mark); color: var(--ink); border-color: var(--mark-deep);
   }
 </style>
 </head>
@@ -784,7 +800,10 @@ function blockRow(block, index) {
     lvl.title = isSub
       ? 'A subheading: sits inside the section above it. Click to make it start its own page.'
       : 'A section heading: starts a new page a parent initials. Click to make it a subheading.';
-    if (!isSub) lvl.className = 'on';
+    // `lvl` so it can be told apart from the initials toggle, which also wears
+    // `on`. They are not the same kind of state and must not be the same colour
+    // -- see the note on --tab-3 in the stylesheet.
+    lvl.className = isSub ? 'lvl' : 'lvl on';
     lvl.addEventListener('click', () => {
       block.level = isSub ? 2 : 3;
       block.html = `<h${block.level}>${blockText(block.html)}</h${block.level}>`;
