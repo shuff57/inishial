@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why iniSHial</title>
+<meta name="description" content="A syllabus that goes home in a backpack comes back signed at the bottom by someone who may not have read it. iniSHial asks for initials section by section, and shows the teacher who has actually read what.">
+<link rel="stylesheet" href="/app.css">
+<!-- The stored theme, applied before the first paint. Inline and tiny on
+     purpose: a blocking <script src> here costs first paint for no reason. -->
+<script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script src="/ui.js" defer></script>
+<!--
+  The page to send someone who asks what this is for. Its own URL rather than a
+  section of the landing page, so it can be handed to an administrator on its
+  own without them having to scroll past two sign-in buttons meant for someone
+  else.
+
+  Deliberately plain: no feature grid, no testimonials, and a section at the end
+  saying what it does NOT do. Anyone evaluating this for a school is going to
+  ask that question anyway, and answering it first is cheaper than being asked.
+-->
+<style>
+  /* One measure for reading. Same as the landing page and the syllabus itself
+     -- this is prose, not a dashboard. */
+  main { max-width: 42rem; }
+  /* A pulled-out line between sections. Padding is a whole rule top and bottom
+     so the quote consumes an exact number of them, and the bar is drawn on the
+     margin rather than as a border, which would add a pixel to the height. */
+  .aside {
+    margin: var(--rule) 0;
+    padding: calc(var(--baseline) + var(--sit)) 0 var(--lift) 1.1rem;
+    border-left: 3px solid var(--mark-deep);
+    font-family: var(--font-display);
+    font-size: 1.12rem;
+    line-height: var(--rule);
+    color: var(--ink-charcoal);
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a href="/">Start</a></li>
+    <li><a href="/why/">Why iniSHial</a></li>
+    <li><a href="/how/">How to use</a></li>
+    <li><a href="/register/">Set up my account</a></li>
+    <li><a href="/sign/">Read &amp; initial</a></li>
+  </ul>
+  <div class="nav-end">
+    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
+    <a href="/admin/login/">Teacher sign-in</a>
+  </div>
+</nav></header>
+
+<main id="main" tabindex="-1">
+  <h1>Why iniSHial</h1>
+  <p class="note-hand tape">Everyone on the same page. Literally.</p>
+
+  <p>A syllabus is the one document that says what a course expects — how late
+    work is graded, what counts as cheating, what happens after three absences,
+    what a student needs to bring. It is handed out once, in the first week,
+    and then it has to hold for the rest of the year.</p>
+
+  <p class="aside">The hard part was never writing it. It is knowing that the
+    people it applies to have read it.</p>
+
+  <h2>What usually happens</h2>
+
+  <p>The syllabus goes home in a backpack. Some of it comes back. The signature
+    at the bottom says a parent saw the last page, which is not the same as
+    reading the section on late work, and a teacher holding a stack of paper
+    has no way to tell the difference. The families who most need to have read
+    it are the ones whose page does not come back at all.</p>
+
+  <p>Then in November there is a conversation about a grade, and it turns on
+    whether anyone knew the policy. Nobody can answer that from a stack of
+    paper.</p>
+
+  <h2>What this does instead</h2>
+
+  <p>The syllabus lives on a page a parent can open on a phone. They read it a
+    section at a time and put their initials on each one — not a single
+    signature at the end, but a mark against late work, against attendance,
+    against academic honesty, each one next to the policy it belongs to.</p>
+
+  <div class="card plain">
+    <h3>The student initials too, separately</h3>
+    <p class="muted">Every account has two access codes: one for the parent,
+      one for the student. Which code is used at sign-in is what decides whose
+      initials get written, so they are never the same string. Both parties
+      agree to the same document, and the record says which of them did.</p>
+  </div>
+
+  <div class="card plain">
+    <h3>The teacher sees who has, and who has not</h3>
+    <p class="muted">One page lists every student on the roster and where they
+      are: complete, partly done, never started, or never registered. Chasing
+      the four families who have not read it is a different job from chasing
+      thirty.</p>
+  </div>
+
+  <h2>When the syllabus changes</h2>
+
+  <p>Policies get corrected mid-year. When you publish a new version, everyone
+    who signed the old one is marked as having signed an <em>older version</em>
+    rather than being quietly counted as done. That is deliberate and it is
+    occasionally inconvenient: it means a real change asks people to look
+    again, instead of the record claiming agreement to words nobody saw.</p>
+
+  <h2>What this is not</h2>
+
+  <p>It is worth being straight about the limits, because a school will ask.</p>
+
+  <p>This is <b>not identity verification</b>. It shows that someone holding
+    the parent's access code read the syllabus and initialed it. That is the
+    same assurance a signed paper form gives you, which is to say a reasonable
+    one and not a legal one. Nothing here proves who was holding the phone.</p>
+
+  <p>It does <b>not email anyone</b>. Codes go out through whatever a teacher
+    already uses, so there is no mail provider in the middle and no new place
+    for a roster to leak from.</p>
+
+  <p>It is <b>not a gradebook, a messaging app, or a place to put anything
+    else</b>. It does one document. Everything a student or parent can reach is
+    the syllabus and their own initials.</p>
+
+  <h2>Getting started</h2>
+
+  <p>Students set up an account with their student ID and school email, and are
+    shown their access code once. Parents use the code their teacher sends
+    them. Teachers import a roster, paste or upload the syllabus they already
+    wrote, and publish it.</p>
+
+  <p class="row">
+    <a class="button" href="/how/">See how it works</a>
+    <a class="button secondary" href="/">Get started</a>
+  </p>
+</main>
+</body>
+</html>
