@@ -24,6 +24,41 @@
   th, td { text-align: left; padding: 0 .6rem; line-height: var(--rule); }
   th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-stone); }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* On a phone the class list stops being a ledger and becomes a list.
+   *
+   * Five columns have a min-content width of 481px whatever the viewport does,
+   * so at 390px the page itself scrolled sideways and "Codes issued" and the
+   * links were simply off the edge. Nothing here wraps: a number cannot, and
+   * the headings are single words.
+   *
+   * Stacked, each class is three lines -- name, counts, links -- so what a
+   * teacher actually reaches for on a phone is the part that stays on screen.
+   * The counts keep their headings by carrying them as data-label, which is
+   * why the <th> row can go: dropping it without that would leave four bare
+   * numbers in a row meaning nothing.
+   *
+   * Every line is still one rule and every class a whole four, so the ruled
+   * paper survives the change. */
+  @media (max-width: 44rem) {
+    #coursesTable, #coursesTable tbody, #coursesTable tr, #coursesTable td { display: block; width: auto; }
+    #coursesTable thead { display: none; }
+    #coursesTable tr { margin-bottom: var(--rule); }
+    #coursesTable td { padding: 0; }
+    #coursesTable td.name { font-weight: 600; font-size: 1rem; }
+    /* inline-block with vertical-align:top, never baseline: a smaller label
+       aligned by ITS baseline grows the line box past one rule, and the whole
+       column below drifts. Same trap as the step numbers on /how/. */
+    #coursesTable td.num {
+      display: inline-block; vertical-align: top;
+      text-align: left; line-height: var(--rule); margin-right: 1rem;
+    }
+    #coursesTable td.num::before {
+      content: attr(data-label) " ";
+      color: var(--ink-stone); font-size: .78rem;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+  }
   .tabs { display: flex; gap: .3rem; margin: var(--rule) 0 0; }
   .tabs button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border: 1px solid transparent; border-radius: 8px 8px 0 0; }
   .tabs button[aria-selected=true] { color: var(--ink); border-color: var(--border-warm); border-bottom-color: var(--ivory); background: var(--ivory); }
@@ -281,11 +316,11 @@ async function loadCourses() {
     // below: a backtick in a comment inside a template literal ends the string,
     // and the whole page dies with "missing ) after argument list".
     body.innerHTML = courses.map((c) => `<tr>
-        <td>${esc(c.name)}</td>
-        <td class="num">${c.students ?? 0}</td>
-        <td class="num">${c.dropped ?? 0}</td>
-        <td class="num">${c.registered ?? 0}</td>
-        <td class="num">${c.codes_issued ?? 0}</td>
+        <td class="name">${esc(c.name)}</td>
+        <td class="num" data-label="Active">${c.students ?? 0}</td>
+        <td class="num" data-label="Dropped">${c.dropped ?? 0}</td>
+        <td class="num" data-label="Registered">${c.registered ?? 0}</td>
+        <td class="num" data-label="Codes">${c.codes_issued ?? 0}</td>
         <td><a href="/admin/progress/?course_id=${c.id}">Who has signed</a>
             &nbsp;·&nbsp;
             <a href="/admin/editor/?course_id=${c.id}">Syllabus</a>

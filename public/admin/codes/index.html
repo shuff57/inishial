@@ -28,6 +28,36 @@
   }
   .code.none { font-weight: 400; letter-spacing: 0; color: var(--ink-silver); text-transform: none; }
   td.act { text-align: right; white-space: nowrap; }
+
+  /* On a phone this stops being a ledger and becomes a list. Six columns have
+     a min-content width no viewport can shrink, so at 390px the page scrolled
+     sideways and both code columns were off the edge -- on the one page whose
+     entire purpose is reading a code off a screen.
+     Each code gets its own labelled line here rather than sharing one: the two
+     are deliberately different strings and handing over the wrong one signs
+     the wrong person, so "PARENT CODE" and "STUDENT CODE" have to be legible
+     next to the thing they name, not inferred from column order that no longer
+     exists. */
+  @media (max-width: 44rem) {
+    table, tbody, tr, td { display: block; width: auto; }
+    thead { display: none; }
+    tbody tr { margin-bottom: var(--rule); }
+    td { padding: 0; }
+    td.name { font-weight: 600; }
+    td.act { text-align: left; }
+    td[data-label]::before {
+      display: block;
+      content: attr(data-label);
+      color: var(--ink-stone); font-size: .74rem; line-height: var(--rule);
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    /* Period is one short number; a whole labelled line of its own for it is
+       a line of nothing. It rides next to the name instead. */
+    td[data-label="Per."] {
+      display: inline-block; vertical-align: top; line-height: var(--rule);
+    }
+    td[data-label="Per."]::before { display: inline; content: attr(data-label) " "; }
+  }
   /* One rule tall and un-taped: these are chrome in a table, not actions in the
      reading flow. .compact is the class app.css already reserves for that. */
   .compact { background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .78rem; }
@@ -108,11 +138,11 @@ function render() {
   const registered = data.students.filter((s) => s.account_id).length;
   $('sub').textContent = `${data.course} — ${registered} of ${data.students.length} registered`;
   $('rows').innerHTML = data.students.map((s) => `<tr data-id="${s.account_id ?? ''}">
-      <td>${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
-      <td>${esc(s.period)}</td>
-      <td class="small">${esc(s.email || '—')}</td>
-      <td>${codeCell(s.parent)}</td>
-      <td>${codeCell(s.student_code)}</td>
+      <td class="name">${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
+      <td data-label="Per.">${esc(s.period)}</td>
+      <td class="small" data-label="Parent email">${esc(s.email || '—')}</td>
+      <td data-label="Parent code">${codeCell(s.parent)}</td>
+      <td data-label="Student code">${codeCell(s.student_code)}</td>
       <td class="act">${s.account_id
         ? `<button class="compact" data-reissue="${s.account_id}">Reissue both</button>`
         : '<span class="muted" style="font-size:.78rem">not registered yet</span>'}</td>

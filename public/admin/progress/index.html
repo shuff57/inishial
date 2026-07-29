@@ -23,6 +23,33 @@
   th, td { text-align: left; padding: 0 .55rem; line-height: var(--rule); vertical-align: top; }
   th { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-stone); font-weight: 600; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* On a phone the roster stops being a ledger and becomes a list. Six columns
+     have a min-content width no viewport can shrink, so at 390px the page
+     scrolled sideways and the parent email and Signed copy link were off the
+     edge. Stacked, each student is name, period and count on one line, the
+     status pill, the email, and the link -- all still a whole number of rules.
+     The headings survive as data-label; without them a bare "6" and "3/4"
+     under a name mean nothing. */
+  @media (max-width: 44rem) {
+    table, tbody, tr, td { display: block; width: auto; }
+    thead { display: none; }
+    tbody tr { margin-bottom: var(--rule); }
+    td { padding: 0; }
+    td.name { font-weight: 600; }
+    /* vertical-align:top, never baseline -- a smaller label aligned by its own
+       baseline grows the line box past one rule and the column below drifts. */
+    td[data-label] {
+      display: inline-block; vertical-align: top;
+      text-align: left; line-height: var(--rule); margin-right: 1rem;
+    }
+    td[data-label]::before {
+      content: attr(data-label) " ";
+      color: var(--ink-stone); font-size: .78rem;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    td:empty { display: none; }
+  }
   .pill { display: inline-block; font-size: .74rem; font-weight: 700; padding: .12rem .5rem; border-radius: 9999px; white-space: nowrap; }
   .pill.complete { background: var(--tab-1); color: #10352a; }
   .pill.partial { background: var(--tab-5); color: #4a3a10; }
@@ -107,10 +134,10 @@ function matches(s) {
 function render() {
   const shown = data.students.filter(matches);
   $('rows').innerHTML = shown.map((s) => `<tr>
-      <td>${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
-      <td>${esc(s.period ?? '')}</td>
+      <td class="name">${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
+      <td data-label="Per.">${esc(s.period ?? '')}</td>
       <td><span class="pill ${s.status}">${esc(s.status_label)}</span></td>
-      <td class="num">${s.required ? `${s.parent_signed}/${s.required}` : '—'}</td>
+      <td class="num" data-label="Initialed">${s.required ? `${s.parent_signed}/${s.required}` : '—'}</td>
       <td class="small">${esc(s.email ?? '—')}</td>
       <td>${s.account_id && s.parent_signed
         ? `<a href="/admin/signed?account_id=${s.account_id}" target="_blank">Signed copy</a>` : ''}</td>
