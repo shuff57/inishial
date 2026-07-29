@@ -98,6 +98,28 @@
   .stat span { font-size: .78rem; color: var(--ink-stone); text-transform: uppercase; letter-spacing: .04em; }
   .stat.danger b { color: var(--danger); }
   code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--paper); padding: .1rem .3rem; border-radius: 4px; }
+
+  /* The unselected import tab.
+   *
+   * A tab strip normally leans on the selected one for contrast, and that is
+   * fine when the unselected one still answers the pointer. This one did not:
+   * `.tabs button:hover` would be (0,2,1) and the tape rule's hover is
+   * (0,4,1), so nothing happened on hover and "Paste from a spreadsheet" was
+   * indistinguishable from a caption.
+   *
+   * A faint edge at rest and a fill under the pointer, both weighted to win.
+   * It stays quieter than the selected tab, which is the whole point of a tab
+   * strip -- it just stops being invisible. */
+  main .tabs button:not(.danger):not([aria-selected=true]) {
+    /* --border-warm, not --border-cream: cream is within a shade of the sand
+       used for the hover fill, so the resting edge was there in the computed
+       style and invisible on the paper -- which is the bug this is fixing. The
+       selected tab still reads as selected; it carries a fill as well. */
+    border-color: var(--border-warm);
+  }
+  main .tabs button:not(.danger):hover:not([disabled]) {
+    background: var(--sand); color: var(--ink);
+  }
 </style>
 </head>
 <body>

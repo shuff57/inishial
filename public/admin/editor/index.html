@@ -384,6 +384,36 @@
   /* Reasoning, where the model exposes any. Dimmer than the answer: it is the
      model thinking aloud, not what it decided. */
   .ai-log pre i { color: var(--border-warm); font-style: normal; }
+
+  /* ---- giving the block tools back the outlines they were written with ----
+   *
+   * Every strip above -- .tools on a block, .adders under the page, the
+   * per-page .page-tools, the section toggle in .sec-tools -- already asks for
+   * `border-color: var(--border-warm)` and a sand hover. None of it ever
+   * painted. Those rules are (0,1,1); the tape treatment is
+   * `main :is(button, .button):not(.danger)` at (0,2,1) and sets background
+   * and border-color to transparent, and its hover is (0,4,1) which took the
+   * sand fill too. So ✕, ⤒, ↓ and every adder rendered as bare glyphs with
+   * nothing under the pointer either.
+   *
+   * Restated here at the end of the sheet, at a weight that wins, rather than
+   * edited in place: the sizes and paddings up there are fine and untouched --
+   * only the two properties the tape rule was eating come back.
+   *
+   * Outlines rather than tape, deliberately. app.css opts this whole family out
+   * of the strip because a torn edge behind every ⤒ and ✕ would bury the
+   * document under stationery, and that reasoning still holds -- these are
+   * chrome around the writing, not actions in it. */
+  main :is(.tools, .adders, .page-tools, .sec-tools) button:not(.danger) {
+    background: transparent; color: var(--ink-stone); border-color: var(--border-warm);
+  }
+  main :is(.tools, .adders, .page-tools, .sec-tools) button:not(.danger):hover:not([disabled]) {
+    background: var(--sand); color: var(--ink);
+  }
+  /* The "this section is signed" state stays the marker colour it already had. */
+  main :is(.tools, .page-tools, .sec-tools) button.on:not(.danger) {
+    background: var(--tab-3); color: var(--ink); border-color: var(--tab-3);
+  }
 </style>
 </head>
 <body>
