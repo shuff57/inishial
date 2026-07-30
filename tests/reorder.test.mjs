@@ -552,21 +552,19 @@ test('toggleBlockInitial refuses to mark a paragraph, a list, a table, or a prom
 
 // ---- per-block attestation ----
 
-test('a per-block prompt attests to just itself, not its section', () => {
-  // This is the contract the hash in _lib/syllabus.js reads: a per-block
-  // initial block attests to the single block the parent ticked, so
-  // editing another block in the same section does not re-stale it.
+test('a per-block prompt attests to its whole section, like a section prompt', () => {
+  // per_block is a placement hint (anchor at a heading) not a scope hint.
+  // The attestation covers the heading that opens the section plus every
+  // block underneath it, up to the next heading -- the same span a
+  // section-wide prompt covers, just placed at a finer granularity.
   const out = toggleBlockInitial(DOC, 0);
   // Now: 0 h Late, 1 initial per_block, 2 p 10%, 3 initial (Late's section prompt).
-  // The per-block prompt is at index 1.
   const attested = attestedBlocks(out, 1);
-  assert.equal(attested.length, 1, 'just the prompt, not the section');
-  assert.equal(attested[0].per_block, true);
-  // The section-level prompt at index 3 still attests to the whole section
-  // -- per_block is what distinguishes the two, and the section prompt is
-  // the original one, which is per_block: false (and thus undefined/false).
-  const secAttested = attestedBlocks(out, 3);
-  assert.ok(secAttested.length > 1, 'section prompt still covers the section');
-  assert.ok(secAttested.some((b) => b.type === 'heading'),
+  assert.ok(attested.length > 1, 'covers the section, not just the prompt');
+  assert.ok(attested.some((b) => b.type === 'heading'),
     'section coverage starts at the heading');
+  // Section prompt at index 3 covers the same span.
+  const secAttested = attestedBlocks(out, 3);
+  assert.deepEqual(secAttested, attested,
+    'per-block and section prompts at the same place attest to the same blocks');
 });

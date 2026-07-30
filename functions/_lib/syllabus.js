@@ -96,8 +96,11 @@ export async function replaceDraftBlocks(db, versionId, blocks) {
  * whole versioning design exists to prevent.
  *
  *   - `initial` attests to its own section.
- *   - `initial` with `per_block: true` attests only to the block it sits
- *     after. Editing another block in the same section does not re-stale it.
+ *   - `initial` with `per_block: true` attests to its own section too -- the
+ *     "per-block" refers to where the prompt is anchored (a single heading
+ *     rather than one prompt per section), not to what it covers. A parent
+ *     reading the prompt and signing it is still signing the whole section
+ *     it sits in, heading included.
  *   - `agree` attests to the WHOLE document, because that is what its wording
  *     claims ("I have read this syllabus in full"). Strict on purpose: any
  *     change anywhere stales it. If that proves too noisy in a real term, narrow
@@ -109,8 +112,12 @@ export function attestedBlocks(blocks, index) {
   if (!block) return [];
   if (block.type === 'agree') return blocks;
   if (block.type !== 'initial') return [block];
-  if (block.per_block) return [block];
 
+  // Per-block OR section-wide: the prompt attests to the heading that opens
+  // the section and everything underneath it, up to the next heading. The
+  // difference between the two is placement (one per section vs. one per
+  // heading), not scope -- a parent reading "I have read and understand
+  // Late Work" is signing the whole late-work section either way.
   let start = index;
   while (start > 0 && blocks[start - 1].type !== 'heading') start--;
   if (start > 0) start--;                    // the heading opens the section
