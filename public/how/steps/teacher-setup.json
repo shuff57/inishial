@@ -19,7 +19,7 @@
     },
     {
       "title": "Open the syllabus editor",
-      "body": "A brand new class opens straight to \"Start from a document,\" because there is nothing in the draft yet to show instead. The editor works one page at a time — the same page a parent turns to — with Fix headings, Suggest initials, Save draft, and Publish along the top. Nothing here is visible to parents until you publish it.",
+      "body": "A brand new class opens straight to \"Start from a document,\" because there is nothing in the draft yet to show instead. The editor works one page at a time — the same page a parent turns to — with Fix format, Suggest initials, Save draft, and Publish along the top. Nothing here is visible to parents until you publish it.",
       "clip": "teacher-setup-editor-open.mp4",
       "n": 3,
       "clipDark": "teacher-setup-editor-open-dark.mp4"
@@ -33,14 +33,14 @@
     },
     {
       "title": "Choose the AI model in Settings",
-      "body": "The gear icon next to Sign out holds one setting: which AI model answers Fix headings and Suggest initials. Your choice is remembered on this computer.",
+      "body": "The gear icon next to Sign out holds one setting: which AI model answers Fix format and Suggest initials. Your choice is remembered on this computer.",
       "clip": "teacher-setup-settings.mp4",
       "n": 5,
       "clipDark": "teacher-setup-settings-dark.mp4"
     },
     {
-      "title": "Fix headings straightens out the structure",
-      "body": "A pasted document often has real headings that do not look like headings to a simple rule — a title that ends with a period, or a line that got bolded instead of styled. Fix headings asks an AI model to tell headings from body text and retags them. It never rewrites a word; only the tag around a line ever changes.",
+      "title": "Fix format straightens out the structure",
+      "body": "A pasted document often has real headings that do not look like headings to a simple rule — a title that ends with a period, or a line that got bolded instead of styled. Fix format asks an AI model to tell headings from body text and retags them. It never rewrites a word; only the tag around a line ever changes.",
       "clip": "teacher-setup-fix-headings.mp4",
       "n": 6,
       "clipDark": "teacher-setup-fix-headings-dark.mp4"
