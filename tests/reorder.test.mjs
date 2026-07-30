@@ -507,16 +507,19 @@ test('an out-of-range index from the model is dropped, not silently shifted', ()
 
 // ---- per-block initials toggle (the new ✎ button) ----
 
-test('toggleBlockInitial adds a per-block prompt right after the heading', () => {
-  // The markable unit is the HEADING, not the paragraph. A teacher who
-  // says "I have read the late-work policy" is initialing the section by
-  // name, and a per-paragraph initial is too small to be useful.
+test('toggleBlockInitial adds a per-block prompt at the end of the section', () => {
+  // The prompt sits after the body, not directly under the heading -- so a
+  // list of contact info or a paragraph lands above the "I have read and
+  // understand" line, where a parent actually reads it as the section's
+  // closing rule.
   const out = toggleBlockInitial(DOC, 0);
-  assert.equal(out[1].type, 'initial');
-  assert.equal(out[1].per_block, true, 'prompt carries the per-block flag');
-  // The label is the heading's text so the parent sees what they are
-  // agreeing to. The legal scope is the prompt block itself.
-  assert.match(out[1].html, /Late/, 'prompt references the heading text');
+  const pb = out.find((b) => b.type === 'initial' && b.per_block);
+  assert.ok(pb, 'a per-block prompt was added');
+  assert.match(pb.html, /Late/, 'prompt references the heading text');
+  // The prompt is the LAST block in Late's section, just before Attend.
+  const attend = out.findIndex((b) => b.type === 'heading' && /Attend/.test(b.html));
+  assert.equal(out.indexOf(pb), attend - 1,
+    'per-block prompt lands at the end of the section');
   assert.equal(blockSigns(out, 0), true);
   assert.equal(blockSigns(DOC, 0), false, 'DOC had no per-block mark');
 });
@@ -536,6 +539,28 @@ test('toggleBlockInitial again removes the prompt', () => {
   assert.ok(sectionPrompt, 'the section-level prompt survives a per-heading toggle on a neighbour');
   // The original DOC's section prompt html was 'read late' -- survives.
   assert.equal(sectionPrompt.html, 'read late');
+});
+
+test('toggleBlockInitial inserts after a list and past subheadings', () => {
+  // The teacher's case: H2 "Technology Support", H3 "sub", list of contact
+  // info, then the per-block prompt. The prompt must land after the list,
+  // not under the heading, and a subheading inside the section must NOT
+  // cut the section short -- a subheading is part of the section.
+  const sub = { type: 'heading', html: '<h3>sub</h3>', level: 3 };
+  const list = { type: 'list', html: '<ul><li>Phone</li></ul>' };
+  const doc = [
+    { type: 'heading', html: '<h2>Technology Support</h2>' },
+    sub,
+    list,
+    { type: 'heading', html: '<h2>Next Section</h2>' },
+  ];
+  const out = toggleBlockInitial(doc, 0);
+  // The per-block prompt is the second-to-last block; "Next Section" stays last.
+  const pb = out.find((b) => b.type === 'initial' && b.per_block);
+  assert.ok(pb, 'a per-block prompt was added');
+  assert.equal(out.indexOf(pb), out.length - 2,
+    'per-block prompt lands after the list and before the next section');
+  assert.match(pb.html, /Technology Support/);
 });
 
 test('toggleBlockInitial refuses to mark a paragraph, a list, a table, or a prompt', () => {
@@ -558,13 +583,13 @@ test('a per-block prompt attests to its whole section, like a section prompt', (
   // block underneath it, up to the next heading -- the same span a
   // section-wide prompt covers, just placed at a finer granularity.
   const out = toggleBlockInitial(DOC, 0);
-  // Now: 0 h Late, 1 initial per_block, 2 p 10%, 3 initial (Late's section prompt).
-  const attested = attestedBlocks(out, 1);
+  const pbIdx = out.findIndex((b) => b.type === 'initial' && b.per_block);
+  const secIdx = out.findIndex((b) => b.type === 'initial' && !b.per_block);
+  const attested = attestedBlocks(out, pbIdx);
   assert.ok(attested.length > 1, 'covers the section, not just the prompt');
   assert.ok(attested.some((b) => b.type === 'heading'),
     'section coverage starts at the heading');
-  // Section prompt at index 3 covers the same span.
-  const secAttested = attestedBlocks(out, 3);
+  const secAttested = attestedBlocks(out, secIdx);
   assert.deepEqual(secAttested, attested,
     'per-block and section prompts at the same place attest to the same blocks');
 });

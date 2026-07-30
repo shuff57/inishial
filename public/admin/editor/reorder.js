@@ -318,18 +318,23 @@ export function applyPendingOnBlock(blocks, index) {
   if (!block || !block.pendingInitial) return { blocks, applied: false };
   const cleared = blocks.map((b, i) =>
     i === index ? { ...b, pendingInitial: undefined } : b);
-  // The next slot already holds a per-block prompt? Then the model pointed
-  // twice -- once accepted, once pending. The second accept is just a clear.
-  const next = cleared[index + 1];
-  if (next && next.type === 'initial' && next.per_block) {
+  // The end of this section already holds a per-block prompt? Then the
+  // model pointed twice -- once accepted, once pending. The second accept
+  // is just a clear.
+  let end = index + 1;
+  while (end < cleared.length && !startsSection(cleared[end])) end++;
+  const lastInSection = end - 1;
+  if (lastInSection > index
+      && cleared[lastInSection].type === 'initial'
+      && cleared[lastInSection].per_block) {
     return { blocks: cleared, applied: true };
   }
   const head = sectionTitleAbove(cleared, index);
   return {
     blocks: [
-      ...cleared.slice(0, index + 1),
+      ...cleared.slice(0, end),
       makePerBlockInitial(head),
-      ...cleared.slice(index + 1),
+      ...cleared.slice(end),
     ],
     applied: true,
   };
@@ -393,13 +398,22 @@ export function toggleBlockInitial(blocks, index) {
   // not lines). The + Initials box button on the adders strip still
   // creates an unattached prompt for those cases.
   if (block.type !== 'heading' || PROMPT_TYPES.has(block.type) || hasShape(block)) return blocks;
-  const next = blocks[index + 1];
-  if (next && next.type === 'initial' && next.per_block) {
-    return [...blocks.slice(0, index + 1), ...blocks.slice(index + 2)];
+  // The prompt goes at the END of the section, after the body -- a list of
+  // contact info or a paragraph belongs above the "I have read and
+  // understand" line, not below it. Walk to the next heading at the same or
+  // shallower level; subheadings (level 3) stay attached to this section,
+  // because they do not start one.
+  let end = index + 1;
+  while (end < blocks.length && !startsSection(blocks[end])) end++;
+  // The toggle removes the per-block prompt sitting at the end of THIS
+  // section if one is already there. Walking the section keeps the lookup
+  // correct after the prompt has been moved out from under the heading.
+  const lastInSection = end - 1;
+  if (lastInSection > index
+      && blocks[lastInSection].type === 'initial'
+      && blocks[lastInSection].per_block) {
+    return [...blocks.slice(0, lastInSection), ...blocks.slice(end)];
   }
-  // The prompt attests to the heading itself. The label is the heading's
-  // text so the parent sees what they are agreeing to; the legal scope
-  // is the prompt block (per_block: true means [block] in attestedBlocks).
   const label = String(block.html).replace(/<[^>]+>/g, '').trim()
     || 'this section';
   const prompt = {
@@ -408,14 +422,21 @@ export function toggleBlockInitial(blocks, index) {
     needs_initials: true,
     per_block: true,
   };
-  return [...blocks.slice(0, index + 1), prompt, ...blocks.slice(index + 1)];
+  return [...blocks.slice(0, end), prompt, ...blocks.slice(end)];
 }
 
 /** Is a per-block initials prompt already on this block? */
 export function blockSigns(blocks, index) {
-  return !!(blocks[index] && blocks[index + 1]
-    && blocks[index + 1].type === 'initial'
-    && blocks[index + 1].per_block);
+  const block = blocks[index];
+  if (!block) return false;
+  // A per-block prompt for this section sits at the END of the section,
+  // not directly under the heading -- a body paragraph or a list belongs
+  // above the "I have read and understand" line. Walk forward to the next
+  // section break and look there.
+  for (let i = index + 1; i < blocks.length && !startsSection(blocks[i]); i++) {
+    if (blocks[i].type === 'initial' && blocks[i].per_block) return true;
+  }
+  return false;
 }
 
 /** Drop every pending suggestion without applying. */
