@@ -446,8 +446,12 @@
   }
   .ai-log pre b { color: var(--ink); font-weight: 600; }
   /* Reasoning, where the model exposes any. Dimmer than the answer: it is the
-     model thinking aloud, not what it decided. */
-  .ai-log pre i { color: var(--border-warm); font-style: normal; }
+     model thinking aloud, not what it decided. The old colour was --border-warm
+     (~1.15:1 against --paper) -- a border token used as text, which read as
+     invisible. A muted ink keeps it secondary without disappearing: lighter
+     than --ink, darker than --ink-stone-on-... actually darker than --ink-stone
+     on the paper, so it sits behind the answer without falling off the page. */
+  .ai-log pre i { color: var(--ink-stone); font-style: normal; opacity: .85; }
 
   /* ---- giving the block tools back the outlines they were written with ----
    *

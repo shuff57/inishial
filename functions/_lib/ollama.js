@@ -11,7 +11,11 @@
 // and wondering.
 
 export const MODEL = 'gpt-oss:120b';
-export const TIMEOUT_MS = 60_000;
+// Five minutes. A cold gpt-oss:120b is well over a minute on the first call,
+// and aborting at sixty seconds showed up as "the model is broken" when the
+// answer was about to start. Five minutes is long enough to ride out a cold
+// load without being so long that a genuinely hung request blocks the button.
+export const TIMEOUT_MS = 300_000;
 
 /** Ollama's own OLLAMA_HOST convention allows a bare `host:port`, which is not a
  *  URL -- fetch() rejects it outright. Add the scheme when it is missing. */
