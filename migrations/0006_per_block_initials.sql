@@ -1,0 +1,21 @@
+-- Per-block initials: a prompt that attests to one block, not a whole section.
+--
+-- The model has always returned one block at a time, but the editor only ever
+-- knew how to flip the whole section at once via toggleSigning. A teacher
+-- marking "I have read the late-work policy" wants a single line, not a prompt
+-- that goes stale the moment another paragraph in the same section is edited.
+--
+-- The flag is per-row because it is what the signature is hashed against. A
+-- boolean column reads at the same cost as anything else, and the editor, the
+-- sign endpoint, and the version diff all have to agree on the rule -- one
+-- definition, one place.
+--
+--   per_block = 0  section-level prompt. attestBlocks() expands to the
+--                  heading + everything up to the next heading. The original
+--                  rule; every existing row has this value.
+--   per_block = 1  attests to just the block the prompt sits after. Editing
+--                  another block in the same section does NOT re-stale it.
+--
+-- Default 0 because every existing prompt is a section prompt, and the
+-- migration is a no-op for them.
+ALTER TABLE blocks ADD COLUMN per_block INTEGER NOT NULL DEFAULT 0;

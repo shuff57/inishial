@@ -656,10 +656,10 @@
 <script src="/vendor/mammoth.browser.min.js"></script>
 <script type="module">
 import { dragRange, insertionIndex, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget,
-         sectionSigns, toggleSigning, retag, blockText, structureProblem, structureAdvice,
+         sectionSigns, toggleSigning, toggleBlockInitial, retag, blockText, structureProblem, structureAdvice,
          textToBlocks, rangeDestination, ladderTag, hasShape, isTable, toggleListKind, tableEdit,
-         setPendingSuggestions, firstPendingIndex, nextPendingIndex, applyPendingInSection,
-         applyAllPending, clearAllPending, clearPendingInSection } from './reorder.js';
+         setPendingSuggestions, firstPendingIndex, nextPendingIndex, applyPendingOnBlock,
+         applyAllPending, clearAllPending, clearPendingInSection, blockSigns } from './reorder.js';
 import { startsSection } from '../../shared/sections.js';
 
 /** Escape for interpolation into the markup a block stores. */
@@ -997,10 +997,37 @@ function blockRow(block, index) {
     body.appendChild(why);
   }
 
-  // No per-block initials toggle: that lives on the section card, because the
-  // section is what a prompt attests to. Deleting is still per-block.
+  // Per-block initials toggle. Lives on the row rather than the section card
+  // because the unit is the block, not the page. The section-level ✍ on the
+  // page bar is still there for the whole-section case; the two are
+  // independent -- marking a single block does not mark its section, and
+  // marking the section does not mark its individual blocks.
+  //
+  // Refused for blocks a parent can't sign a meaningful unit of: a heading
+  // (no body to attest to), a prompt (a prompt attesting to a prompt is
+  // nonsense), or anything whose meaning is in its shape (a list, a table).
+  // The + Initials box button on the adders strip still creates an unattached
+  // prompt for those cases.
   const tools = document.createElement('div');
   tools.className = 'tools';
+  if (block.type === 'text' && !hasShape(block)) {
+    const on = blockSigns(state.blocks, index);
+    const ini = document.createElement('button');
+    ini.type = 'button';
+    ini.className = 'ini';
+    ini.textContent = on ? '✎ Initials on' : '✎ Initials';
+    ini.title = on
+      ? 'Stop asking for initials on this single line.'
+      : 'Ask the parent to initial just this line -- not the whole section.';
+    ini.setAttribute('aria-pressed', String(on));
+    if (on) ini.classList.add('on');
+    ini.addEventListener('click', () => {
+      state.blocks = toggleBlockInitial(state.blocks, index);
+      markDirty();
+      render();
+    });
+    tools.append(ini);
+  }
 
   // Heading level. A section heading starts a page a parent initials; a
   // subheading only looks like one. That difference decides what a signature
@@ -2242,13 +2269,17 @@ function jumpToFirstPending() {
   }
 }
 
-/** Accept the pending on whatever section the cursor is on, then move on.
- *  Driven by the per-section Accept button on the page card. */
+/** Accept the first pending on the current page, then jump to the next.
+ *  Per-block, mirroring the per-block affordance on the page card. */
 function acceptCurrentPending() {
   const ranges = sectionRanges(state.blocks);
   const here = ranges[page];
   if (!here) return;
-  const { blocks, applied } = applyPendingInSection(state.blocks, here[0], here[1]);
+  // Find the first pending INSIDE this page; do not just take the first
+  // document-wide pending, which might be on a different page.
+  const onPage = state.blocks.findIndex((b, i) => i >= here[0] && i < here[1] && b.pendingInitial);
+  if (onPage < 0) return;
+  const { blocks, applied } = applyPendingOnBlock(state.blocks, onPage);
   if (!applied) return;
   state.blocks = blocks;
   markDirty();

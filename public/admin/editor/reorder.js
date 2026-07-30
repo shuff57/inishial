@@ -286,51 +286,120 @@ export function nextPendingIndex(blocks, from = 0) {
 export const firstPendingIndex = (blocks) => nextPendingIndex(blocks, 0);
 
 /**
- * Apply the pending suggestion on a single section: mark the section as
- * requiring initials (if it doesn't already) and clear the pendings inside it.
- *
- * Returns { blocks, applied } where `applied` is true iff at least one
- * pending lived in the section. The caller uses that to know whether to
- * advance the walk-through cursor.
- *
- * toggleSigning is the canonical way to flip a section's sign, so the apply
- * path goes through it -- a single rule, single reason for what "initials
- * required" means. If the section already asks for initials, the pendings
- * still need to be cleared; the model pointed, the teacher did not act, and
- * "still want it" is the same as "got it, move on".
+ * The per-block initials prompt: same shape as the section-level one, with a
+ * per_block flag the hash in _lib/syllabus.js reads to mean "this prompt
+ * attests to itself, not to the heading above it". Storing the flag on the
+ * block (rather than on the section, the page, or a side table) keeps the
+ * rule with the row that owns it -- and the section's whole-sign, if any, is
+ * untouched.
  */
-export function applyPendingInSection(blocks, from, to) {
-  const pendings = blocks.slice(from, to).filter((b) => b.pendingInitial);
-  if (!pendings.length) return { blocks, applied: false };
+const makePerBlockInitial = (head) => ({
+  type: 'initial',
+  html: 'I have read and understand this.',
+  needs_initials: true,
+  per_block: true,
+  // The "what this prompt is about" line for the editor only -- the legal
+  // coverage is per-block, but the audit trail still benefits from a name.
+  // Empty when the block has no heading above it; the sign page just reads
+  // the prompt's text.
+  _per_block_about: head,
+});
+
+/**
+ * Insert a per-block initials prompt AFTER `index`, then clear any pending
+ * on that block. Idempotent: if a per-block prompt already sits at `index+1`,
+ * the insert is skipped and only the pending is cleared.
+ *
+ * `applied` is true iff a pending lived on the block. The walk-through
+ * cursor uses that to know whether to advance.
+ */
+export function applyPendingOnBlock(blocks, index) {
+  const block = blocks[index];
+  if (!block || !block.pendingInitial) return { blocks, applied: false };
   const cleared = blocks.map((b, i) =>
-    i >= from && i < to && b.pendingInitial
-      ? { ...b, pendingInitial: undefined }
-      : b);
-  return { blocks: sectionSigns(cleared, from, to) ? cleared : toggleSigning(cleared, from, to), applied: true };
+    i === index ? { ...b, pendingInitial: undefined } : b);
+  // The next slot already holds a per-block prompt? Then the model pointed
+  // twice -- once accepted, once pending. The second accept is just a clear.
+  const next = cleared[index + 1];
+  if (next && next.type === 'initial' && next.per_block) {
+    return { blocks: cleared, applied: true };
+  }
+  const head = sectionTitleAbove(cleared, index);
+  return {
+    blocks: [
+      ...cleared.slice(0, index + 1),
+      makePerBlockInitial(head),
+      ...cleared.slice(index + 1),
+    ],
+    applied: true,
+  };
 }
 
 /**
- * Apply every pending suggestion across the document. Idempotent: a section
- * with no pendings is left exactly as it was.
+ * Apply every pending suggestion across the document. Idempotent: a block
+ * with no pending is left exactly as it was.
  *
- * Walks by SECTION, not by index. Iterating a fixed `ranges` once would be
- * wrong: every accepted section GROWS by one block (the new prompt), which
- * shifts every later section's [from, to) by one. The next step would be
- * checking the wrong span and leave the rest of the pendings stuck on.
- * Re-deriving the ranges from the live array at each step keeps the loop
- * honest at the cost of one O(n) walk per section, which is fine -- a
- * syllabus has dozens of sections, not thousands.
+ * Walks by BLOCK, not by section. Inserting a per-block prompt grows the
+ * array by one, which shifts every later index; the loop re-derives the
+ * target from the live array at each step so the shifts cannot strand a
+ * later pending. Same shape as the section-level walk, just at finer
+ * granularity.
  */
 export function applyAllPending(blocks) {
   let next = blocks;
   for (;;) {
-    const ranges = sectionRanges(next);
-    const target = ranges.find(([from, to]) =>
-      next.slice(from, to).some((b) => b.pendingInitial));
-    if (!target) return next;
-    const r = applyPendingInSection(next, target[0], target[1]);
+    const i = next.findIndex((b) => b.pendingInitial);
+    if (i < 0) return next;
+    const r = applyPendingOnBlock(next, i);
     next = r.blocks;
   }
+}
+
+/** Title of the section a per-block prompt lives in, for the audit label.
+ *  Walks back to the most recent level-2 heading; empty when there isn't one. */
+function sectionTitleAbove(blocks, index) {
+  for (let i = index; i >= 0; i--) {
+    const b = blocks[i];
+    if (b.type === 'heading' && Number(b.level ?? 2) <= 2) {
+      return String(b.html).replace(/<[^>]+>/g, '').trim();
+    }
+  }
+  return '';
+}
+
+/**
+ * Toggle a per-block initials prompt on the block at `index`. Mirrors
+ * toggleSigning but at single-block granularity: the section's whole-sign is
+ * untouched, the prompt attests to just the block (per_block: true).
+ *
+ * Inserted RIGHT AFTER the block. Putting it elsewhere would shift the
+ * section split in sectionRanges, which would silently move a signature off
+ * the block the teacher marked.
+ *
+ * If a per-block prompt already sits at `index+1`, this removes it; the
+ * teacher's intent is a toggle, not an "add another one".
+ */
+export function toggleBlockInitial(blocks, index) {
+  const block = blocks[index];
+  if (!block) return blocks;
+  // Refuse to mark a heading, a prompt, or anything whose meaning is in its
+  // shape (a list, a table). A heading has no body for a parent to attest
+  // to; a prompt attesting to a prompt is nonsense; lists and tables store
+  // a unit, not lines.
+  if (block.type === 'heading' || PROMPT_TYPES.has(block.type) || hasShape(block)) return blocks;
+  const next = blocks[index + 1];
+  if (next && next.type === 'initial' && next.per_block) {
+    return [...blocks.slice(0, index + 1), ...blocks.slice(index + 2)];
+  }
+  const head = sectionTitleAbove(blocks, index);
+  return [...blocks.slice(0, index + 1), makePerBlockInitial(head), ...blocks.slice(index + 1)];
+}
+
+/** Is a per-block initials prompt already on this block? */
+export function blockSigns(blocks, index) {
+  return !!(blocks[index] && blocks[index + 1]
+    && blocks[index + 1].type === 'initial'
+    && blocks[index + 1].per_block);
 }
 
 /** Drop every pending suggestion without applying. */

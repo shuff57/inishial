@@ -7,7 +7,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, seedAccount, seedSyllabus, cookieFrom, jsonRequest } from './helpers.mjs';
+import { freshEnv, seedStudent, seedAccount, seedSyllabus, cookieFrom, jsonRequest, d1 } from './helpers.mjs';
 import { onRequestPost as login } from '../functions/api/sign/login.js';
 import { onRequestGet as getSyllabus } from '../functions/api/sign/syllabus.js';
 import { onRequestPost as postInitial } from '../functions/api/sign/initial.js';
@@ -256,6 +256,62 @@ test('a prompt is unaffected by a change in someone else\'s section', async () =
 
   assert.equal(await attestationHash(before, 2), await attestationHash(after, 2),
     'a section boundary has to actually bound something, or every edit re-signs everything');
+});
+
+// ---- per-block initials: a prompt that attests to one line, not a section ----
+
+test('a per-block prompt covers only the block it sits after', async () => {
+  // The new flag stored on the column flows through blocksOf to the hash
+  // layer. The whole point of the per_block path is that this attestation
+  // is narrower than the section's.
+  const env = freshEnv();
+  const { courseId, rosterId, extId } = seedStudent(env._raw);
+  const { accountId, code } = await seedAccount(env._raw, rosterId);
+  seedSyllabus(env._raw, courseId, [
+    { type: 'heading', html: '<h2>Late Work</h2>' },
+    { type: 'text', html: '<p>Late work loses 10% per day.</p>' },
+    // The model produces this from the per-block accept path.
+    { type: 'initial', html: 'I have read and understand this.', needs_initials: true, per_block: true },
+    { type: 'text', html: '<p>Exams are weighted 75%.</p>' },
+  ], { published: true });
+
+  // Read back through the real server path.
+  const versionId = env._raw.prepare('SELECT id FROM versions WHERE published_at IS NOT NULL').get().id;
+  const { blocksOf, attestationHash } = await import('../functions/_lib/syllabus.js');
+  const stored = await blocksOf(d1(env._raw), versionId);
+  // The per-block prompt is at index 2.
+  assert.equal(stored[2].per_block, true, 'per_block survives the round trip');
+  const attested = await attestationHash(stored, 2);
+  // The same field set with per_block: false (a section prompt at the same
+  // position) would have produced a different hash. The whole-section hash
+  // includes the heading AND the second paragraph; the per-block hash
+  // includes only the prompt block. The hashes MUST differ.
+  const asSection = stored.map((b) => ({ ...b, per_block: false }));
+  const sectionHash = await attestationHash(asSection, 2);
+  assert.notEqual(attested, sectionHash,
+    'a per-block prompt has to attest to a different span than a section prompt');
+});
+
+test('a per-block prompt is not re-staled by a change elsewhere in the same section', async () => {
+  // The contract the editor relies on: a teacher marks THIS line for
+  // initials, and a parent has only attested to THIS line. Editing another
+  // block in the same section must not invalidate the signature.
+  const { attestationHash } = await import('../functions/_lib/syllabus.js');
+  // The shape blocksOf returns, computed here directly so the test does
+  // not depend on a DB. The server is exercised by the previous test.
+  const stored = (b) => ({ ...b, id: 0, ord: 0, needs_initials: !!b.needs_initials, level: 2, per_block: !!b.per_block });
+  const before = [
+    stored({ type: 'heading', html: '<h2>Late Work</h2>' }),
+    stored({ type: 'text', html: '<p>Late work loses 10% per day.</p>' }),
+    stored({ type: 'initial', html: 'I have read and understand this.', needs_initials: true, per_block: true }),
+    stored({ type: 'text', html: '<p>Exams are weighted 75%.</p>' }),
+  ];
+  const after = before.map((b, i) => i === 3 ? { ...b, html: '<p>Exams are weighted 70%.</p>' } : b);
+
+  const beforeHash = await attestationHash(before, 2);
+  const afterHash = await attestationHash(after, 2);
+  assert.equal(beforeHash, afterHash,
+    'a per-block signature must survive a change to a different block in the same section');
 });
 
 test('an agree block attests to the whole document', async () => {

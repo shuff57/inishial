@@ -43,9 +43,14 @@ export async function latestPublished(db, syllabusId) {
 
 export async function blocksOf(db, versionId) {
   const { results } = await db.prepare(
-    'SELECT id, ord, type, html, needs_initials, level FROM blocks WHERE version_id = ?1 ORDER BY ord',
+    'SELECT id, ord, type, html, needs_initials, level, per_block FROM blocks WHERE version_id = ?1 ORDER BY ord',
   ).bind(versionId).all();
-  return (results ?? []).map((b) => ({ ...b, needs_initials: !!b.needs_initials, level: b.level ?? 2 }));
+  return (results ?? []).map((b) => ({
+    ...b,
+    needs_initials: !!b.needs_initials,
+    per_block: !!b.per_block,
+    level: b.level ?? 2,
+  }));
 }
 
 const TYPES = new Set(['heading', 'text', 'list', 'initial', 'agree']);
@@ -71,8 +76,8 @@ export async function replaceDraftBlocks(db, versionId, blocks) {
     // parent is held to have agreed to.
     const level = type === 'heading' && Number(raw.level) === 3 ? 3 : 2;
     await db.prepare(
-      'INSERT INTO blocks (version_id, ord, type, html, needs_initials, level) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
-    ).bind(versionId, ord++, type, String(raw.html ?? ''), needs, level).run();
+      'INSERT INTO blocks (version_id, ord, type, html, needs_initials, level, per_block) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
+    ).bind(versionId, ord++, type, String(raw.html ?? ''), needs, level, raw.per_block ? 1 : 0).run();
   }
   return ord;
 }
@@ -91,6 +96,8 @@ export async function replaceDraftBlocks(db, versionId, blocks) {
  * whole versioning design exists to prevent.
  *
  *   - `initial` attests to its own section.
+ *   - `initial` with `per_block: true` attests only to the block it sits
+ *     after. Editing another block in the same section does not re-stale it.
  *   - `agree` attests to the WHOLE document, because that is what its wording
  *     claims ("I have read this syllabus in full"). Strict on purpose: any
  *     change anywhere stales it. If that proves too noisy in a real term, narrow
@@ -102,6 +109,7 @@ export function attestedBlocks(blocks, index) {
   if (!block) return [];
   if (block.type === 'agree') return blocks;
   if (block.type !== 'initial') return [block];
+  if (block.per_block) return [block];
 
   let start = index;
   while (start > 0 && blocks[start - 1].type !== 'heading') start--;

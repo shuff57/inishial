@@ -88,7 +88,7 @@ export async function seedAccount(db, rosterId, {
 
 /**
  * Create a syllabus with blocks.
- * blocks: [{ type, html, needs_initials }] -- ord follows array order.
+ * blocks: [{ type, html, needs_initials, per_block }] -- ord follows array order.
  */
 export function seedSyllabus(db, courseId, blocks, { title = 'Algebra I Syllabus', num = 1, published = true } = {}) {
   const slug = `${title}-${num}`.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -102,8 +102,8 @@ export function seedSyllabus(db, courseId, blocks, { title = 'Algebra I Syllabus
   );
   const blockIds = blocks.map((b, i) =>
     Number(
-      db.prepare('INSERT INTO blocks (version_id, ord, type, html, needs_initials) VALUES (?, ?, ?, ?, ?)')
-        .run(versionId, i, b.type ?? 'text', b.html ?? '', b.needs_initials ? 1 : 0).lastInsertRowid,
+      db.prepare('INSERT INTO blocks (version_id, ord, type, html, needs_initials, per_block) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(versionId, i, b.type ?? 'text', b.html ?? '', b.needs_initials ? 1 : 0, b.per_block ? 1 : 0).lastInsertRowid,
     ),
   );
   return { syllabusId, versionId, blockIds };

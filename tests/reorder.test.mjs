@@ -8,8 +8,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dragRange, insertionIndex, unitStartBefore, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget, sectionSigns, toggleSigning,
+  toggleBlockInitial, blockSigns,
   rangeDestination, ladderTag, retag, blockText, hasShape, isTable, toggleListKind, tableEdit,
-  setPendingSuggestions, firstPendingIndex, nextPendingIndex, applyPendingInSection,
+  setPendingSuggestions, firstPendingIndex, nextPendingIndex, applyPendingOnBlock,
   applyAllPending, clearAllPending, clearPendingInSection }
   from '../public/admin/editor/reorder.js';
 import { attestedBlocks } from '../functions/_lib/syllabus.js';
@@ -377,9 +378,9 @@ test('shape is read off the markup, because a table is stored as text', () => {
 test('a suggestion stamps a per-block pointer, not a real initial', () => {
   // The model points. The block stays type: 'text'; the only change is a
   // pending field that the editor's own Accept button is the only thing that
-  // turns into a real initial. The existing sectionSigns() must keep
-  // returning false -- otherwise toggleSigning would short-circuit and the
-  // Accept button would silently no-op.
+  // turns into a real initial. sectionSigns() reads PROMPT_TYPES only, so a
+  // pending must not change it -- otherwise the page's "Require initials"
+  // button would silently flip on when the model points at a single line.
   const blocks = setPendingSuggestions(DOC, [{ index: 1, reason: 'grading impact' }]);
   assert.equal(blocks[1].type, 'text', 'still a paragraph');
   assert.deepEqual(blocks[1].pendingInitial, { reason: 'grading impact' });
@@ -403,65 +404,77 @@ test('firstPendingIndex walks the document top to bottom', () => {
   assert.equal(nextPendingIndex(blocks, 5), -1, 'past the end, nothing more');
 });
 
-test('accepting one section flips the section\'s sign and clears pendings inside it', () => {
-  // Late (0..3) already has a prompt in DOC. Accepting on a section that is
-  // already signed must still clear the pendings -- the model pointed, the
-  // teacher agreed, and "the sign is on" is what survives. Without the
-  // clear, a second run of suggest would re-mark the same blocks and the
-  // count would only ever go up.
-  const blocks = setPendingSuggestions(DOC, [{ index: 1, reason: 'grading' }]);
-  const r = applyPendingInSection(blocks, 0, 3);
+test('accepting one block inserts a per-block prompt and clears the pending', () => {
+  // The model points at a single block; the accept must produce a per-block
+  // prompt (per_block: true), NOT a section-level sign. The section's whole
+  // sign is independent: a per-block accept on Attend must not mark the
+  // whole "Attendance and Participation" page.
+  const blocks = setPendingSuggestions(DOC, [{ index: 4, reason: 'attendance' }]);
+  const r = applyPendingOnBlock(blocks, 4);
   assert.equal(r.applied, true);
-  assert.equal(r.blocks[1].pendingInitial, undefined);
-  assert.equal(sectionSigns(r.blocks, 0, 3), true, 'still signed -- was already signed');
-  // Attend is in 3..5 and has no pending here. No-op, no flip.
-  const r2 = applyPendingInSection(blocks, 3, 5);
-  assert.equal(r2.applied, false);
-  assert.deepEqual(r2.blocks, blocks, 'no change when the section had no pendings');
+  assert.equal(r.blocks[4].pendingInitial, undefined);
+  const prompt = r.blocks[5];
+  assert.equal(prompt.type, 'initial');
+  assert.equal(prompt.per_block, true, 'per-block prompt, not section');
+  // The section (3..5 in DOC) was not section-level signed -- still isn't.
+  assert.equal(sectionSigns(r.blocks, 3, 5), false, 'section sign is independent of per-block accept');
 });
 
-test('accepting one section that was not yet signed turns on the sign', () => {
-  // Materials (5..7) has no initial block. The pointer must turn into a real
-  // sign when the teacher accepts. toggleSigning appends a prompt at the
-  // end of the section, so the section GROWS by one and its [from,to) range
-  // shifts; assert on the new range the sectioning code would compute.
-  const blocks = setPendingSuggestions(DOC, [{ index: 6, reason: 'cost' }]);
-  const r = applyPendingInSection(blocks, 5, 7);
+test('accepting a block that already has a per-block prompt is a no-op insert', () => {
+  // The model pointed twice (or once-accepted-once-pending) and the second
+  // accept should only clear the pending, not stack a second prompt.
+  const first = toggleBlockInitial(DOC, 1);   // adds a per-block prompt at 2
+  const withPending = setPendingSuggestions(first, [{ index: 1, reason: 're-mark' }]);
+  const r = applyPendingOnBlock(withPending, 1);
   assert.equal(r.applied, true);
-  assert.equal(r.blocks[6].pendingInitial, undefined);
-  const ranges = sectionRanges(r.blocks);
-  const materials = ranges.find(([f]) => f === 5);
-  assert.ok(materials, 'Materials is still a section after the append');
-  assert.equal(sectionSigns(r.blocks, materials[0], materials[1]), true, 'now signed');
-  // The initial block ends up at the end of the section, the same place
-  // toggleSigning always puts it.
-  assert.equal(r.blocks[materials[1] - 1].type, 'initial');
+  // Still exactly one per-block prompt, no new one inserted. The total
+  // prompt count is 2 (one per-block + one section, both present before).
+  const perBlock = r.blocks.filter((b) => b.type === 'initial' && b.per_block).length;
+  assert.equal(perBlock, 1, 'no second per-block prompt stacked after the existing one');
 });
 
-test('accept all flips every pending section and clears every pointer', () => {
+test('accepting on a block with no pending is a no-op', () => {
+  const r = applyPendingOnBlock(DOC, 1);
+  assert.equal(r.applied, false);
+  assert.deepEqual(r.blocks, DOC, 'unchanged');
+});
+
+test('accept all turns every pending into a per-block prompt, leaving section signs alone', () => {
+  // Three pendings on three different blocks across three different sections.
+  // The section's existing whole-sign (Late) must not change; the other two
+  // sections must NOT pick up a whole-sign from the per-block accepts.
   const blocks = setPendingSuggestions(DOC, [
     { index: 1, reason: 'grading' },
     { index: 4, reason: 'attendance' },
     { index: 6, reason: 'cost' },
   ]);
   const next = applyAllPending(blocks);
-  // Three sections had pendings; one was already signed (Late), two are now.
-  // The two newly-signed sections each grew by an initial block, so the
-  // original block indices 4 and 6 may have shifted. Walk the live ranges.
   assert.equal(firstPendingIndex(next), -1, 'no pendings left');
+  // The per-block prompts land at indices 2 (right after block 1), 5
+  // (right after block 4), and 7 (right after block 6). Original index 2
+  // (Late's section prompt) is at index 2 in DOC; with the per-block
+  // prompt at 2 it shifts to 3. So the layout is:
+  //   0 h Late
+  //   1 p 10%
+  //   2 initial per_block   <-- the new one
+  //   3 initial             <-- Late's existing section prompt
+  //   4 h Attend
+  //   5 p tardies
+  //   6 initial per_block
+  //   7 h Materials
+  //   8 p pencil
+  //   9 initial per_block
+  const perBlock = next.filter((b) => b.type === 'initial' && b.per_block);
+  assert.equal(perBlock.length, 3, 'three per-block prompts, one per accepted suggestion');
+  // The original section prompt (Late) is still there, still NOT per_block.
+  const sectionPrompt = next.find((b) => b.type === 'initial' && !b.per_block);
+  assert.ok(sectionPrompt, 'the original section prompt survives untouched');
+  // Section signs: only Late (which has the original prompt) is signed.
+  // Attend and Materials picked up per-block marks only.
   const ranges = sectionRanges(next);
-  // Late, Attend, Materials are the three sections. Each must end in an
-  // initial block (toggleSigning puts it at the tail) -- the cheapest test
-  // of "every section is signed" without chasing shifted indices.
-  for (const [from, to] of ranges) {
-    const tail = next[to - 1];
-    assert.ok(tail && (tail.type === 'initial' || tail.type === 'agree'),
-      `section [${from},${to}) ends in a prompt (got type=${tail?.type})`);
-  }
-  // Late was already signed, the others were not. The number of initial
-  // blocks went from 1 (DOC) to 3 (one per section).
-  const initials = next.filter((b) => b.type === 'initial' || b.type === 'agree').length;
-  assert.equal(initials, 3, 'one prompt per section');
+  // Find the Late range (still starts at 0 because no block was inserted
+  // before it) -- its whole-sign is intact.
+  assert.equal(sectionSigns(next, ranges[0][0], ranges[0][1]), true, 'Late still section-signed');
 });
 
 test('dismiss clears pendings on one section, leaving the rest alone', () => {
@@ -490,4 +503,74 @@ test('an out-of-range index from the model is dropped, not silently shifted', ()
     if (b === blocks[1]) continue;
     assert.equal(b.pendingInitial, undefined, 'nothing else got marked');
   }
+});
+
+// ---- per-block initials toggle (the new ✎ button) ----
+
+test('toggleBlockInitial adds a per-block prompt right after the block', () => {
+  // Block 1 is a paragraph; toggling inserts an initial at index 2 with
+  // per_block: true. The section's whole-sign is untouched: a per-block
+  // mark is independent of a section-level one.
+  const out = toggleBlockInitial(DOC, 1);
+  assert.equal(out[2].type, 'initial');
+  assert.equal(out[2].per_block, true);
+  // The section signs check is unchanged: 0..3 had a prompt already, and
+  // adding a per-block one does not alter that. The check is for the
+  // type, not the per_block flag, so it sees the new prompt too -- but
+  // that's a property of sectionSigns, not of toggleBlockInitial.
+  assert.equal(blockSigns(out, 1), true);
+  assert.equal(blockSigns(DOC, 1), false, 'DOC had no per-block mark');
+});
+
+test('toggleBlockInitial again removes the prompt', () => {
+  // A second click is a remove. The teacher's intent is a toggle, not
+  // "add another one", and stacking would orphan a hash against a
+  // paragraph no one is sure the parent was shown.
+  const once = toggleBlockInitial(DOC, 1);
+  const twice = toggleBlockInitial(once, 1);
+  assert.equal(blockSigns(twice, 1), false);
+  // DOC had a section-level prompt somewhere in Late's section. The
+  // per-block toggle must not have removed it -- only the per-block one.
+  // Filter on per_block === false to find it, regardless of where indices
+  // landed after the inserts.
+  const sectionPrompt = twice.find((b) => b.type === 'initial' && !b.per_block);
+  assert.ok(sectionPrompt, 'the section-level prompt survives a per-block toggle on a neighbour');
+  // The original DOC's section prompt html was 'read late' -- survives.
+  assert.equal(sectionPrompt.html, 'read late');
+});
+
+test('toggleBlockInitial refuses to mark a heading or a list or a prompt', () => {
+  // A heading: the unit a parent signs is the BODY, not the title. A list
+  // or a table: the meaning is in the shape, and the per-block attest
+  // targets the words. A prompt: a prompt attesting to a prompt is
+  // nonsense.
+  assert.equal(toggleBlockInitial(DOC, 0), DOC, 'heading refused');
+  // List/table: build one inline.
+  const list = [{ type: 'list', html: '<ul><li>a</li></ul>' }];
+  assert.equal(toggleBlockInitial(list, 0), list, 'list refused');
+  // Existing prompt: build one.
+  const withPrompt = [...DOC];
+  assert.equal(toggleBlockInitial(withPrompt, 2), withPrompt, 'a prompt refused');
+});
+
+// ---- per-block attestation ----
+
+test('a per-block prompt attests to just itself, not its section', () => {
+  // This is the contract the hash in _lib/syllabus.js reads: a per-block
+  // initial block attests to the single block the parent ticked, so
+  // editing another block in the same section does not re-stale it.
+  const withPerBlock = [...DOC.slice(0, 1),
+    ...toggleBlockInitial(DOC, 1).slice(1)];
+  // Now: 0 h Late, 1 p 10%, 2 initial per_block, 3 initial (Late's section prompt).
+  // The per-block prompt is at index 2.
+  const attested = attestedBlocks(withPerBlock, 2);
+  assert.equal(attested.length, 1, 'just the prompt, not the section');
+  assert.equal(attested[0].per_block, true);
+  // The section-level prompt at index 3 still attests to the whole section
+  // -- per_block is what distinguishes the two, and the section prompt is
+  // the original one, which is per_block: false (and thus undefined/false).
+  const secAttested = attestedBlocks(withPerBlock, 3);
+  assert.ok(secAttested.length > 1, 'section prompt still covers the section');
+  assert.ok(secAttested.some((b) => b.type === 'heading'),
+    'section coverage starts at the heading');
 });
