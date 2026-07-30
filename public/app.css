@@ -499,11 +499,25 @@ a.button::before, .brand::before { display: none; }
 a.button, .brand { text-decoration: none; }
 
 /* A pencilled aside in the margin. Decorative only. */
+/* A line in the margin, in a hand.
+ *
+ * The `top` is the same fudge the display headings carry, for the same reason
+ * and measured the same way: Caveat's baseline sits 1px higher inside a 32px
+ * line box than the body face does, so the handwriting floated a pixel above
+ * the rule while every line of prose around it rested on one. `position:
+ * relative` moves the glyphs and not the box, so nothing below it shifts --
+ * a margin would have bought the same pixel and cost the whole grid.
+ *
+ * One pixel is worth it here precisely because this line is usually stuck to a
+ * piece of tape at a slight angle, and a rotated line that is ALSO sitting off
+ * the rule reads as sloppy rather than as hand-placed. */
 .note-hand {
   font-family: var(--font-hand);
   font-size: 1.15rem;
   line-height: var(--rule);
   color: var(--ink-charcoal);
+  position: relative;
+  top: 1px;
 }
 
 /* ---- the marker and the tape ----
