@@ -29,12 +29,41 @@ const RETAGGABLE = new Set(['text', 'heading', 'subheading']);
 
 const PROMPT = `Below are the numbered lines of a course syllabus, in order.
 
-Decide which lines are SECTION HEADINGS (a short title introducing the material that follows, e.g. "Late Work", "Grading Policy", "Attendance") and which are BODY TEXT (sentences, policies, lists, contact details, labelled fields such as "Email: someone@school.edu").
+Give each line one of three tags:
 
-A short bold line is not automatically a heading. A labelled field like "Instructor: Jane Doe" is body text. A heading introduces what comes after it.
+- "heading" — a SECTION heading: a short title introducing a major part of the syllabus, e.g. "Late Work", "Grading Policy", "Attendance", "Academic Honesty".
+- "subheading" — a title for a part of the section above it, not a section of its own, e.g. "Late Work" under "Grading Policy", or "Consequences" under "Academic Honesty". Use this when the line titles something that belongs INSIDE the nearest heading rather than starting a new part of the document.
+- "text" — body text: sentences, policies, lists, contact details, labelled fields such as "Email: someone@school.edu".
 
-Reply with ONLY a JSON object, no prose. Include a line only if its tag should CHANGE:
-{"retag":[{"index":<number>,"tag":"heading"|"text"}]}`;
+A short bold line is not automatically a heading. A labelled field like "Instructor: Jane Doe" is body text. A heading or subheading introduces what comes after it.
+
+Work down the list in order, keeping track of the last "heading" you assigned. If a title line names a part of THAT topic rather than a new topic, it is a "subheading". A syllabus where every title is a "heading" is usually wrong about several of them.
+
+Example input:
+[0] (text) Instructor
+[1] (text) Steven Huff
+[2] (text) Email
+[3] (text) shuff@chicousd.org
+[4] (text) Attendance and Participation
+[5] (text) If you are not in your seat by the time I take roll, you will be marked tardy.
+[6] (text) Dropping the Butte College Course
+[7] (text) This class runs on the high school schedule, but the college deadlines are separate.
+[8] (text) Academic Honesty
+[9] (text) Neither cheating nor plagiarism will be tolerated.
+[10] (text) Definitions
+[11] (text) Plagiarism is presenting the words of another as your own.
+[12] (text) Consequences — High School
+[13] (text) A first offence earns a zero and a call home.
+[14] (text) Grading Policy
+[15] (text) Grade Weights
+[16] (text) Daily homework 15%, group assessments 10%, individual assessments 75%.
+[17] (text) Grading Scheme
+
+Example output. "Attendance and Participation", "Academic Honesty" and "Grading Policy" each start a new topic, so they are headings. "Dropping the Butte College Course" is part of attendance; "Definitions" and "Consequences — High School" are parts of academic honesty; "Grade Weights" and "Grading Scheme" are parts of the grading policy — all subheadings. Lines 0 to 3 are a labelled contact field split across lines, not titles: they stay "text", so they do not appear in the answer at all.
+{"retag":[{"index":4,"tag":"heading"},{"index":6,"tag":"subheading"},{"index":8,"tag":"heading"},{"index":10,"tag":"subheading"},{"index":12,"tag":"subheading"},{"index":14,"tag":"heading"},{"index":15,"tag":"subheading"},{"index":17,"tag":"subheading"}]}
+
+Now do the same for the lines below. Reply with ONLY a JSON object, no prose. Include a line only if its tag should CHANGE:
+{"retag":[{"index":<number>,"tag":"heading"|"subheading"|"text"}]}`;
 
 export async function onRequestPost({ request, env }) {
   if (!await requireAdmin(request, env)) return unauthorized();

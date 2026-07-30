@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { freshEnv, ADMIN_HEADERS, jsonRequest } from './helpers.mjs';
 import { onRequestPost as structure } from '../functions/api/admin/structure.js';
-import { retag, blockText, sectionRanges, looksUnstructured, structureProblem, structureAdvice } from '../public/admin/editor/reorder.js';
+import { retag, blockText, sectionRanges, looksUnstructured, structureProblem, structureAdvice, textToBlocks } from '../public/admin/editor/reorder.js';
 
 // A syllabus written the way many teachers write one: headings are bold
 // paragraphs, not Word heading styles. Mammoth emits them as <p><strong>.
@@ -211,4 +211,85 @@ test('every advice string promises the wording is untouched', () => {
   for (const p of ['none', 'too-many', 'lopsided']) {
     assert.match(structureAdvice(p), /wording is never changed/);
   }
+});
+
+// ---- a paste is split into lines, so the retag pass can tag them one by one ----
+
+test('a heading and the body under it do not become one block', () => {
+  // The exact shape that broke: no blank line between the heading and its
+  // paragraph, so the old blank-line split handed the structure pass one block
+  // that BEGAN with a heading -- and promoting it wrapped the whole policy in
+  // an <h2>.
+  const blocks = textToBlocks(
+    'Butte College Course Information\n'
+    + 'This course is offered for dual enrollment credit through Butte College.\n'
+    + 'The grade earned becomes part of a permanent college transcript.',
+  );
+
+  assert.equal(blocks.length, 3, 'three lines, three blocks');
+  assert.deepEqual(blocks.map((b) => b.type), ['heading', 'text', 'text']);
+  assert.equal(blocks[0].html, '<h2>Butte College Course Information</h2>');
+  assert.ok(!blocks.some((b) => b.html.includes('<br>')), 'no block carries a second line');
+});
+
+test('only the first line of a chunk can be guessed into a heading', () => {
+  // "Steven Huff" is short and unpunctuated, so the old per-chunk rule would
+  // have taken it too. A heading introduces what follows; line four does not.
+  const blocks = textToBlocks('Instructor\nSteven Huff\nEmail\nshuff@school.edu');
+  assert.deepEqual(blocks.map((b) => b.type), ['heading', 'text', 'text', 'text']);
+});
+
+test('a run of bullets stays one list, and the words survive escaping', () => {
+  const blocks = textToBlocks('What to bring\n- A pencil\n- Paper & a folder\n\nGrading\nPoints are weighted.');
+  assert.deepEqual(blocks.map((b) => b.type), ['heading', 'list', 'heading', 'text']);
+  assert.equal(blocks[1].html, '<ul><li>A pencil</li><li>Paper &amp; a folder</li></ul>');
+});
+
+test('every pasted word survives, in order', () => {
+  const source = 'Late Work\nAssignments lose 10% per school day.\n\nUse of AI\n- Ask first\n- Cite it';
+  const words = textToBlocks(source).map((b) => blockText(b.html)).join(' ');
+  for (const w of ['Late', 'Work', 'Assignments', '10%', 'AI', 'Ask', 'first', 'Cite']) {
+    assert.ok(words.includes(w), `"${w}" was dropped by the split`);
+  }
+});
+
+// ---- a syllabus pasted as Markdown keeps its own structure ----
+
+test('## and ### say what is a section and what is inside one', () => {
+  const blocks = textToBlocks('## Grading Policy\nYour grade comes from four categories.\n### Late Work\nAssignments lose 10% per school day.');
+  assert.deepEqual(blocks.map((b) => b.type), ['heading', 'text', 'heading', 'text']);
+  assert.equal(blocks[0].level, 2);
+  assert.equal(blocks[2].level, 3, '### is a subheading, not a second section');
+  assert.equal(blocks[2].html, '<h3>Late Work</h3>');
+});
+
+test('a Markdown table becomes a table, not four paragraphs', () => {
+  const blocks = textToBlocks('| Category | Weight |\n|---|---|\n| Daily Homework | 15% |\n| Group Assessments | 10% |');
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].html,
+    '<table><thead><tr><th>Category</th><th>Weight</th></tr></thead>'
+    + '<tbody><tr><td>Daily Homework</td><td>15%</td></tr><tr><td>Group Assessments</td><td>10%</td></tr></tbody></table>');
+});
+
+test('numbered course objectives keep their numbering', () => {
+  const blocks = textToBlocks('1. Summarise data\n2. Interpret a confidence interval\n3. Run a t-test');
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].type, 'list');
+  assert.match(blocks[0].html, /^<ol>/);
+  assert.equal(blocks[0].html.match(/<li>/g).length, 3);
+});
+
+test('a rule between sections is a separator, not a heading', () => {
+  const blocks = textToBlocks('## Notes\n\n---\n\n## Use of AI');
+  assert.deepEqual(blocks.map((b) => b.type), ['heading', 'heading']);
+});
+
+test('bold and links survive, and markup in the source does not', () => {
+  const blocks = textToBlocks('The **census date** is listed in the [portal](https://example.edu/portal).');
+  assert.equal(blocks[0].html,
+    '<p>The <strong>census date</strong> is listed in the <a href="https://example.edu/portal">portal</a>.</p>');
+
+  const hostile = textToBlocks('Grades are final <script>alert(1)</script> after two weeks.');
+  assert.ok(!hostile[0].html.includes('<script>'), 'a tag in the source stays words');
+  assert.match(hostile[0].html, /&lt;script&gt;/);
 });
