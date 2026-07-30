@@ -423,9 +423,9 @@ test('accepting one block inserts a per-block prompt and clears the pending', ()
 test('accepting a block that already has a per-block prompt is a no-op insert', () => {
   // The model pointed twice (or once-accepted-once-pending) and the second
   // accept should only clear the pending, not stack a second prompt.
-  const first = toggleBlockInitial(DOC, 1);   // adds a per-block prompt at 2
-  const withPending = setPendingSuggestions(first, [{ index: 1, reason: 're-mark' }]);
-  const r = applyPendingOnBlock(withPending, 1);
+  const first = toggleBlockInitial(DOC, 0);   // adds a per-block prompt at 1
+  const withPending = setPendingSuggestions(first, [{ index: 0, reason: 're-mark' }]);
+  const r = applyPendingOnBlock(withPending, 0);
   assert.equal(r.applied, true);
   // Still exactly one per-block prompt, no new one inserted. The total
   // prompt count is 2 (one per-block + one section, both present before).
@@ -507,50 +507,47 @@ test('an out-of-range index from the model is dropped, not silently shifted', ()
 
 // ---- per-block initials toggle (the new ✎ button) ----
 
-test('toggleBlockInitial adds a per-block prompt right after the block', () => {
-  // Block 1 is a paragraph; toggling inserts an initial at index 2 with
-  // per_block: true. The section's whole-sign is untouched: a per-block
-  // mark is independent of a section-level one.
-  const out = toggleBlockInitial(DOC, 1);
-  assert.equal(out[2].type, 'initial');
-  assert.equal(out[2].per_block, true);
-  // The section signs check is unchanged: 0..3 had a prompt already, and
-  // adding a per-block one does not alter that. The check is for the
-  // type, not the per_block flag, so it sees the new prompt too -- but
-  // that's a property of sectionSigns, not of toggleBlockInitial.
-  assert.equal(blockSigns(out, 1), true);
-  assert.equal(blockSigns(DOC, 1), false, 'DOC had no per-block mark');
+test('toggleBlockInitial adds a per-block prompt right after the heading', () => {
+  // The markable unit is the HEADING, not the paragraph. A teacher who
+  // says "I have read the late-work policy" is initialing the section by
+  // name, and a per-paragraph initial is too small to be useful.
+  const out = toggleBlockInitial(DOC, 0);
+  assert.equal(out[1].type, 'initial');
+  assert.equal(out[1].per_block, true, 'prompt carries the per-block flag');
+  // The label is the heading's text so the parent sees what they are
+  // agreeing to. The legal scope is the prompt block itself.
+  assert.match(out[1].html, /Late/, 'prompt references the heading text');
+  assert.equal(blockSigns(out, 0), true);
+  assert.equal(blockSigns(DOC, 0), false, 'DOC had no per-block mark');
 });
 
 test('toggleBlockInitial again removes the prompt', () => {
   // A second click is a remove. The teacher's intent is a toggle, not
   // "add another one", and stacking would orphan a hash against a
-  // paragraph no one is sure the parent was shown.
-  const once = toggleBlockInitial(DOC, 1);
-  const twice = toggleBlockInitial(once, 1);
-  assert.equal(blockSigns(twice, 1), false);
+  // heading no one is sure the parent was shown.
+  const once = toggleBlockInitial(DOC, 0);
+  const twice = toggleBlockInitial(once, 0);
+  assert.equal(blockSigns(twice, 0), false);
   // DOC had a section-level prompt somewhere in Late's section. The
   // per-block toggle must not have removed it -- only the per-block one.
   // Filter on per_block === false to find it, regardless of where indices
   // landed after the inserts.
   const sectionPrompt = twice.find((b) => b.type === 'initial' && !b.per_block);
-  assert.ok(sectionPrompt, 'the section-level prompt survives a per-block toggle on a neighbour');
+  assert.ok(sectionPrompt, 'the section-level prompt survives a per-heading toggle on a neighbour');
   // The original DOC's section prompt html was 'read late' -- survives.
   assert.equal(sectionPrompt.html, 'read late');
 });
 
-test('toggleBlockInitial refuses to mark a heading or a list or a prompt', () => {
-  // A heading: the unit a parent signs is the BODY, not the title. A list
-  // or a table: the meaning is in the shape, and the per-block attest
-  // targets the words. A prompt: a prompt attesting to a prompt is
-  // nonsense.
-  assert.equal(toggleBlockInitial(DOC, 0), DOC, 'heading refused');
+test('toggleBlockInitial refuses to mark a paragraph, a list, a table, or a prompt', () => {
+  // The markable unit is the heading. A paragraph is too small a unit; a
+  // list or a table is a shape, not a line; a prompt attesting to a
+  // prompt is nonsense.
+  assert.equal(toggleBlockInitial(DOC, 1), DOC, 'paragraph refused');
   // List/table: build one inline.
   const list = [{ type: 'list', html: '<ul><li>a</li></ul>' }];
   assert.equal(toggleBlockInitial(list, 0), list, 'list refused');
-  // Existing prompt: build one.
-  const withPrompt = [...DOC];
-  assert.equal(toggleBlockInitial(withPrompt, 2), withPrompt, 'a prompt refused');
+  // Existing prompt: refused.
+  assert.equal(toggleBlockInitial(DOC, 2), DOC, 'a prompt refused');
 });
 
 // ---- per-block attestation ----
@@ -559,17 +556,16 @@ test('a per-block prompt attests to just itself, not its section', () => {
   // This is the contract the hash in _lib/syllabus.js reads: a per-block
   // initial block attests to the single block the parent ticked, so
   // editing another block in the same section does not re-stale it.
-  const withPerBlock = [...DOC.slice(0, 1),
-    ...toggleBlockInitial(DOC, 1).slice(1)];
-  // Now: 0 h Late, 1 p 10%, 2 initial per_block, 3 initial (Late's section prompt).
-  // The per-block prompt is at index 2.
-  const attested = attestedBlocks(withPerBlock, 2);
+  const out = toggleBlockInitial(DOC, 0);
+  // Now: 0 h Late, 1 initial per_block, 2 p 10%, 3 initial (Late's section prompt).
+  // The per-block prompt is at index 1.
+  const attested = attestedBlocks(out, 1);
   assert.equal(attested.length, 1, 'just the prompt, not the section');
   assert.equal(attested[0].per_block, true);
   // The section-level prompt at index 3 still attests to the whole section
   // -- per_block is what distinguishes the two, and the section prompt is
   // the original one, which is per_block: false (and thus undefined/false).
-  const secAttested = attestedBlocks(withPerBlock, 3);
+  const secAttested = attestedBlocks(out, 3);
   assert.ok(secAttested.length > 1, 'section prompt still covers the section');
   assert.ok(secAttested.some((b) => b.type === 'heading'),
     'section coverage starts at the heading');

@@ -382,17 +382,33 @@ function sectionTitleAbove(blocks, index) {
 export function toggleBlockInitial(blocks, index) {
   const block = blocks[index];
   if (!block) return blocks;
-  // Refuse to mark a heading, a prompt, or anything whose meaning is in its
-  // shape (a list, a table). A heading has no body for a parent to attest
-  // to; a prompt attesting to a prompt is nonsense; lists and tables store
-  // a unit, not lines.
-  if (block.type === 'heading' || PROMPT_TYPES.has(block.type) || hasShape(block)) return blocks;
+  // The markable unit is the HEADING, not the paragraph. A teacher who
+  // wants "I have read Late Work" is initialing the section by name, and
+  // a per-paragraph initial on a single line is too small a unit to be
+  // useful -- one heading's worth of content moves together anyway, and
+  // the model has always pointed at headings for that reason.
+  //
+  // Refused for prompts (a prompt attesting to a prompt is nonsense) and
+  // for blocks whose meaning is in their shape (a list, a table -- a unit,
+  // not lines). The + Initials box button on the adders strip still
+  // creates an unattached prompt for those cases.
+  if (block.type !== 'heading' || PROMPT_TYPES.has(block.type) || hasShape(block)) return blocks;
   const next = blocks[index + 1];
   if (next && next.type === 'initial' && next.per_block) {
     return [...blocks.slice(0, index + 1), ...blocks.slice(index + 2)];
   }
-  const head = sectionTitleAbove(blocks, index);
-  return [...blocks.slice(0, index + 1), makePerBlockInitial(head), ...blocks.slice(index + 1)];
+  // The prompt attests to the heading itself. The label is the heading's
+  // text so the parent sees what they are agreeing to; the legal scope
+  // is the prompt block (per_block: true means [block] in attestedBlocks).
+  const label = String(block.html).replace(/<[^>]+>/g, '').trim()
+    || 'this section';
+  const prompt = {
+    type: 'initial',
+    html: `I have read and understand ${label}.`,
+    needs_initials: true,
+    per_block: true,
+  };
+  return [...blocks.slice(0, index + 1), prompt, ...blocks.slice(index + 1)];
 }
 
 /** Is a per-block initials prompt already on this block? */

@@ -18,9 +18,9 @@ import { isModelName } from './models.js';
 
 const PROMPT = `You are helping a teacher prepare a course syllabus that parents must read and initial.
 
-Below are the numbered sections of the syllabus. Identify the sections a parent should be required to INITIAL individually, because misunderstanding them causes real disputes later: grading and late work, attendance, academic honesty and AI use, behaviour and discipline, safety, required materials that cost money, and anything about contacting the teacher.
+Below are the numbered SECTION HEADINGS of the syllabus -- the titles a parent sees at the top of each page. Identify the headings whose sections a parent should be required to INITIAL individually, because misunderstanding them causes real disputes later: grading and late work, attendance, academic honesty and AI use, behaviour and discipline, safety, required materials that cost money, and anything about contacting the teacher.
 
-Do NOT select: welcome text, course descriptions, unit outlines, schedules, or headings.
+Do NOT select: welcome text, course descriptions, unit outlines, or schedules. Select a heading ONLY when the section underneath it carries the kind of obligation above. A heading with no body to attest to is not worth a signature.
 
 Reply with ONLY a JSON object, no prose:
 {"initial":[{"index":<number>,"reason":"<8 words or fewer>"}]}`;
@@ -35,12 +35,15 @@ export async function onRequestPost({ request, env }) {
     return json({ available: false, reason: 'No OLLAMA_API_KEY is configured.', suggestions: [] });
   }
 
-  // Only prose is worth judging, and long blocks are truncated -- the decision
-  // needs the gist, not the whole policy.
+  // The unit the model can mark is the HEADING, not the body underneath it.
+  // The previous filter asked for text/list blocks of >40 chars, which let a
+  // model point at a single paragraph inside a section -- the UI then
+  // produced one initials box per paragraph, far too granular for a parent's
+  // signature. Headings name the units a parent attests to; the body just
+  // shows up in the signature hash.
   const candidates = body.blocks
-    .map((b, i) => ({ i, type: b.type, text: stripHtml(b.html).slice(0, 400) }))
-    .filter((b) => b.type === 'text' || b.type === 'list')
-    .filter((b) => b.text.length > 40);
+    .map((b, i) => ({ i, type: b.type, text: stripHtml(b.html).slice(0, 200) }))
+    .filter((b) => b.type === 'heading');
 
   if (!candidates.length) return json({ available: true, suggestions: [] });
 

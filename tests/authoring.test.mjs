@@ -271,7 +271,7 @@ test('a hallucinated block index is discarded', async () => {
   try {
     const body = await (await suggest({
       request: jsonRequest('https://x/api/admin/suggest', {
-        blocks: [DRAFT[0], { type: 'text', html: '<p>Late work loses ten percent per day and this is long enough to judge.</p>' }],
+        blocks: [DRAFT[0], { type: 'heading', html: '<h2>Late work</h2>' }],
       }, ADMIN_HEADERS),
       env,
     })).json();
@@ -286,7 +286,7 @@ test('an Ollama failure degrades instead of breaking authoring', async () => {
   try {
     const body = await (await suggest({
       request: jsonRequest('https://x/api/admin/suggest', {
-        blocks: [{ type: 'text', html: '<p>Long enough block of prose to be considered a candidate here.</p>' }],
+        blocks: [{ type: 'heading', html: '<h2>Late work</h2>' }],
       }, ADMIN_HEADERS),
       env,
     })).json();
