@@ -222,6 +222,31 @@
     content: ''; position: absolute; left: 0; top: .3rem; bottom: .3rem;
     width: 4px; border-radius: 2px; background: var(--tab-3);
   }
+  /* A pending suggestion is a pointer, not a real sign. The same left-bar
+     treatment, in --accent (matches the .why reason line) so a teacher can
+     tell at a glance: tab-3 pink = "this page requires initials" (committed);
+     accent brown = "the model thinks this one should" (pointer). Two states,
+     two colours, one geometry. */
+  .sec.has-pending::before {
+    content: ''; position: absolute; left: 0; top: .3rem; bottom: .3rem;
+    width: 4px; border-radius: 2px; background: var(--accent); opacity: .55;
+  }
+  /* Per-block ring on a pending block. outline, not box-shadow, so it does
+     not push the row by two pixels and knock the rest of the page off the
+     rules. The same --accent, dimmed, so the block + the section bar + the
+     .why line all read as the same one suggestion. */
+  .blk[data-pending] .body {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  /* The Accept / Dismiss buttons on a section that has pendings. They share
+     the page-tools strip with the existing ✍ button, so the same typography
+     applies; the colour is the only difference, and only on the Accept. */
+  .page-tools .accept {
+    background: var(--accent); color: var(--ivory); border: 1px solid var(--accent);
+  }
+  .page-tools .accept:hover { background: var(--ink); border-color: var(--ink); }
 
   /* Drag chrome. The ghost tracks the cursor; the placeholder sits IN FLOW at
      the landing spot so the real rows reflow around it and you see the actual
@@ -632,7 +657,9 @@
 <script type="module">
 import { dragRange, insertionIndex, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget,
          sectionSigns, toggleSigning, retag, blockText, structureProblem, structureAdvice,
-         textToBlocks, rangeDestination, ladderTag, hasShape, isTable, toggleListKind, tableEdit } from './reorder.js';
+         textToBlocks, rangeDestination, ladderTag, hasShape, isTable, toggleListKind, tableEdit,
+         setPendingSuggestions, firstPendingIndex, nextPendingIndex, applyPendingInSection,
+         applyAllPending, clearAllPending, clearPendingInSection } from './reorder.js';
 import { startsSection } from '../../shared/sections.js';
 
 /** Escape for interpolation into the markup a block stores. */
@@ -833,6 +860,13 @@ function sectionCard(from, to) {
   sec.dataset.from = from;
   if (selected && selected.kind === 'section' && selected.at === from) sec.classList.add('picked');
 
+  // Pending suggestions live on the document state; mark the section so the
+  // accent bar (CSS .sec.has-pending) can show at a glance where the model
+  // pointed. The per-block .why line is still the words -- the bar is the
+  // location.
+  const hasPending = state.blocks.slice(from, to).some((b) => b.pendingInitial);
+  if (hasPending) sec.classList.add('has-pending');
+
   // What this PAGE can do, said in words. The block tools below are for lines;
   // these are for the page a parent turns to and initials as one thing.
   const bar = document.createElement('div');
@@ -842,6 +876,34 @@ function sectionCard(from, to) {
   name.className = 'name';
   name.textContent = headed ? (blockText(state.blocks[from].html) || 'Untitled page') : 'Opening page (no heading)';
   bar.appendChild(name);
+
+  // Pending Accept / Dismiss live here ONLY when the model pointed at this
+  // section. Same affordance for every page a teacher is working through, and
+  // no clutter on the pages the model had nothing to say about.
+  if (hasPending) {
+    const accept = document.createElement('button');
+    accept.type = 'button';
+    accept.className = 'accept';
+    accept.textContent = '✓ Accept initials here';
+    accept.title = 'Mark this page as needing a parent\'s initials, then move to the next suggestion.';
+    accept.addEventListener('click', acceptCurrentPending);
+    bar.appendChild(accept);
+
+    const dismiss = document.createElement('button');
+    dismiss.type = 'button';
+    dismiss.className = 'dismiss';
+    dismiss.textContent = '✕ Dismiss';
+    dismiss.title = 'Drop the model\'s suggestion for this page.';
+    dismiss.addEventListener('click', () => {
+      // Drop pendings on this section only; the rest of the walk-through
+      // continues from wherever the cursor is.
+      state.blocks = clearPendingInSection(state.blocks, from, to);
+      markDirty();
+      jumpToFirstPending();
+      render();
+    });
+    bar.appendChild(dismiss);
+  }
 
   if (headed) {
     const signed = sectionSigns(state.blocks, from, to);
@@ -900,6 +962,10 @@ function blockRow(block, index) {
   row.dataset.type = block.type;
   if (block.type === 'heading') row.dataset.level = String(block.level ?? 2);
   row.dataset.index = index;
+  // Pending is the model's pointer, not a real initials flag. The accent ring
+  // is the same colour as the existing .why line so the two halves of the
+  // pointer (reason + block) read as one thing.
+  if (block.pendingInitial) row.dataset.pending = '1';
   if (selected?.kind === 'block' && index >= selected.at && index < selected.at + spanOf(selected)) {
     row.classList.add('picked');
   }
@@ -921,10 +987,13 @@ function blockRow(block, index) {
   });
   body.appendChild(edit);
 
-  if (block.why) {
+  if (block.why || block.pendingInitial) {
     const why = document.createElement('div');
     why.className = 'why';
-    why.textContent = '↑ ' + block.why;
+    // The pending reason wins: it is the live pointer the teacher needs to see.
+    // block.why is the legacy field and stays for any reason the model wrote
+    // before the pending state was introduced.
+    why.textContent = '↑ ' + (block.pendingInitial?.reason || block.why);
     body.appendChild(why);
   }
 
@@ -2146,14 +2215,56 @@ $('suggestBtn').addEventListener('click', async () => {
     const body = await aiRun('/api/admin/suggest', { blocks: state.blocks }, 'Suggesting initials');
     if (!body.available) { notice(body.reason || 'Suggestions are not available.', 'error'); return; }
     if (!body.suggestions.length) { notice('No further sections suggested.', 'ok'); return; }
-    // Suggestions annotate; they never rewrite. You still click ✍ to accept.
-    for (const s of body.suggestions) if (state.blocks[s.index]) state.blocks[s.index].why = s.reason;
+    // Stamps the pointer on each block; the document is unchanged until the
+    // teacher accepts. See reorder.js:setPendingSuggestions for the rule.
+    state.blocks = setPendingSuggestions(state.blocks, body.suggestions);
+    markDirty();
+    // Jump to the first suggestion. After the teacher accepts it, jumpPending()
+    // moves them to the next one, in document order, across page boundaries.
+    jumpToFirstPending();
     render();
-    notice(`${body.suggestions.length} suggestion(s) marked in the margin. Click ✍ on the sections you agree with — nothing was changed.`, 'ok');
+    notice(`${body.suggestions.length} suggestion(s) ready. Walk through and accept — or accept all.`,
+      'ok', { label: 'Accept all', run: acceptAll });
   } catch {
     notice('Could not reach the server.', 'error');
   } finally { $('suggestBtn').disabled = false; status(''); }
 });
+
+/** Go to the page that holds the first pending block. No-op when there are
+ *  none. Called both after the model answers and after a teacher accepts the
+ *  one they were looking at. */
+function jumpToFirstPending() {
+  const i = firstPendingIndex(state.blocks);
+  if (i < 0) return;
+  const ranges = sectionRanges(state.blocks);
+  for (let p = 0; p < ranges.length; p++) {
+    if (i >= ranges[p][0] && i < ranges[p][1]) { if (p !== page) goPage(p); return; }
+  }
+}
+
+/** Accept the pending on whatever section the cursor is on, then move on.
+ *  Driven by the per-section Accept button on the page card. */
+function acceptCurrentPending() {
+  const ranges = sectionRanges(state.blocks);
+  const here = ranges[page];
+  if (!here) return;
+  const { blocks, applied } = applyPendingInSection(state.blocks, here[0], here[1]);
+  if (!applied) return;
+  state.blocks = blocks;
+  markDirty();
+  jumpToFirstPending();
+  render();
+}
+
+/** Accept every pending across the document in one click. */
+function acceptAll() {
+  const next = applyAllPending(state.blocks);
+  if (next === state.blocks) return;
+  state.blocks = next;
+  markDirty();
+  render();
+  notice('All suggestions accepted.', 'ok');
+}
 
 async function save() {
   const res = await fetch('/api/admin/syllabus', {

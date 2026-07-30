@@ -238,6 +238,121 @@ export function toggleSigning(blocks, from, to) {
 }
 
 /**
+ * Set a per-block "the model thinks this should require initials" flag.
+ *
+ * A suggestion is a pointer, not a decision. The model is only ever allowed to
+ * point -- see suggest.js:9-12 -- and the teacher is the one who decides. This
+ * helper just stamps the pointer on the right blocks and returns a new array;
+ * applying it is a separate step (see applyPendingSigning).
+ *
+ * Each candidate gets its own reason on its own block. A reason is a STRING,
+ * not a value of the model -- the model returns it, but only the teacher
+ * accepts it, and storing it on the block keeps the audit trail with the
+ * block rather than in a side table that could lose sync on a re-render.
+ */
+export function setPendingSuggestions(blocks, suggestions) {
+  const want = new Map();
+  for (const s of suggestions ?? []) {
+    const i = Number(s?.index);
+    const reason = String(s?.reason ?? '').slice(0, 80);
+    if (Number.isInteger(i) && i >= 0 && i < blocks.length) want.set(i, reason);
+  }
+  return blocks.map((b, i) => {
+    const reason = want.get(i);
+    if (reason === undefined) {
+      // Clear any prior pending on this block when the model stops suggesting it.
+      return b.pendingInitial ? { ...b, pendingInitial: undefined } : b;
+    }
+    return { ...b, pendingInitial: { reason } };
+  });
+}
+
+/**
+ * The next block index with a pending suggestion, or -1 when there is none.
+ *
+ * Forward-only. A teacher walks the list top to bottom, and rewinding would
+ * make Accept All + a single Accept land back on a block they already saw.
+ * The reason is a string (the model's words), not a number; the reason's
+ * presence is the flag, which keeps the block's data flat.
+ */
+export function nextPendingIndex(blocks, from = 0) {
+  for (let i = Math.max(0, from); i < blocks.length; i++) {
+    if (blocks[i].pendingInitial) return i;
+  }
+  return -1;
+}
+
+/** First pending index across the whole document, or -1. */
+export const firstPendingIndex = (blocks) => nextPendingIndex(blocks, 0);
+
+/**
+ * Apply the pending suggestion on a single section: mark the section as
+ * requiring initials (if it doesn't already) and clear the pendings inside it.
+ *
+ * Returns { blocks, applied } where `applied` is true iff at least one
+ * pending lived in the section. The caller uses that to know whether to
+ * advance the walk-through cursor.
+ *
+ * toggleSigning is the canonical way to flip a section's sign, so the apply
+ * path goes through it -- a single rule, single reason for what "initials
+ * required" means. If the section already asks for initials, the pendings
+ * still need to be cleared; the model pointed, the teacher did not act, and
+ * "still want it" is the same as "got it, move on".
+ */
+export function applyPendingInSection(blocks, from, to) {
+  const pendings = blocks.slice(from, to).filter((b) => b.pendingInitial);
+  if (!pendings.length) return { blocks, applied: false };
+  const cleared = blocks.map((b, i) =>
+    i >= from && i < to && b.pendingInitial
+      ? { ...b, pendingInitial: undefined }
+      : b);
+  return { blocks: sectionSigns(cleared, from, to) ? cleared : toggleSigning(cleared, from, to), applied: true };
+}
+
+/**
+ * Apply every pending suggestion across the document. Idempotent: a section
+ * with no pendings is left exactly as it was.
+ *
+ * Walks by SECTION, not by index. Iterating a fixed `ranges` once would be
+ * wrong: every accepted section GROWS by one block (the new prompt), which
+ * shifts every later section's [from, to) by one. The next step would be
+ * checking the wrong span and leave the rest of the pendings stuck on.
+ * Re-deriving the ranges from the live array at each step keeps the loop
+ * honest at the cost of one O(n) walk per section, which is fine -- a
+ * syllabus has dozens of sections, not thousands.
+ */
+export function applyAllPending(blocks) {
+  let next = blocks;
+  for (;;) {
+    const ranges = sectionRanges(next);
+    const target = ranges.find(([from, to]) =>
+      next.slice(from, to).some((b) => b.pendingInitial));
+    if (!target) return next;
+    const r = applyPendingInSection(next, target[0], target[1]);
+    next = r.blocks;
+  }
+}
+
+/** Drop every pending suggestion without applying. */
+export function clearAllPending(blocks) {
+  return blocks.some((b) => b.pendingInitial)
+    ? blocks.map((b) => b.pendingInitial ? { ...b, pendingInitial: undefined } : b)
+    : blocks;
+}
+
+/** Drop pendings inside a single section, leaving the rest of the document
+ *  alone. Used when the teacher dismisses a suggestion but wants the rest of
+ *  the walk-through to keep going. */
+export function clearPendingInSection(blocks, from, to) {
+  const any = blocks.slice(from, to).some((b) => b.pendingInitial);
+  if (!any) return blocks;
+  return blocks.map((b, i) =>
+    i >= from && i < to && b.pendingInitial
+      ? { ...b, pendingInitial: undefined }
+      : b);
+}
+
+/**
  * Does this document's heading structure look wrong on arrival?
  *
  * Cheap and deterministic -- no model involved. It only decides whether to OFFER

@@ -8,7 +8,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dragRange, insertionIndex, unitStartBefore, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget, sectionSigns, toggleSigning,
-  rangeDestination, ladderTag, retag, blockText, hasShape, isTable, toggleListKind, tableEdit }
+  rangeDestination, ladderTag, retag, blockText, hasShape, isTable, toggleListKind, tableEdit,
+  setPendingSuggestions, firstPendingIndex, nextPendingIndex, applyPendingInSection,
+  applyAllPending, clearAllPending, clearPendingInSection }
   from '../public/admin/editor/reorder.js';
 import { attestedBlocks } from '../functions/_lib/syllabus.js';
 
@@ -368,4 +370,124 @@ test('shape is read off the markup, because a table is stored as text', () => {
   assert.equal(hasShape({ type: 'text', html: '<p>Late work loses 10%.</p>' }), false);
   // The same guard the ladder already applies -- one definition, two callers.
   assert.equal(ladderTag(table, 1), null);
+});
+
+// ---- pending initials: a model pointer, never the document's decision ----
+
+test('a suggestion stamps a per-block pointer, not a real initial', () => {
+  // The model points. The block stays type: 'text'; the only change is a
+  // pending field that the editor's own Accept button is the only thing that
+  // turns into a real initial. The existing sectionSigns() must keep
+  // returning false -- otherwise toggleSigning would short-circuit and the
+  // Accept button would silently no-op.
+  const blocks = setPendingSuggestions(DOC, [{ index: 1, reason: 'grading impact' }]);
+  assert.equal(blocks[1].type, 'text', 'still a paragraph');
+  assert.deepEqual(blocks[1].pendingInitial, { reason: 'grading impact' });
+  assert.equal(sectionSigns(blocks, 0, 3), true, 'late-work already has a prompt from DOC; the other two do not');
+  assert.equal(sectionSigns(blocks, 3, 5), false, 'a pending on Attend does not count as a signed section');
+});
+
+test('a suggestion that the model stopped making clears the prior pending', () => {
+  // Re-running suggest with a shorter list must not leave the dropped block
+  // still wearing a stale pointer; otherwise the Accept button could fire on
+  // a reason the teacher never saw.
+  const once = setPendingSuggestions(DOC, [{ index: 1, reason: 'a' }, { index: 4, reason: 'b' }]);
+  const again = setPendingSuggestions(once, [{ index: 1, reason: 'a' }]);
+  assert.equal(again[4].pendingInitial, undefined);
+  assert.deepEqual(again[1].pendingInitial, { reason: 'a' });
+});
+
+test('firstPendingIndex walks the document top to bottom', () => {
+  const blocks = setPendingSuggestions(DOC, [{ index: 4, reason: 'attendance' }]);
+  assert.equal(firstPendingIndex(blocks), 4);
+  assert.equal(nextPendingIndex(blocks, 5), -1, 'past the end, nothing more');
+});
+
+test('accepting one section flips the section\'s sign and clears pendings inside it', () => {
+  // Late (0..3) already has a prompt in DOC. Accepting on a section that is
+  // already signed must still clear the pendings -- the model pointed, the
+  // teacher agreed, and "the sign is on" is what survives. Without the
+  // clear, a second run of suggest would re-mark the same blocks and the
+  // count would only ever go up.
+  const blocks = setPendingSuggestions(DOC, [{ index: 1, reason: 'grading' }]);
+  const r = applyPendingInSection(blocks, 0, 3);
+  assert.equal(r.applied, true);
+  assert.equal(r.blocks[1].pendingInitial, undefined);
+  assert.equal(sectionSigns(r.blocks, 0, 3), true, 'still signed -- was already signed');
+  // Attend is in 3..5 and has no pending here. No-op, no flip.
+  const r2 = applyPendingInSection(blocks, 3, 5);
+  assert.equal(r2.applied, false);
+  assert.deepEqual(r2.blocks, blocks, 'no change when the section had no pendings');
+});
+
+test('accepting one section that was not yet signed turns on the sign', () => {
+  // Materials (5..7) has no initial block. The pointer must turn into a real
+  // sign when the teacher accepts. toggleSigning appends a prompt at the
+  // end of the section, so the section GROWS by one and its [from,to) range
+  // shifts; assert on the new range the sectioning code would compute.
+  const blocks = setPendingSuggestions(DOC, [{ index: 6, reason: 'cost' }]);
+  const r = applyPendingInSection(blocks, 5, 7);
+  assert.equal(r.applied, true);
+  assert.equal(r.blocks[6].pendingInitial, undefined);
+  const ranges = sectionRanges(r.blocks);
+  const materials = ranges.find(([f]) => f === 5);
+  assert.ok(materials, 'Materials is still a section after the append');
+  assert.equal(sectionSigns(r.blocks, materials[0], materials[1]), true, 'now signed');
+  // The initial block ends up at the end of the section, the same place
+  // toggleSigning always puts it.
+  assert.equal(r.blocks[materials[1] - 1].type, 'initial');
+});
+
+test('accept all flips every pending section and clears every pointer', () => {
+  const blocks = setPendingSuggestions(DOC, [
+    { index: 1, reason: 'grading' },
+    { index: 4, reason: 'attendance' },
+    { index: 6, reason: 'cost' },
+  ]);
+  const next = applyAllPending(blocks);
+  // Three sections had pendings; one was already signed (Late), two are now.
+  // The two newly-signed sections each grew by an initial block, so the
+  // original block indices 4 and 6 may have shifted. Walk the live ranges.
+  assert.equal(firstPendingIndex(next), -1, 'no pendings left');
+  const ranges = sectionRanges(next);
+  // Late, Attend, Materials are the three sections. Each must end in an
+  // initial block (toggleSigning puts it at the tail) -- the cheapest test
+  // of "every section is signed" without chasing shifted indices.
+  for (const [from, to] of ranges) {
+    const tail = next[to - 1];
+    assert.ok(tail && (tail.type === 'initial' || tail.type === 'agree'),
+      `section [${from},${to}) ends in a prompt (got type=${tail?.type})`);
+  }
+  // Late was already signed, the others were not. The number of initial
+  // blocks went from 1 (DOC) to 3 (one per section).
+  const initials = next.filter((b) => b.type === 'initial' || b.type === 'agree').length;
+  assert.equal(initials, 3, 'one prompt per section');
+});
+
+test('dismiss clears pendings on one section, leaving the rest alone', () => {
+  const blocks = setPendingSuggestions(DOC, [
+    { index: 1, reason: 'grading' },
+    { index: 4, reason: 'attendance' },
+  ]);
+  const next = clearPendingInSection(blocks, 0, 3);
+  assert.equal(next[1].pendingInitial, undefined);
+  assert.deepEqual(next[4].pendingInitial, { reason: 'attendance' });
+  // The walk-through cursor lands on the next pending, in order.
+  assert.equal(firstPendingIndex(next), 4);
+});
+
+test('an out-of-range index from the model is dropped, not silently shifted', () => {
+  // The endpoint validates the index against the whitelist; this side
+  // (the editor) drops anything that does not point at a real block. A
+  // model that invents a block at -1 or 99 must not change anything.
+  const blocks = setPendingSuggestions(DOC, [
+    { index: -1, reason: 'before' },
+    { index: 99, reason: 'after' },
+    { index: 1, reason: 'real' },
+  ]);
+  assert.equal(blocks[1].pendingInitial?.reason, 'real');
+  for (const b of blocks) {
+    if (b === blocks[1]) continue;
+    assert.equal(b.pendingInitial, undefined, 'nothing else got marked');
+  }
 });
