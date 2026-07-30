@@ -1317,8 +1317,52 @@ main .flags button::before, main .flags button::after { content: none; }
 
 .block { margin: 0 0 var(--rule); }
 .block :is(h1, h2, h3) { margin: var(--rule) 0 0; }
+/* A section stands a full ruled line clear of the text above it, so a parent
+   reading a long page can see where one policy ends and the next begins. Two
+   rules rather than one because the block above already contributes its own
+   bottom margin, and the two collapse to whichever is larger. */
+.block:not(:first-child) > :is(h1, h2, h3) { margin-top: calc(var(--rule) * 2); }
+/* Except where a subheading follows its own heading -- there the gap would read
+   as a missing paragraph rather than as a break. */
+.block:has(> :is(h1, h2, h3)) + .block > :is(h1, h2, h3) { margin-top: var(--rule); }
 .block ul, .block ol { padding-left: 1.3rem; margin: 0 0 var(--rule); }
 .block li { margin: 0; line-height: var(--rule); }
+
+/* Numbered lists get a fixed-width marker column instead of the browser's.
+ *
+ * A default `list-style-position: outside` marker is right-aligned to the text
+ * edge and hangs to the LEFT of it, so every digit gained pushes the number
+ * further out: 1.-9. start at one x, 10. onward start ~8px left of it, and a
+ * long list walks steadily toward the amber margin rule at main::after. The
+ * fourteen course objectives in a real syllabus cross that boundary in the
+ * middle of the list, which is exactly where it is most visible.
+ *
+ * A counter fixes the column, so the numbers right-align to each other and the
+ * text edge is the same on item 1 and item 140. Written on both surfaces at
+ * once -- .block is the parent's page, .blk .edit is the editor -- because a
+ * teacher who lines a list up in one has to see the same thing in the other. */
+:is(.block, .blk .edit) ol {
+  list-style: none;
+  counter-reset: li-num;
+  padding-left: 2.6rem;
+}
+:is(.block, .blk .edit) ol > li { counter-increment: li-num; position: relative; }
+/* Taken OUT of the line box, not just pulled left by a negative margin. An
+   inline-block marker is baseline-aligned against the text beside it, and its
+   own box was tall enough to push the whole line down -- items measured 14.5px
+   off the ruling where a plain paragraph sits at 6px, and the half-pixel is the
+   giveaway that a line box was being resized rather than moved. Positioned out
+   of flow it cannot affect the line at all, so an item rides the rule exactly
+   as a paragraph does and a wrapped item keeps its hanging indent. */
+:is(.block, .blk .edit) ol > li::before {
+  content: counter(li-num) ".";
+  position: absolute;
+  box-sizing: border-box;
+  /* Wide enough for three digits at 17px; a fourth would need more, and no
+     syllabus has ever had one. */
+  left: -2.6rem; width: 2.6rem; padding-right: .55rem;
+  text-align: right;
+}
 
 /* The section that asks for initials. Translucent rather than solid, so the
    ruled lines carry on underneath it and the prompt reads as written on the

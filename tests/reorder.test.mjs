@@ -7,7 +7,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dragRange, insertionIndex, unitStartBefore, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget, sectionSigns, toggleSigning }
+import { dragRange, insertionIndex, unitStartBefore, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget, sectionSigns, toggleSigning,
+  rangeDestination, ladderTag, retag, blockText, hasShape, isTable, toggleListKind, tableEdit }
   from '../public/admin/editor/reorder.js';
 import { attestedBlocks } from '../functions/_lib/syllabus.js';
 
@@ -245,4 +246,126 @@ test('unitStartBefore finds the previous section heading', () => {
 test('unitStartBefore falls back to the top when there is no heading above', () => {
   const preamble = [p('intro'), p('more'), h('Late'), p('10%')];
   assert.equal(unitStartBefore(preamble, 2), 0);
+});
+
+// ---- promoting and demoting a line, and moving several at once ----
+
+test('the ladder runs text -> subheading -> section and back', () => {
+  const text = { type: 'text', html: '<p>Late Work</p>' };
+  assert.equal(ladderTag(text, 1), 'subheading');
+  assert.equal(ladderTag({ type: 'heading', level: 3, html: '<h3>Late Work</h3>' }, 1), 'heading');
+  assert.equal(ladderTag({ type: 'heading', level: 2, html: '<h2>Late Work</h2>' }, 1), null, 'nothing above a section');
+  assert.equal(ladderTag({ type: 'heading', level: 2, html: '<h2>Late Work</h2>' }, -1), 'subheading');
+  assert.equal(ladderTag({ type: 'heading', level: 3, html: '<h3>Late Work</h3>' }, -1), 'text');
+  assert.equal(ladderTag(text, -1), null, 'nothing below body text');
+});
+
+test('a table, a list or a prompt has no rung on the ladder', () => {
+  // retag() keeps a block's words and nothing else, so laddering any of these
+  // would quietly destroy what it holds.
+  assert.equal(ladderTag({ type: 'text', html: '<table><tr><td>A</td><td>90%</td></tr></table>' }, 1), null);
+  assert.equal(ladderTag({ type: 'list', html: '<ul><li>A pencil</li></ul>' }, 1), null);
+  assert.equal(ladderTag({ type: 'initial', html: 'I have read the late work policy.' }, 1), null);
+  assert.equal(ladderTag({ type: 'agree', html: 'I agree.' }, -1), null);
+});
+
+test('the ladder is what retag already speaks, so the words survive', () => {
+  const blocks = [{ type: 'text', html: '<p>Late Work</p>' }];
+  const out = retag(blocks, [{ index: 0, tag: ladderTag(blocks[0], 1) }]);
+  assert.equal(out[0].type, 'heading');
+  assert.equal(out[0].level, 3);
+  assert.equal(blockText(out[0].html), 'Late Work');
+});
+
+test('a picked span steps one line, not one section', () => {
+  const blocks = [
+    { type: 'heading', html: '<h2>One</h2>' },
+    { type: 'text', html: '<p>a</p>' },
+    { type: 'text', html: '<p>b</p>' },
+    { type: 'text', html: '<p>c</p>' },
+  ];
+  const down = rangeDestination(blocks, 1, 3, 1);      // rows a and b, together
+  assert.deepEqual(down, { from: 1, to: 3, dest: 2 });
+  const moved = moveRange(blocks, down.from, down.to, down.dest);
+  assert.deepEqual(moved.map((b) => blockText(b.html)), ['One', 'c', 'a', 'b']);
+
+  const back = rangeDestination(moved, 2, 4, -1);
+  assert.deepEqual(moveRange(moved, back.from, back.to, back.dest).map((b) => blockText(b.html)),
+    ['One', 'a', 'b', 'c']);
+});
+
+test('a span at either end of the document does not move', () => {
+  const blocks = [{ type: 'text', html: '<p>a</p>' }, { type: 'text', html: '<p>b</p>' }];
+  assert.equal(rangeDestination(blocks, 0, 2, -1), null);
+  assert.equal(rangeDestination(blocks, 0, 2, 1), null);
+});
+
+// ---- shape: lists and tables ----
+//
+// A table is a 'text' block that happens to hold <table>, so every one of these
+// is really a question about markup rather than about type. The last row and
+// the last column are held back on purpose: nothing else in the editor could
+// put them back, and the block would be stranded.
+
+const TABLE = '<table><thead><tr><th>Category</th><th>Weight</th></tr></thead>'
+  + '<tbody><tr><td>Homework</td><td>15%</td></tr><tr><td>Tests</td><td>75%</td></tr></tbody></table>';
+
+const rows = (html) => html.match(/<tr\b/gi)?.length ?? 0;
+const cols = (html) => (html.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/i)?.[0].match(/<t[dh]\b/gi) ?? []).length;
+
+test('a list changes between bulleted and numbered, and keeps its items', () => {
+  const ul = '<ul><li>Pencil</li><li>Calculator</li></ul>';
+  const ol = toggleListKind(ul);
+  assert.equal(ol, '<ol><li>Pencil</li><li>Calculator</li></ol>');
+  assert.equal(toggleListKind(ol), ul);
+  assert.equal(blockText(ol), 'Pencil Calculator');
+});
+
+test('a table grows a row shaped like the one above it', () => {
+  const grown = tableEdit(TABLE, 'row+');
+  assert.equal(rows(grown), rows(TABLE) + 1);
+  assert.equal(cols(grown), 2);
+  // Grown at the END, so the header is still the header.
+  assert.match(grown, /<th>Category<\/th>/);
+  assert.match(grown, /<tr><td><\/td><td><\/td><\/tr><\/tbody>/);
+});
+
+test('a table grows a column in every row, header cell in the header row', () => {
+  const grown = tableEdit(TABLE, 'col+');
+  assert.equal(cols(grown), 3);
+  assert.equal(rows(grown), rows(TABLE));
+  assert.match(grown, /<th>Weight<\/th><th><\/th>/);   // header row gets a th
+  assert.match(grown, /<td>15%<\/td><td><\/td>/);      // body rows get a td
+});
+
+test('removing takes the last row and the last column, not the first', () => {
+  assert.equal(blockText(tableEdit(TABLE, 'row-')), 'Category Weight Homework 15%');
+  assert.equal(blockText(tableEdit(TABLE, 'col-')), 'Category Homework Tests');
+});
+
+test('identical blank rows do not make the wrong one disappear', () => {
+  // Two rows with byte-identical markup. A first-match replace would delete the
+  // upper one and leave the table looking unchanged from the bottom.
+  const twin = '<table><tbody><tr><td>keep</td></tr><tr><td></td></tr><tr><td></td></tr></tbody></table>';
+  const cut = tableEdit(twin, 'row-');
+  assert.equal(rows(cut), 2);
+  assert.equal(cut, '<table><tbody><tr><td>keep</td></tr><tr><td></td></tr></tbody></table>');
+});
+
+test('a table never loses its last row or its last column', () => {
+  const one = '<table><tbody><tr><td>only</td></tr></tbody></table>';
+  assert.equal(tableEdit(one, 'row-'), one);
+  assert.equal(tableEdit(one, 'col-'), one);
+  // Unchanged is how the editor knows to explain itself instead of redrawing.
+  assert.equal(tableEdit('<p>not a table</p>', 'row+'), '<p>not a table</p>');
+});
+
+test('shape is read off the markup, because a table is stored as text', () => {
+  const table = { type: 'text', html: TABLE };
+  assert.equal(isTable(table), true);
+  assert.equal(hasShape(table), true);
+  assert.equal(hasShape({ type: 'list', html: '<ul><li>a</li></ul>' }), true);
+  assert.equal(hasShape({ type: 'text', html: '<p>Late work loses 10%.</p>' }), false);
+  // The same guard the ladder already applies -- one definition, two callers.
+  assert.equal(ladderTag(table, 1), null);
 });

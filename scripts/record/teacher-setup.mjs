@@ -26,18 +26,21 @@ const DB = '.dev-teacher-setup.sqlite';
 const ALGEBRA_ID = 1;
 const BIOLOGY_ID = 2;
 
-// Faster than the configured default (gpt-oss:120b) and just as accurate for
-// a syllabus-sized prompt -- a manual run against this exact text answered
-// correctly in under 4s for Fix headings and under 7s for Suggest initials,
-// against 120b's much longer cold start. Chosen here rather than left on the
-// default so the AI clips stay watchable instead of turning into a minute of
-// a spinner.
-const AI_MODEL = 'gpt-oss:20b';
+// Unpinned. This was 'gpt-oss:20b', chosen when the configured default was
+// gpt-oss:120b and its cold start turned the AI clips into a minute of a
+// spinner. Both models have since left the host, so the pin did not merely go
+// stale -- it named a model that no longer answers, and the two AI clips
+// recorded their own failure message instead of the feature.
+//
+// Empty means "whatever the host is configured to serve", which is the setting
+// a teacher gets and therefore the honest thing to film. Set RECORD_MODEL to
+// pin it again if a future default is too slow to watch.
+const AI_MODEL = process.env.RECORD_MODEL || '';
 
 // A syllabus paragraph pasted from Word or Docs. Deliberately imperfect: one
 // line ("Grading Policy.") is a real heading that ends in a period, which
 // textToBlocks()'s "short line, no terminal punctuation" heuristic reads as
-// body text -- exactly the mistake Fix headings exists to catch. The other
+// body text -- exactly the mistake Fix format exists to catch. The other
 // two headings ("Course Overview", "Attendance") have no terminal
 // punctuation, so the local heuristic already gets them right, and the AI
 // pass leaves them alone.
@@ -137,11 +140,12 @@ await rec.scratch(async (page) => {
   // clipboard from Node and pressing Ctrl+V) does NOT reach a headless
   // browser's textarea at all.
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: server.base });
-  // The model Fix headings and Suggest initials will use, remembered exactly
-  // the way a teacher's own choice would be -- see AI_MODEL above for why
-  // this one instead of the configured default.
+  // The model Fix format and Suggest initials will use, remembered exactly the
+  // way a teacher's own choice would be -- but only when RECORD_MODEL named
+  // one. Left unset, the editor's own "default" is what gets filmed, which is
+  // what a teacher who never opens Settings actually sees.
   await page.goto(server.base + '/');
-  await page.evaluate((m) => localStorage.setItem('inishial:ollama-model', m), AI_MODEL);
+  if (AI_MODEL) await page.evaluate((m) => localStorage.setItem('inishial:ollama-model', m), AI_MODEL);
 });
 
 // ---- 1. sign in ----
@@ -238,7 +242,7 @@ await rec.clip('settings', async (page) => {
   await beat(page, 500);
 });
 
-// ---- 6. Fix headings ----
+// ---- 6. Fix format ----
 await rec.clip('fix-headings', async (page) => {
   await page.goto(server.base + '/admin/editor/?course_id=' + ALGEBRA_ID);
   await beat(page, 900);
@@ -280,7 +284,7 @@ await rec.clip('suggest-initials', async (page) => {
   //
   // Attendance rather than Grading Policy on purpose: toggleSigning() builds
   // its prompt as "I have read and understand the <heading> policy.", and
-  // Grading Policy's heading still ends in the period Fix headings left
+  // Grading Policy's heading still ends in the period Fix format left
   // alone -- accepting THAT suggestion reads "...the grading policy. policy."
   // Real behaviour, just not what this clip is trying to teach.
   await tap(page, '.pages button[data-page="2"]', { after: 500 });
@@ -302,7 +306,7 @@ await rec.clip('edit-blocks', async (page) => {
   await page.goto(server.base + '/admin/editor/?course_id=' + ALGEBRA_ID);
   await beat(page, 900);
   // "waves" sits in the first paragraph pasted under Course Overview -- block
-  // index 1, untouched by every edit since (Fix headings and Require
+  // index 1, untouched by every edit since (Fix format and Require
   // initials only ever reach index 2 and later).
   await point(page, '#blocks .blk[data-index="1"] .edit');
   const box = await wordBox(page, '#blocks .blk[data-index="1"] .edit', 'waves');
@@ -431,7 +435,7 @@ writeSteps('teacher-setup', {
     },
     {
       title: 'Open the syllabus editor',
-      body: 'A brand new class opens straight to "Start from a document," because there is nothing in the draft yet to show instead. The editor works one page at a time — the same page a parent turns to — with Fix headings, Suggest initials, Save draft, and Publish along the top. Nothing here is visible to parents until you publish it.',
+      body: 'A brand new class opens straight to "Start from a document," because there is nothing in the draft yet to show instead. The editor works one page at a time — the same page a parent turns to — with Fix format, Suggest initials, Save draft, and Publish along the top. Nothing here is visible to parents until you publish it.',
       clip: 'teacher-setup-editor-open.mp4',
     },
     {
@@ -441,12 +445,12 @@ writeSteps('teacher-setup', {
     },
     {
       title: 'Choose the AI model in Settings',
-      body: 'The gear icon next to Sign out holds one setting: which AI model answers Fix headings and Suggest initials. Your choice is remembered on this computer.',
+      body: 'The gear icon next to Sign out holds one setting: which AI model answers Fix format and Suggest initials. Your choice is remembered on this computer.',
       clip: 'teacher-setup-settings.mp4',
     },
     {
-      title: 'Fix headings straightens out the structure',
-      body: 'A pasted document often has real headings that do not look like headings to a simple rule — a title that ends with a period, or a line that got bolded instead of styled. Fix headings asks an AI model to tell headings from body text and retags them. It never rewrites a word; only the tag around a line ever changes.',
+      title: 'Fix format straightens out the structure',
+      body: 'A pasted document often has real headings that do not look like headings to a simple rule — a title that ends with a period, or a line that got bolded instead of styled. Fix format asks an AI model to tell headings from body text and retags them. It never rewrites a word; only the tag around a line ever changes.',
       clip: 'teacher-setup-fix-headings.mp4',
     },
     {

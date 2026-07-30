@@ -86,6 +86,16 @@
      every state that draws an edge uses OUTLINE, which paints outside the box
      instead of adding two pixels to it. */
   .blk { position: relative; display: flex; gap: .5rem; align-items: flex-start; margin: 0; }
+  /* A section stands a full ruled line clear of whatever it follows. Every
+     block is one rule tall and none of them had space above, so an import came
+     back as an unbroken column -- heading, paragraphs, next heading -- and the
+     eye had nothing to catch on. A whole rule rather than a fraction: the sheet
+     is ruled paper, and half a line puts every line after it off the ruling. */
+  .blk[data-type="heading"] { margin-top: var(--rule); }
+  /* Except where a subheading follows its own heading, or the first line of the
+     page: a gap there reads as a mistake rather than as a break. */
+  .blk[data-type="heading"] + .blk[data-type="heading"],
+  .blk[data-type="heading"]:first-child { margin-top: 0; }
   .blk .body { flex: 1; min-width: 0; }
   .blk .edit {
     padding: 0 .5rem; border-radius: var(--radius-sm); border: 0;
@@ -96,9 +106,63 @@
   }
   .blk .edit.typing { cursor: text; user-select: text; outline: 1px solid var(--accent); background: var(--ivory); }
   .blk .edit :is(h1,h2,h3) { margin: 0; line-height: var(--rule); font-family: var(--font-display); }
-  .blk .edit ul, .blk .edit ol { margin: 0; padding-left: 1.2rem; }
+  /* Bullets keep the narrow indent; NUMBERS do not set their padding here. The
+     numbered-list marker column is defined once in app.css so the editor and
+     the parent's page agree, and a padding-left here would silently win over it
+     -- same specificity, and this sheet is parsed after app.css. */
+  .blk .edit ul, .blk .edit ol { margin: 0; }
+  .blk .edit ul { padding-left: 1.2rem; }
   .blk .edit li { line-height: var(--rule); }
   .blk .edit p { margin: 0; }
+  /* An empty cell has neither width nor height -- no text means no line box, so
+     line-height alone leaves it at zero and a freshly added row is invisible.
+     Both dimensions are stated outright, and a faint rule gives every cell an
+     edge to aim at. EDITOR only; the published page keeps the borderless table
+     it always had. `height` on a table-cell reads as a minimum, so a cell with
+     real text in it still grows. */
+  /* INNER grid only -- bottom and right. The table's outer edge is an outline
+     below, per the rule at the top of this sheet: a border there would add two
+     pixels the ruling has no room for, and the whole table would sit two
+     pixels proud of the paper with every block after it inheriting the drift.
+     border-box keeps the remaining 1px inside the rule rather than on top of
+     it, so a row is exactly one ruled line and the two sets of lines coincide
+     instead of beating against each other. */
+  .blk .edit :is(td, th) {
+    min-width: 4rem; padding: 0 .4rem;
+    border: 0; border-bottom: 1px solid var(--border-warm); border-right: 1px solid var(--border-warm);
+    box-sizing: border-box; height: var(--rule);
+  }
+  .blk .edit :is(td, th):last-child { border-right: 0; }
+  .blk .edit tr:last-child :is(td, th) { border-bottom: 0; }
+  /* Opaque, so the paper's ruling stops at the table's edge instead of showing
+     through and doubling every horizontal line -- which is what made the two
+     sets collide. The fill is the sheet's own ivory, so the table reads as a
+     panel laid on the page rather than as a second ruling competing with the
+     first. */
+  /* Lifted onto the rules. A filled, edged box aligned to the BOX grid draws
+     its lines --lift (6px) below the paper's, because the ruling is pushed down
+     by --baseline + --sit so text baselines land on it -- right for text, wrong
+     for anything with edges. This is the case --lift exists for; see its note
+     in app.css. `top` moves the paint without moving the box, so the table
+     still occupies a whole number of rules and nothing below it shifts. */
+  .blk .edit table {
+    width: 100%; background: var(--ivory);
+    outline: 1px solid var(--border-warm);
+    position: relative; top: calc(-1 * var(--lift));
+  }
+  /* A table's buttons go UNDER it, not beside it. .tools is flex: 0 0 auto and
+     keeps its width even while it is transparent, so the four shape buttons
+     would permanently narrow the one block that needs the most room -- measured
+     at 535px of the sheet's 790. Wrapping the row hands the table all of it and
+     costs one rule of height, only on rows that have a table. */
+  /* row-gap: 0 because .blk's `gap` applies BETWEEN FLEX LINES too, and wrapping
+     the row turned that .5rem into 8px of extra height. The block came to 5.27
+     rules instead of 5, and every block after it sat 8px off the ruling -- the
+     exact drift app.css warns about for anything that is not a whole number of
+     rules. The column gap is still wanted between the table and nothing; only
+     the row gap has to go. */
+  .blk:has(table) { flex-wrap: wrap; row-gap: 0; }
+  .blk:has(table) .body { flex: 1 0 100%; }
 
   .tools { display: flex; gap: .25rem; flex: 0 0 auto; opacity: 0; transition: opacity .15s; }
   .blk:hover .tools, .blk:focus-within .tools { opacity: 1; }
@@ -457,7 +521,7 @@
       <div class="menu">
         <label for="aiModel">AI model</label>
         <select id="aiModel"><option value="">default</option></select>
-        <p class="hint">Answers <b>Fix headings</b> and <b>Suggest initials</b>. Remembered on this computer.</p>
+        <p class="hint">Answers <b>Fix format</b> and <b>Suggest initials</b>. Remembered on this computer.</p>
       </div>
     </details>
   </div>
@@ -468,7 +532,7 @@
   <span class="spacer"></span>
   <span class="status" id="status"></span>
   <button class="secondary" id="importBtn" title="Start over from a .docx or pasted text">Import…</button>
-  <button class="secondary" id="structureBtn" title="Ask the AI which lines are really headings. Retags only — never changes a word.">Fix headings</button>
+  <button class="secondary" id="structureBtn" title="Ask the AI which lines are sections, which are subsections, and which are body text. Retags only — never changes a word.">Fix format</button>
   <button class="secondary" id="suggestBtn" title="Ask the AI which sections should need initials">Suggest initials</button>
   <button class="secondary" id="saveBtn">Save draft</button>
   <button id="publishBtn">Publish…</button>
@@ -509,6 +573,9 @@
   <h1 id="title" contenteditable="true" spellcheck="false">Course Syllabus</h1>
   <p class="muted small">You are editing <b>one page at a time</b> — the same pages a parent turns
     through. <b>Double-click</b> to type. <b>Click</b> a block to pick it up and drag it, or use ↑ / ↓.
+    <b>Shift-click</b> a second line, or <b>Shift + ↓</b>, to pick up several and move them together.
+    <b>Tab</b> and <b>Shift + Tab</b> turn a picked line into a subheading, a section heading, or plain
+    text again — the words never change.
     <b>⤒</b> starts a new page at that line; <b>↑ ↓</b> on a block send it to the page before or after.
     Nothing is live until you publish.</p>
 
@@ -519,7 +586,8 @@
       <p>Drop a <code>.docx</code> here, or paste the text below</p>
       <input type="file" id="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
     </div>
-    <label for="paste">…or paste your syllabus text</label>
+    <label for="paste">…or paste your syllabus
+      <span class="hint">Copy from Word or Google Docs and the headings, lists and tables come with it. The box below only shows the words.</span></label>
     <textarea id="paste" spellcheck="false" placeholder="Paste from Word, Google Docs, or plain text."></textarea>
     <!-- The caption sits under the button rather than beside it. Next to a
          two-rule control its baseline lands mid-rule and cannot be fixed
@@ -548,6 +616,7 @@
     <span class="adders-label">Add to this page:</span>
     <button data-add="text">+ Paragraph</button>
     <button data-add="list">+ List</button>
+    <button data-add="table">+ Table</button>
     <button data-add="subheading">+ Subheading</button>
     <button data-add="initial">+ Initials box</button>
     <span class="spacer"></span>
@@ -558,7 +627,8 @@
 <script src="/vendor/mammoth.browser.min.js"></script>
 <script type="module">
 import { dragRange, insertionIndex, moveRange, keyDestination, sectionRanges, sectionDest, pickTarget,
-         sectionSigns, toggleSigning, retag, blockText, structureProblem, structureAdvice } from './reorder.js';
+         sectionSigns, toggleSigning, retag, blockText, structureProblem, structureAdvice,
+         textToBlocks, rangeDestination, ladderTag, hasShape, isTable, toggleListKind, tableEdit } from './reorder.js';
 import { startsSection } from '../../shared/sections.js';
 
 /** Escape for interpolation into the markup a block stores. */
@@ -594,13 +664,86 @@ function markDirty() { state.dirty = true; status('Unsaved changes'); }
 // Mammoth already emits semantic HTML, so this is a walk over top-level
 // elements, not a parsing problem. Doing it here rather than server-side keeps
 // the model out of the path that carries the actual policy text.
+// What an import is allowed to bring with it. Structure survives, decoration
+// does not: Google Docs and Word put a font stack, a size and a colour on every
+// single span, and an imported `color:#000000` is invisible the moment a parent
+// reads the page in dark mode. Mammoth's own output is already inside this set,
+// so the .docx path passes through untouched.
+const KEEP_TAGS = new Set(['P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'A', 'SUB', 'SUP',
+  'UL', 'OL', 'LI', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TD', 'TH',
+  'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV']);
+const KEEP_ATTRS = { A: ['href'], TD: ['colspan', 'rowspan'], TH: ['colspan', 'rowspan'] };
+
+// Bold and italic are not tags in a pasted document. Google Docs writes
+// `<span style="font-weight:700">` and Word writes its own styled span, so
+// stripping the styling below took the emphasis with it -- and emphasis in a
+// syllabus is load-bearing: the census date and the deadlines are bold for a
+// reason. Turned into real tags first, then the styling goes.
+function markEmphasis(root) {
+  for (const el of [...root.querySelectorAll('[style]')]) {
+    if (!/^(SPAN|FONT|DIV)$/.test(el.tagName)) continue;   // a heading is already emphatic
+    const style = el.getAttribute('style') ?? '';
+    const bold = /font-weight\s*:\s*(bold|[7-9]00)/i.test(style);
+    const italic = /font-style\s*:\s*italic/i.test(style);
+    if (!bold && !italic) continue;
+    let inner = el;
+    for (const tag of [italic && 'em', bold && 'strong'].filter(Boolean)) {
+      const wrap = el.ownerDocument.createElement(tag);
+      wrap.append(...inner.childNodes);
+      inner.append(wrap);
+      inner = wrap;
+    }
+  }
+  return root;
+}
+
+function clean(root) {
+  markEmphasis(root);
+  for (const el of [...root.querySelectorAll('*')]) {
+    if (!KEEP_TAGS.has(el.tagName)) { el.replaceWith(...el.childNodes); continue; }
+    for (const attr of [...el.attributes]) {
+      if (!(KEEP_ATTRS[el.tagName] ?? []).includes(attr.name)) el.removeAttribute(attr.name);
+    }
+  }
+  return root;
+}
+
 function htmlToBlocks(html) {
   const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+  return walk(clean(doc.body.firstChild));
+}
+
+// Word writes a bulleted list as ordinary paragraphs, each beginning with the
+// bullet glyph out of the Symbol font -- there is no <ul> anywhere in what it
+// puts on the clipboard. Left alone, a five-item list arrives as five
+// paragraphs each starting with a stray "·".
+const WORD_BULLET = /^[·•▪◦o§-]\s+/;
+const WORD_NUMBER = /^\d+[.)]\s+/;
+
+function walk(parent) {
   const out = [];
-  for (const el of doc.body.firstChild.children) {
+  const kids = [...parent.children];
+  for (let k = 0; k < kids.length; k++) {
+    const el = kids[k];
     const tag = el.tagName.toLowerCase();
-    const text = el.textContent.trim();
+    const text = el.textContent.replace(/ /g, ' ').trim();
     if (!text && tag !== 'hr') continue;
+
+    // A run of those paragraphs is the list Word meant to write.
+    if (tag === 'p' && (WORD_BULLET.test(text) || WORD_NUMBER.test(text))) {
+      const numbered = !WORD_BULLET.test(text);
+      const mark = numbered ? WORD_NUMBER : WORD_BULLET;
+      const items = [];
+      while (k < kids.length && kids[k].tagName.toLowerCase() === 'p') {
+        const line = kids[k].textContent.replace(/ /g, ' ').trim();
+        if (!mark.test(line)) break;
+        items.push(`<li>${esc(line.replace(mark, ''))}</li>`);
+        k++;
+      }
+      k--;
+      out.push({ type: 'list', html: `<${numbered ? 'ol' : 'ul'}>${items.join('')}</${numbered ? 'ol' : 'ul'}>` });
+      continue;
+    }
     if (/^h[1-6]$/.test(tag)) {
       // Word's own outline levels are respected rather than flattened. h1/h2
       // start a section; h3 and below are subheadings inside it. Flattening
@@ -610,23 +753,17 @@ function htmlToBlocks(html) {
     }
     else if (tag === 'ul' || tag === 'ol') out.push({ type: 'list', html: el.outerHTML });
     else if (tag === 'table') out.push({ type: 'text', html: el.outerHTML });
+    // Anything still holding block-level children is a wrapper, not a
+    // paragraph. A pasted document is full of them: Word puts a div around each
+    // paragraph, and Google Docs wraps its ENTIRE payload in a single
+    // `<b style="font-weight:normal">`. Treating one as a paragraph hands the
+    // whole document back as one block -- the same shape as the bug that
+    // started this. Checked after the tags above, so a table holding paragraphs
+    // is still a table.
+    else if (el.querySelector('h1, h2, h3, h4, h5, h6, p, ul, ol, table, div')) out.push(...walk(el));
     else out.push({ type: 'text', html: `<p>${el.innerHTML}</p>` });
   }
   return out;
-}
-
-function textToBlocks(text) {
-  return text.split(/\n{2,}/).map((chunk) => {
-    const t = chunk.trim();
-    if (!t) return null;
-    // A short line with no terminal punctuation reads as a heading.
-    if (t.length < 60 && !/[.!?;:]$/.test(t) && !t.includes('\n')) return { type: 'heading', html: `<h2>${esc(t)}</h2>` };
-    if (/^\s*[-*•]\s+/m.test(t)) {
-      const items = t.split('\n').filter((l) => l.trim()).map((l) => `<li>${esc(l.replace(/^\s*[-*•]\s+/, ''))}</li>`);
-      return { type: 'list', html: `<ul>${items.join('')}</ul>` };
-    }
-    return { type: 'text', html: `<p>${esc(t).replace(/\n/g, '<br>')}</p>` };
-  }).filter(Boolean);
 }
 
 // ---- rendering ----
@@ -759,7 +896,9 @@ function blockRow(block, index) {
   row.dataset.type = block.type;
   if (block.type === 'heading') row.dataset.level = String(block.level ?? 2);
   row.dataset.index = index;
-  if (selected && selected.kind === 'block' && selected.at === index) row.classList.add('picked');
+  if (selected?.kind === 'block' && index >= selected.at && index < selected.at + spanOf(selected)) {
+    row.classList.add('picked');
+  }
 
   const body = document.createElement('div');
   body.className = 'body';
@@ -813,10 +952,60 @@ function blockRow(block, index) {
     tools.append(lvl);
   }
 
+  // Bulleted or numbered. On the block rather than in the adders strip: an
+  // imported list arrives as whichever kind Word wrote, so the common case is
+  // changing one that already exists, not choosing a kind up front.
+  if (block.type === 'list') {
+    const numbered = /^\s*<ol[\s>]/i.test(block.html ?? '');
+    const kind = document.createElement('button');
+    kind.type = 'button';
+    kind.textContent = numbered ? '1.' : '•';
+    kind.title = numbered ? 'A numbered list. Click for bullets.' : 'A bulleted list. Click for numbers.';
+    kind.addEventListener('click', () => {
+      block.html = toggleListKind(block.html);
+      markDirty();
+      render();
+    });
+    tools.append(kind);
+  }
+
+  // A table's shape. Its CELLS are already editable -- the block is
+  // contenteditable and typing in one works -- but nothing in a browser adds a
+  // row, so these four are the only way to change how big it is.
+  if (isTable(block)) {
+    for (const [glyph, op, why] of [
+      ['+row', 'row+', 'Add a row at the bottom'],
+      ['−row', 'row-', 'Remove the bottom row'],
+      ['+col', 'col+', 'Add a column on the right'],
+      ['−col', 'col-', 'Remove the right-hand column'],
+    ]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = glyph;
+      btn.title = why;
+      btn.addEventListener('click', () => {
+        const next = tableEdit(block.html, op);
+        // The last row and the last column are held back by tableEdit. Say so,
+        // rather than letting the button look broken.
+        if (next === block.html) {
+          notice('A table keeps its last row and its last column. Use ✕ to remove the whole table.', 'error');
+          return;
+        }
+        block.html = next;
+        markDirty();
+        render();
+      });
+      tools.append(btn);
+    }
+  }
+
   // Start a new page here. The line becomes this page's heading and everything
   // below it on the current page comes with it -- which is what sectionRanges
   // does anyway; nothing is moved, the boundary is.
-  if (block.type !== 'heading' && block.type !== 'initial' && block.type !== 'agree') {
+  // Not offered for a table or a list: a heading keeps only the block's WORDS,
+  // so promoting one would flatten a weights table into a run of numbers --
+  // the same reason the Tab ladder refuses them.
+  if (block.type !== 'heading' && block.type !== 'initial' && block.type !== 'agree' && !hasShape(block)) {
     const split = document.createElement('button');
     split.type = 'button';
     split.textContent = '⤒';
@@ -881,11 +1070,23 @@ function blockRow(block, index) {
 // Once a caret is live inside a box, pressing again INSIDE that same box keeps
 // typing; pressing outside ends the edit and goes back to selecting objects.
 
-let selected = null;   // {kind: 'block'|'section', at: index} or null
+// {kind: 'block'|'section', at: index, span?: number} or null. `span` counts
+// rows from `at` and is only ever more than 1 for a 'block' pick: a section is
+// already a range, and picking two of them would be picking a bigger section.
+let selected = null;
 let caretIn = null;    // the .edit currently being typed in, or null
 
+const spanOf = (s) => (s?.kind === 'block' ? Math.max(1, s.span ?? 1) : 1);
+/** Half-open [from, to) of what is picked, in block indices. */
+function pickedRange() {
+  if (!selected) return null;
+  if (selected.kind === 'section') return dragRange(state.blocks, selected.at);
+  return [selected.at, Math.min(selected.at + spanOf(selected), state.blocks.length)];
+}
+
 function pick(next) {
-  const same = selected && next && selected.kind === next.kind && selected.at === next.at;
+  const same = selected && next && selected.kind === next.kind && selected.at === next.at
+    && spanOf(selected) === spanOf(next);
   selected = next;
   if (!same) endCaret();
   render();
@@ -960,7 +1161,19 @@ $('blocks').addEventListener('mousedown', (e) => {
   // Suppress the caret and start the move gesture in the same press, so
   // click-and-drag works as one motion rather than click-then-drag.
   e.preventDefault();
-  const changed = !selected || selected.kind !== target.kind || selected.at !== target.at;
+
+  // Shift extends the pick to a run of rows, the way it does in a file list.
+  // Only rows: two sections shift-picked would just be a longer section, and
+  // the drag model already moves a section whole.
+  if (e.shiftKey && selected?.kind === 'block' && target.kind === 'block') {
+    const anchor = selected.at;
+    const at = Math.min(anchor, target.at);
+    pick({ kind: 'block', at, span: Math.abs(target.at - anchor) + 1 });
+    return;                        // extending is the gesture; do not also drag
+  }
+
+  const changed = !selected || selected.kind !== target.kind || selected.at !== target.at
+    || spanOf(selected) > 1;
   if (changed) pick(target);
   startDrag(e, target.at, target.kind);
 });
@@ -993,10 +1206,44 @@ document.addEventListener('mousedown', (e) => {
 document.addEventListener('keydown', (e) => {
   if (!selected || caretIn) return;                    // typing owns the keyboard
   if (e.key === 'Escape') { endCaret(); pick(null); return; }
+
+  // Tab and Shift+Tab walk the picked lines up and down the
+  // text -> subheading -> section ladder. Keys rather than another pair of
+  // buttons on every row: the tools strip is already five controls wide, and
+  // this is the one operation you do to several lines in a row.
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    if (ladderPicked(e.shiftKey ? -1 : 1)) return;
+    return;
+  }
+
   if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
   e.preventDefault();
+  const dir = e.key === 'ArrowUp' ? -1 : 1;
+
+  // Shift grows or shrinks the pick instead of moving it. Downward only, from
+  // the anchor: an upward grow would have to move the anchor, and then the
+  // arrow that shrinks it again is ambiguous.
+  if (e.shiftKey && selected.kind === 'block') {
+    const span = Math.max(1, Math.min(spanOf(selected) + dir, state.blocks.length - selected.at));
+    pick({ kind: 'block', at: selected.at, span });
+    return;
+  }
+
+  // A multi-row pick steps one line at a time; a single row or a section keeps
+  // the section-hopping rule it always had.
+  if (selected.kind === 'block' && spanOf(selected) > 1) {
+    const [from, to] = pickedRange();
+    const move = rangeDestination(state.blocks, from, to, dir);
+    if (!move || !applyMove(move.from, move.to, move.dest)) return;
+    pick({ kind: 'block', at: move.dest, span: to - from });
+    page = pageOf(move.dest);
+    render();
+    return;
+  }
+
   const block = state.blocks[selected.at];
-  if (!moveByKey(selected.at, e.key === 'ArrowUp' ? -1 : 1)) return;
+  if (!moveByKey(selected.at, dir)) return;
   // The move re-indexes everything; follow the block that actually moved so a
   // second arrow press continues from where the first left off.
   selected = { kind: selected.kind, at: state.blocks.indexOf(block) };
@@ -1031,6 +1278,24 @@ function applyMove(from, to, dest) {
 function moveByKey(index, dir) {
   const move = keyDestination(state.blocks, index, dir);
   return move ? applyMove(move.from, move.to, move.dest) : false;
+}
+
+/** Move every picked line one rung. Nothing happens to a line with no rung
+ *  that way -- a table, a list, an initials prompt, or a section already at the
+ *  top -- and the rest of the pick still moves, so one table in the middle of a
+ *  run does not veto the whole gesture. */
+function ladderPicked(dir) {
+  const [from, to] = pickedRange();
+  const changes = [];
+  for (let i = from; i < to; i++) {
+    const tag = ladderTag(state.blocks[i], dir);
+    if (tag) changes.push({ index: i, tag });
+  }
+  if (!changes.length) { notice('Nothing there can be a heading — a table, a list and an initials prompt all stay put.', 'error'); return false; }
+  state.blocks = retag(state.blocks, changes);
+  markDirty();
+  render();
+  return true;
 }
 
 /**
@@ -1390,16 +1655,50 @@ function grow() {
 }
 pasteBox.addEventListener('input', grow);
 
+// The clipboard carries the same selection twice -- once as plain text, once as
+// HTML. A textarea can only show the plain one, which is why a pasted syllabus
+// arrived stripped of its headings, lists and tables and left the AI pass to
+// guess them back. So the HTML flavour is kept aside here.
+//
+// It is used only while the box still holds exactly what was pasted. Type into
+// it afterwards and the two have diverged, so the line splitter takes over
+// rather than importing text the teacher can no longer see.
+//
+// What "unchanged" means is read back off the box itself, once the browser has
+// finished its own insertion -- NOT compared against the clipboard's plain
+// flavour. On Windows that flavour arrives with CRLF line endings and a
+// textarea normalises them to LF, so the two never matched and every rich paste
+// silently fell back to the plain reader.
+// Having an HTML flavour is not the same as that flavour being the document.
+// A code editor puts syntax-highlighted HTML on the clipboard -- a div per line,
+// a coloured span per token, and not one heading, list or table in it. Reading
+// THAT instead of the Markdown it is colouring threw the whole structure away.
+// So the HTML is used only when it carries structure the plain text cannot;
+// otherwise the text reader wins, and it understands Markdown.
+const carriesStructure = (html) => /<(h[1-6]|ul|ol|table)[\s>]/i.test(html);
+
+let pastedHtml = null;
+pasteBox.addEventListener('paste', (e) => {
+  const html = e.clipboardData?.getData('text/html');
+  if (!html) { pastedHtml = null; return; }
+  const carrying = { html, text: null };
+  pastedHtml = carrying;
+  setTimeout(() => { if (pastedHtml === carrying) carrying.text = pasteBox.value; }, 0);
+});
+
 $('pasteBtn').addEventListener('click', () => {
   const text = $('paste').value.trim();
   if (!text) { notice('Paste something first.', 'error'); return; }
   if (!confirmReplace()) return;
-  state.blocks = textToBlocks(text);
+  const rich = pastedHtml?.text != null && pastedHtml.text.trim() === text && carriesStructure(pastedHtml.html);
+  state.blocks = rich ? htmlToBlocks(pastedHtml.html) : textToBlocks(text);
   selected = null;
   importOpen = false;
   markDirty();
   render();
-  const pasted = `Split into ${state.blocks.length} sections.`;
+  const pasted = rich
+    ? `Split into ${state.blocks.length} sections, keeping the headings, lists and tables you copied.`
+    : `Split into ${state.blocks.length} sections.`;
   notice(pasted, 'ok');
   offerStructureIfFlat(pasted);
 });
@@ -1603,6 +1902,11 @@ for (const btn of document.querySelectorAll('[data-add]')) {
       subheading: { type: 'heading', level: 3, html: '<h3>New subheading</h3>' },
       text: { type: 'text', html: '<p>New paragraph.</p>' },
       list: { type: 'list', html: '<ul><li>First item</li></ul>' },
+      // Stored as 'text' because that is what an imported table is -- see
+      // hasShape() in reorder.js. Two columns and one blank row: the shape
+      // nearly every syllabus table has (weights, dates, contacts), and the
+      // buttons on the block grow it from there.
+      table: { type: 'text', html: '<table><thead><tr><th>Item</th><th>Detail</th></tr></thead><tbody><tr><td></td><td></td></tr></tbody></table>' },
       initial: { type: 'initial', html: 'I have read and understand this section.', needs_initials: true },
       agree: { type: 'agree', html: 'I have read this syllabus in full and agree to its terms.', needs_initials: true },
     }[kind];
@@ -1827,7 +2131,7 @@ $('structureBtn').addEventListener('click', runStructure);
 function offerStructureIfFlat(imported) {
   const problem = structureProblem(state.blocks);
   if (!problem) return;
-  notice(`${imported} ${structureAdvice(problem)}`, 'ok', { label: 'Fix headings', run: runStructure });
+  notice(`${imported} ${structureAdvice(problem)}`, 'ok', { label: 'Fix format', run: runStructure });
 }
 
 $('suggestBtn').addEventListener('click', async () => {

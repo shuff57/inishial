@@ -80,6 +80,100 @@ const escapeHtml = (s) => String(s).replace(/[&<>"]/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 /**
+ * Pasted plain text to blocks. One block per LINE, not one per blank-line
+ * chunk.
+ *
+ * A pasted syllabus routinely puts a heading on one line and its body on the
+ * very next, with no blank line between them. Splitting only on blank lines
+ * glued the two into a single block, and the structure pass -- which tags whole
+ * blocks, never parts of them -- read the heading at the front and promoted the
+ * paragraph behind it along with it. One real paste came back as a
+ * 549-character <h2>. Lines are also what that prompt says it is being handed.
+ *
+ * The heading guess applies to the FIRST line of a chunk only. A heading
+ * introduces what follows it, so a later line in the same chunk is body text
+ * until the structure pass says otherwise -- and it now can say otherwise,
+ * because each line is a block it can retag on its own.
+ */
+export function textToBlocks(text) {
+  const out = [];
+  for (const chunk of String(text ?? '').split(/\n{2,}/)) {
+    const lines = chunk.split('\n').map((l) => l.trim()).filter(Boolean);
+    for (let i = 0; i < lines.length;) {
+      const line = lines[i];
+
+      // ## Grading Policy -- a syllabus written in Markdown says outright what
+      // is a section and what sits inside one, which is the question the AI
+      // pass exists to guess at. Take the answer when it is offered: # and ##
+      // start a section, ### and deeper are subheadings within it, matching
+      // what the .docx importer does with Word's own outline levels.
+      const hash = /^(#{1,6})\s+(.+)$/.exec(line);
+      if (hash) {
+        const level = hash[1].length <= 2 ? 2 : 3;
+        out.push({ type: 'heading', level, html: `<h${level}>${inline(hash[2])}</h${level}>` });
+        i++;
+        continue;
+      }
+
+      // A rule between sections is a separator in the source, not content.
+      if (/^([-*_])\1{2,}$/.test(line)) { i++; continue; }
+
+      // | Category | Weight |   -- a Markdown table, recognised by its
+      // |---|---|                  divider row and read to the end of the run.
+      if (isRow(line) && i + 1 < lines.length && /^\|[\s:|-]+\|$/.test(lines[i + 1])) {
+        const head = cells(line);
+        i += 2;
+        const body = [];
+        while (i < lines.length && isRow(lines[i])) body.push(cells(lines[i++]));
+        out.push({ type: 'text', html: table(head, body) });
+        continue;
+      }
+
+      // A run of consecutive bullets is one list, the way it reads on the page.
+      // Numbered runs too: the course objectives are written 1..14, and as
+      // separate paragraphs they lose the numbering the college catalogue uses.
+      const marker = /^[-*•]\s+/.test(line) ? /^[-*•]\s+/ : (/^\d+[.)]\s+/.test(line) ? /^\d+[.)]\s+/ : null);
+      if (marker) {
+        const tag = marker.source.startsWith('^\\d') ? 'ol' : 'ul';
+        const items = [];
+        while (i < lines.length && marker.test(lines[i])) {
+          items.push(`<li>${inline(lines[i++].replace(marker, ''))}</li>`);
+        }
+        out.push({ type: 'list', html: `<${tag}>${items.join('')}</${tag}>` });
+        continue;
+      }
+
+      // A short line with no terminal punctuation reads as a heading.
+      out.push(i === 0 && line.length < 60 && !/[.!?;:]$/.test(line)
+        ? { type: 'heading', html: `<h2>${inline(line)}</h2>` }
+        : { type: 'text', html: `<p>${inline(line)}</p>` });
+      i++;
+    }
+  }
+  return out;
+}
+
+const isRow = (line) => /^\|.*\|$/.test(line);
+const cells = (line) => line.replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+
+function table(head, body) {
+  const row = (cs, tag) => `<tr>${cs.map((c) => `<${tag}>${inline(c)}</${tag}>`).join('')}</tr>`;
+  return `<table><thead>${row(head, 'th')}</thead><tbody>${body.map((r) => row(r, 'td')).join('')}</tbody></table>`;
+}
+
+/** Escape first, then put back the few marks a syllabus actually uses.
+ *
+ *  Order matters: escaping turns any real markup in the source into text, so
+ *  the tags added afterwards are the only ones in the result. A teacher pasting
+ *  `<script>` gets the words, never the tag. */
+function inline(s) {
+  return escapeHtml(s)
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<em>$2</em>');
+}
+
+/**
  * Apply {index, tag} changes from the structure pass.
  *
  * The one guarantee this has to keep: the WORDS never change. Only the tag
@@ -185,7 +279,7 @@ export function structureProblem(blocks) {
 
 /** One sentence naming the problem and what the fix does about it. */
 export function structureAdvice(problem) {
-  const fix = ' "Fix headings" retags them for you; your wording is never changed.';
+  const fix = ' "Fix format" retags them for you; your wording is never changed.';
   if (problem === 'none') {
     return 'This came in with no headings, so the whole thing is one block —'
       + ' nothing can be dragged or marked for initials as a section yet.' + fix;
@@ -259,6 +353,111 @@ export function moveRange(blocks, from, to, dest) {
  * neighbouring section rather than burrowing into it, a lone block steps over
  * one block. Returns {from, to, dest} or null at the ends of the list.
  */
+/** Where a SPAN of picked rows lands when nudged one line.
+ *
+ *  Deliberately not keyDestination's rule. That one hops a whole section at a
+ *  time, because moving a section past half of another would tear it. A hand-
+ *  picked span is not a section and carries no such promise: the teacher chose
+ *  these rows, so it steps one line, which is the only way to walk a pair of
+ *  lines up through a paragraph and stop in the middle of it. */
+export function rangeDestination(blocks, from, to, dir) {
+  if (dir < 0) return from === 0 ? null : { from, to, dest: from - 1 };
+  return to >= blocks.length ? null : { from, to, dest: from + 1 };
+}
+
+/** One rung up or down the text -> subheading -> section ladder.
+ *
+ *  Returns the tag to move to, or null when there is no rung that way -- which
+ *  includes every block that must not be retagged at all. A list or a table is
+ *  stored as 'text', and retag() keeps only a block's WORDS, so laddering a
+ *  weights table would flatten it into one run of numbers. A prompt is worse:
+ *  it carries a signature obligation, and promoting it would drop that
+ *  obligation out of the document without a trace. */
+export function ladderTag(block, dir) {
+  if (!block) return null;
+  if (hasShape(block)) return null;
+  const rungs = ['text', 'subheading', 'heading'];
+  const at = rungs.indexOf(tagOf(block));
+  if (at < 0) return null;
+  return rungs[at + dir] ?? null;
+}
+
+/** A block whose meaning is in its SHAPE, not just its words.
+ *
+ *  A table is stored as a plain 'text' block -- the importer has always done it
+ *  that way, and the signing page, the hash and the schema all read it as text.
+ *  So "is this a table" is a question about the markup, not the type, and every
+ *  operation that keeps only a block's words has to ask it first. */
+export const hasShape = (b) => /<(table|ul|ol)[\s>]/i.test(String(b?.html ?? ''));
+export const isTable = (b) => /<table[\s>]/i.test(String(b?.html ?? ''));
+
+/** Bulleted <-> numbered. The course objectives import as a numbered run and
+ *  the materials as bullets; either can arrive as the wrong one. */
+export function toggleListKind(html) {
+  const s = String(html ?? '');
+  const [from, to] = /^\s*<ol[\s>]/i.test(s) ? ['ol', 'ul'] : ['ul', 'ol'];
+  return s
+    .replace(new RegExp(`^(\\s*)<${from}\\b`, 'i'), `$1<${to}`)
+    .replace(new RegExp(`</${from}>(\\s*)$`, 'i'), `</${to}>$1`);
+}
+
+// Rows and cells of a table, as written by table() above and by Mammoth. Both
+// emit one flat row of cells per line with no nesting, which is what lets these
+// two patterns stand in for a parser.
+//
+// ponytail: regex, not a DOM. reorder.js is deliberately DOM-free so it stays
+// unit-testable under plain node, and a table nested inside another table would
+// defeat this -- no importer here produces one. Parse properly if that changes.
+const ROW = /<tr\b[^>]*>[\s\S]*?<\/tr>/gi;
+const CELL = /<(t[dh])\b[^>]*>[\s\S]*?<\/\1>/gi;
+
+/** Splice at the LAST occurrence, not the first.
+ *
+ *  String.replace(needle, …) takes the first, and in a table the thing being
+ *  removed is routinely identical to something above it -- two empty cells, two
+ *  blank rows -- so the first match is the wrong one often enough to look like
+ *  the button deletes at random. */
+function atLast(hay, needle, replacement) {
+  const at = hay.lastIndexOf(needle);
+  return at < 0 ? hay : hay.slice(0, at) + replacement + hay.slice(at + needle.length);
+}
+
+/**
+ * Grow or shrink a table by one row or one column. `op` is 'row+', 'row-',
+ * 'col+' or 'col-'; anything it cannot do returns the table unchanged.
+ *
+ * From the end, not from the caret. Following a caret would let a teacher
+ * insert a row where they are looking, which is nicer -- and needs a live
+ * selection, which is the one thing this module has no access to.
+ * ponytail: last-row/last-column. Wire it to the caret if teachers ask.
+ *
+ * Never removes the final row or the final column: a table with neither is not
+ * a smaller table, it is markup with nothing in it, and the block would then be
+ * unrecoverable by any other button. Delete the block to get rid of it.
+ */
+export function tableEdit(html, op) {
+  const s = String(html ?? '');
+  const rows = s.match(ROW);
+  if (!rows) return s;
+
+  if (op === 'col+' || op === 'col-') {
+    return s.replace(ROW, (row) => {
+      const cells = row.match(CELL) ?? [];
+      if (op === 'col-') return cells.length < 2 ? row : atLast(row, cells[cells.length - 1], '');
+      // A header row grows a header cell; a body row grows a body cell.
+      const tag = /<th\b/i.test(row) ? 'th' : 'td';
+      return row.replace(/<\/tr>\s*$/i, `<${tag}></${tag}></tr>`);
+    });
+  }
+
+  const last = rows[rows.length - 1];
+  if (op === 'row-') return rows.length < 2 ? s : atLast(s, last, '');
+  if (op !== 'row+') return s;
+  // Shaped like the row it follows, so a new row lines up under the header.
+  const width = (last.match(CELL) ?? []).length || 1;
+  return atLast(s, last, last + `<tr>${'<td></td>'.repeat(width)}</tr>`);
+}
+
 export function keyDestination(blocks, index, dir) {
   const [from, to] = dragRange(blocks, index);
   const isSection = blocks[index]?.type === 'heading';
