@@ -124,7 +124,10 @@ test('a keepalive or half-written line is skipped, not fatal', async () => {
 test('a timeout is reported as a timeout, not as a network fault', () => {
   const reported = failure(Object.assign(new Error('aborted'), { name: 'AbortError' }));
   assert.equal(reported.available, false);
-  assert.match(reported.reason, /did not respond within 60s/);
+  // Match the wording and the "seconds" suffix, not the literal count. The
+  // count is policy (TIMEOUT_MS) and changes; the meaning of the message does
+  // not. Holding the test to "60" would lock the policy in place.
+  assert.match(reported.reason, /did not respond within \d+s/);
   assert.match(reported.reason, /cold/, 'name the likely cause, so the fix is "try again"');
 });
 
