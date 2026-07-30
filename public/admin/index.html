@@ -153,14 +153,28 @@
       </tr></thead>
       <tbody></tbody>
     </table>
-    <p id="coursesEmpty" class="muted small" hidden>No classes yet. Import a roster below.</p>
+    <p id="coursesEmpty" class="muted small" hidden>No classes yet. Start one below, or import a roster.</p>
+  </div>
+
+  <h1>Start a class</h1>
+  <p class="muted small">
+    A class can exist before its roster does. Name it now, write the syllabus, and
+    import the students whenever the list settles.
+  </p>
+
+  <div class="card plain">
+    <label for="newCourse">Class name</label>
+    <input id="newCourse" type="text" placeholder="Algebra I">
+    <div id="newCourseMsg" hidden></div>
+    <p class="row"><button id="newCourseBtn">Create the class</button></p>
   </div>
 
   <h1>Import a roster</h1>
   <p class="muted small">
     Export from Aeries with columns for student ID, name, period, and parent email
-    (<code>PEM</code>). Re-importing is how you handle adds and drops — students missing from the
-    file are marked dropped, never deleted.
+    (<code>PEM</code>). A course name that does not exist yet is created by the import, so this
+    works on its own too. Re-importing is how you handle adds and drops — students missing
+    from the file are marked dropped, never deleted.
   </p>
 
   <div class="card plain">
@@ -221,6 +235,36 @@ function selectTab(which) {
 }
 $('tabFile').addEventListener('click', () => selectTab('file'));
 $('tabPaste').addEventListener('click', () => selectTab('paste'));
+
+// ---- start a class ----
+
+// The link out is the point of the button. An empty class exists to be written
+// against, so landing back on a table row that says 0 students would be the
+// wrong end of the flow.
+$('newCourseBtn').addEventListener('click', async () => {
+  const name = $('newCourse').value.trim();
+  $('newCourseMsg').hidden = true;
+  if (!name) { notice($('newCourseMsg'), 'Give the class a name first.', 'error'); return; }
+
+  $('newCourseBtn').disabled = true;
+  try {
+    const res = await fetch('/api/admin/courses', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
+    });
+    const body = await res.json();
+    if (!res.ok) { notice($('newCourseMsg'), body.error || 'Could not create that class.', 'error'); return; }
+    notice($('newCourseMsg'), body.existing ? `You already have a class called ${name}.` : `Created ${name}.`, 'ok');
+    $('newCourseMsg').insertAdjacentHTML('beforeend',
+      ` <a href="/admin/editor/?course_id=${body.course.id}">Write its syllabus</a>`);
+    $('newCourse').value = '';
+    loadCourses();
+  } catch {
+    notice($('newCourseMsg'), 'Could not reach the server.', 'error');
+  } finally {
+    $('newCourseBtn').disabled = false;
+  }
+});
+$('newCourse').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('newCourseBtn').click(); });
 
 // ---- file input + drag and drop ----
 
