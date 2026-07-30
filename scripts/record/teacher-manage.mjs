@@ -90,7 +90,7 @@ await rec.clip('roster-import', async (page) => {
   await point(page, '#drop');
   await page.locator('#file').setInputFiles(rosterFull);
   await beat(page, 700);
-  await tap(page, '#previewBtn');
+  await tap(page, '#startBtn');
   await park(page);
   await beat(page, 1300);
   await tap(page, '#confirmBtn');
@@ -122,7 +122,7 @@ await rec.clip('roster-drop', async (page) => {
   await point(page, '#drop');
   await page.locator('#file').setInputFiles(rosterWithoutW);
   await beat(page, 700);
-  await tap(page, '#previewBtn');
+  await tap(page, '#startBtn');
   await park(page);
   await beat(page, 1600);   // the "would drop" callout is the whole point of this step
   await tap(page, '#confirmBtn');
@@ -141,7 +141,7 @@ await rec.clip('roster-return', async (page) => {
   await point(page, '#drop');
   await page.locator('#file').setInputFiles(rosterFull);
   await beat(page, 700);
-  await tap(page, '#previewBtn');
+  await tap(page, '#startBtn');
   await park(page);
   await beat(page, 1000);
   await tap(page, '#confirmBtn');

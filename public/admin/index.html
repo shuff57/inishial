@@ -153,31 +153,27 @@
       </tr></thead>
       <tbody></tbody>
     </table>
-    <p id="coursesEmpty" class="muted small" hidden>No classes yet. Start one below, or import a roster.</p>
+    <p id="coursesEmpty" class="muted small" hidden>No classes yet. Start one below.</p>
   </div>
 
   <h1>Start a class</h1>
   <p class="muted small">
-    A class can exist before its roster does. Name it now, write the syllabus, and
-    import the students whenever the list settles.
+    A class can exist before its roster does. Name it now, write the syllabus, and add the
+    students whenever the list settles — or drop the Aeries export in below and start with
+    them already in it.
   </p>
 
   <div class="card plain">
-    <label for="newCourse">Class name</label>
-    <input id="newCourse" type="text" placeholder="Algebra I">
-    <div id="newCourseMsg" hidden></div>
-    <p class="row"><button id="newCourseBtn">Create the class</button></p>
-  </div>
+    <label for="course">Class name
+      <span class="hint">Needed unless the roster file has a Course column.</span></label>
+    <input id="course" type="text" placeholder="Algebra I">
 
-  <h1>Import a roster</h1>
-  <p class="muted small">
-    Export from Aeries with columns for student ID, name, period, and parent email
-    (<code>PEM</code>). A course name that does not exist yet is created by the import, so this
-    works on its own too. Re-importing is how you handle adds and drops — students missing
-    from the file are marked dropped, never deleted.
-  </p>
+    <p class="small muted">
+      <b>Roster — optional.</b> Export from Aeries with columns for student ID, name, period,
+      and parent email (<code>PEM</code>). Re-importing later is how you handle adds and drops —
+      students missing from the file are marked dropped, never deleted.
+    </p>
 
-  <div class="card plain">
     <div class="tabs on-rules" role="tablist">
       <button role="tab" id="tabFile" aria-selected="true">Upload a file</button>
       <button role="tab" id="tabPaste" aria-selected="false">Paste from a spreadsheet</button>
@@ -199,13 +195,9 @@
         placeholder="Student ID&#9;Last Name&#9;First Name&#9;Period&#9;PEM"></textarea>
     </div>
 
-    <label for="course">Course name
-      <span class="hint">Only needed if the file has no Course column.</span></label>
-    <input id="course" type="text" placeholder="Algebra I">
-
     <div id="importMsg" hidden></div>
     <p class="row">
-      <button id="previewBtn">Preview changes</button>
+      <button id="startBtn">Start the class</button>
       <button id="confirmBtn" class="secondary" hidden>Apply this import</button>
     </p>
 
@@ -236,43 +228,13 @@ function selectTab(which) {
 $('tabFile').addEventListener('click', () => selectTab('file'));
 $('tabPaste').addEventListener('click', () => selectTab('paste'));
 
-// ---- start a class ----
-
-// The link out is the point of the button. An empty class exists to be written
-// against, so landing back on a table row that says 0 students would be the
-// wrong end of the flow.
-$('newCourseBtn').addEventListener('click', async () => {
-  const name = $('newCourse').value.trim();
-  $('newCourseMsg').hidden = true;
-  if (!name) { notice($('newCourseMsg'), 'Give the class a name first.', 'error'); return; }
-
-  $('newCourseBtn').disabled = true;
-  try {
-    const res = await fetch('/api/admin/courses', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
-    });
-    const body = await res.json();
-    if (!res.ok) { notice($('newCourseMsg'), body.error || 'Could not create that class.', 'error'); return; }
-    notice($('newCourseMsg'), body.existing ? `You already have a class called ${name}.` : `Created ${name}.`, 'ok');
-    $('newCourseMsg').insertAdjacentHTML('beforeend',
-      ` <a href="/admin/editor/?course_id=${body.course.id}">Write its syllabus</a>`);
-    $('newCourse').value = '';
-    loadCourses();
-  } catch {
-    notice($('newCourseMsg'), 'Could not reach the server.', 'error');
-  } finally {
-    $('newCourseBtn').disabled = false;
-  }
-});
-$('newCourse').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('newCourseBtn').click(); });
-
 // ---- file input + drag and drop ----
 
 let fileText = '';
 async function takeFile(file) {
   if (!file) return;
   fileText = await file.text();
-  notice($('importMsg'), `Loaded ${file.name} — ${fileText.split(/\r?\n/).filter(Boolean).length - 1} data rows. Preview to see what it would change.`, 'ok');
+  notice($('importMsg'), `Loaded ${file.name} — ${fileText.split(/\r?\n/).filter(Boolean).length - 1} data rows. Start the class to see what it would change.`, 'ok');
   resetPlan();
 }
 $('file').addEventListener('change', (e) => takeFile(e.target.files[0]));
@@ -308,14 +270,33 @@ async function send(text, course, preview) {
   return { res, body: await res.json() };
 }
 
-$('previewBtn').addEventListener('click', async () => {
+// One button, two ways in. With a roster it previews the import and waits for a
+// confirm, because that path can mark students dropped. With no roster there is
+// nothing to preview, so the class is made outright and the message links to the
+// editor -- an empty class exists to be written against, and landing back on a
+// table row saying 0 students would be the wrong end of the flow.
+$('startBtn').addEventListener('click', async () => {
   const text = currentText().trim();
   const course = $('course').value.trim();
   $('importMsg').hidden = true;
-  if (!text) { notice($('importMsg'), 'Choose a file or paste some rows first.', 'error'); return; }
+  if (!text && !course) { notice($('importMsg'), 'Give the class a name, or choose a roster file.', 'error'); return; }
 
-  $('previewBtn').disabled = true;
+  $('startBtn').disabled = true;
   try {
+    if (!text) {
+      const res = await fetch('/api/admin/courses', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: course }),
+      });
+      const body = await res.json();
+      if (!res.ok) { notice($('importMsg'), body.error || 'Could not create that class.', 'error'); return; }
+      notice($('importMsg'), body.existing ? `You already have a class called ${course}.` : `Created ${course}.`, 'ok');
+      $('importMsg').insertAdjacentHTML('beforeend',
+        ` <a href="/admin/editor/?course_id=${body.course.id}">Write its syllabus</a>`);
+      $('course').value = '';
+      loadCourses();
+      return;
+    }
+
     const { res, body } = await send(text, course, true);
     if (!res.ok) { notice($('importMsg'), body.error || 'Could not read that file.', 'error'); return; }
     renderPlan(body);
@@ -324,9 +305,10 @@ $('previewBtn').addEventListener('click', async () => {
   } catch {
     notice($('importMsg'), 'Could not reach the server.', 'error');
   } finally {
-    $('previewBtn').disabled = false;
+    $('startBtn').disabled = false;
   }
 });
+$('course').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('startBtn').click(); });
 
 $('confirmBtn').addEventListener('click', async () => {
   if (!pending) return;
@@ -337,7 +319,7 @@ $('confirmBtn').addEventListener('click', async () => {
     notice($('importMsg'),
       `Imported ${body.imported} students — ${body.inserted} new, ${body.updated} updated, ${body.dropped} marked dropped.`, 'ok');
     resetPlan();
-    fileText = ''; $('paste').value = ''; $('file').value = '';
+    fileText = ''; $('paste').value = ''; $('file').value = ''; $('course').value = '';
     loadCourses();
   } catch {
     notice($('importMsg'), 'Could not reach the server.', 'error');
