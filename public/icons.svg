@@ -1,0 +1,290 @@
+<!-- No `display:none` on this root. That is the trick for a sprite pasted INLINE
+     into a page, where the container would otherwise render as a blank block —
+     and it is exactly wrong here: a hidden root gives the referenced symbols no
+     resolved geometry, so `<use href="/icons.svg#id">` came back 0x0 and every
+     icon button was silently empty. A <symbol> is never drawn on its own, so
+     this file renders nothing if opened directly regardless. -->
+<svg xmlns="http://www.w3.org/2000/svg">
+<!--
+  Hand-drawn icon set.
+
+  The page is ruled paper, the display face is a serif, the buttons are torn
+  tape — and the only three icons were stock geometric line icons: a perfectly
+  circular sun, a 20-node precision cog. They were the one thing on the page
+  that had not been drawn by a person.
+
+  Everything here is gone over TWICE: two strokes of the same form, neither
+  quite on top of the other, the way a felt-tip doubles back when you are
+  sketching rather than drafting. That is what reads as hand-drawn at a glance
+  — not a wobble, but an edge that cannot decide exactly where it is. The
+  second pass carries opacity .55, so the overlap darkens where the two strokes
+  cross, the way ink pools where a line is drawn over.
+
+  Drawing rules, so later additions match:
+    - no <circle>, no <rect>. A hand does not close a circle exactly, so every
+      round form is an open path that overshoots where it started.
+    - corners are left OPEN. A pen lifting and coming back rarely lands on its
+      own start, and that gap is what stops the doubling reading as a printing
+      error rather than as a drawing.
+    - no two strokes of a pair are the same length or exactly parallel.
+    - wobble stays around two thirds of a unit on the 24 grid. More reads as
+      broken; less is invisible once the doubling is doing the work.
+
+  Styling is by PRESENTATION ATTRIBUTE, not a <style> block. These are pulled
+  across documents with `<use href="/icons.svg#id">`, and attributes travel with
+  the referenced node reliably where a stylesheet inside the sprite does not.
+  stroke="currentColor" on the symbol means one CSS rule colours the whole set
+  from whatever is using it.
+
+  Legibility floor: drawn for 20px and up. Below about 16px the two passes close
+  together and it reads as one thicker line — still fine, just no longer worth
+  the extra paths.
+
+  Usage:
+    <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-check"/></svg>
+  See the .icon rule in app.css for sizing and stroke weight.
+-->
+
+<!-- ──── theme ──── -->
+
+<symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M11.4 7.1c2.9-.4 5.5 1.9 5.6 4.7.1 2.8-2.2 5.2-5 5.1-2.7-.1-5-2.4-4.9-5.1.1-2.5 2-4.5 4.4-4.7"/>
+  <path opacity=".55" d="M11.9 7.5c2.5-.1 4.8 2 4.9 4.5.1 2.6-2 4.9-4.6 4.9-2.5 0-4.7-2.1-4.7-4.6 0-2.3 1.7-4.3 3.9-4.7"/>
+  <path d="M12.1 2.2v2.4M11.9 19.4l.3 2.3M4.2 4.5l1.8 1.6M17.6 17.8l1.9 1.7M2.1 12.2l2.4-.2M19.4 11.8l2.4.2M4.5 19.7l1.6-1.8M18.2 6l1.6-1.9"/>
+  <path opacity=".55" d="M12.4 2.5l-.2 2M12.1 19.7v1.9M4.5 4.9l1.5 1.3M17.9 18.1l1.6 1.4M2.4 12.4l2-.2M19.7 12.1l2 .1M4.8 19.4l1.4-1.5M17.9 6.3l1.5-1.6"/>
+</symbol>
+
+<symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20.6 14.4c-4.8 2.1-10.4-.3-12.2-5.2-.7-2.1-.6-4.4.3-6.4C4.6 4.4 2.2 9 3.4 13.3c1.3 4.8 6.2 7.6 10.9 6.3 2.7-.8 5-2.7 6.3-5.2Z"/>
+  <path opacity=".55" d="M20.2 14.9c-4.4 1.7-9.5-.5-11.2-4.9-.7-1.9-.6-4 .1-5.9C5.4 5.6 3.2 9.7 4.3 13.5c1.2 4.3 5.7 6.9 10 5.7 2.4-.7 4.5-2.3 5.9-4.3Z"/>
+</symbol>
+
+<!-- Settings. NOT a cog: a first draft was one, and at 24px it was the sun
+     icon again — they sit two controls apart in the same header, so that is
+     not a near-miss, it is the same picture twice. Three rails with a bead on
+     each, at different positions. Nothing else in the set is a horizontal run
+     of rules, so it stays distinct even small. -->
+<symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3.4 6.5c5.8-.4 11.6-.4 17.2-.2M3.5 12c5.7-.3 11.4-.3 17-.1M3.6 17.5c5.6-.3 11.2-.3 16.8-.1"/>
+  <path opacity=".55" d="M3.8 6.9c5.5-.3 11-.3 16.6-.1M3.9 12.4c5.4-.2 10.8-.2 16.3-.1M4 17.9c5.3-.2 10.6-.2 15.9-.1"/>
+  <path d="M7.7 4.7c1.5-.4 2.7.9 2.4 2.2-.2 1.2-1.9 1.9-2.8 1-.9-.7-.7-2.1.4-2.7"/>
+  <path opacity=".55" d="M8.1 5.1c1.2-.2 2.1.8 1.8 1.9-.2 1-1.5 1.5-2.2.8-.7-.6-.5-1.7.4-2.2"/>
+  <path d="M15.2 10.2c1.5-.4 2.7.9 2.4 2.2-.2 1.2-1.9 1.9-2.8 1-.9-.7-.6-2.1.4-2.7"/>
+  <path opacity=".55" d="M15.6 10.6c1.2-.2 2.1.8 1.8 1.9-.2 1-1.5 1.5-2.2.8-.7-.6-.5-1.7.4-2.2"/>
+  <path d="M9.7 15.7c1.5-.4 2.7.9 2.4 2.2-.2 1.2-1.9 1.9-2.8 1-.9-.7-.6-2.1.4-2.7"/>
+  <path opacity=".55" d="M10.1 16.1c1.2-.2 2.1.8 1.8 1.9-.2 1-1.5 1.5-2.2.8-.7-.6-.5-1.7.4-2.2"/>
+</symbol>
+
+<!-- ──── marks a teacher makes ──── -->
+
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4.1 12.4c1.9 1.3 3.5 3.2 4.8 5.3C11.4 12 15.4 7.1 20.1 3.8"/>
+  <path opacity=".55" d="M4.7 13.1c1.6 1.2 3 2.8 4.2 4.6C11.5 12.6 15.2 8 19.5 4.6"/>
+</symbol>
+
+<symbol id="i-cross" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M5.7 5.6c4.1 4.1 8.4 8.5 12.5 12.8"/>
+  <path opacity=".55" d="M6.4 5.2c3.9 4.3 8 8.5 12 12.6"/>
+  <path d="M18.5 5.8C14.2 9.8 9.8 14.3 5.6 18.4"/>
+  <path opacity=".55" d="M18.1 5.3C14 9.6 9.5 13.8 5.2 17.9"/>
+</symbol>
+
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12.3 4.5c-.3 5-.3 10-.2 15"/>
+  <path opacity=".55" d="M11.8 4.9c.2 4.9.2 9.8.1 14.7"/>
+  <path d="M4.6 11.6c5-.3 10-.3 15-.2"/>
+  <path opacity=".55" d="M5 12.1c4.9.2 9.8.2 14.6.1"/>
+</symbol>
+
+<symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M16.7 3.3c1-.9 2.4-.8 3.2.3l.7.9c.8 1 .7 2.4-.3 3.1L8.9 18.1l-4.7 1.6 1.3-4.8Z"/>
+  <path opacity=".55" d="M17.1 3.8c.8-.7 2-.6 2.7.3l.6.8c.7.8.6 2-.2 2.7L9.2 17.7l-4.2 1.4 1.1-4.3Z"/>
+  <path d="M15 5.2c1.3 1.5 2.8 2.9 4.3 4.1"/>
+  <path opacity=".55" d="M15.5 5.7c1.2 1.3 2.5 2.5 3.9 3.6"/>
+  <path d="M4.2 21.6c4.8-.6 9.7-.7 14.6-.4"/>
+  <path opacity=".55" d="M4.7 21.1c4.5-.4 9.1-.5 13.7-.2"/>
+</symbol>
+
+<!-- ──── structure ──── -->
+
+<symbol id="i-page" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M5.2 3.1c3.3-.3 6.6-.3 9.9-.2 1.8 1.9 3.6 3.7 5.2 5.7.2 4.3.2 8.6-.1 12.8-5 .3-10 .3-15 .1-.3-6.2-.3-12.3-.1-18.4Z"/>
+  <path opacity=".55" d="M5.7 3.6c3-.2 6-.2 9.1-.1 1.6 1.7 3.3 3.4 4.8 5.2.1 3.9.1 7.9-.1 11.8-4.5.2-9.1.2-13.6.1-.2-5.7-.2-11.4-.2-17Z"/>
+  <path d="M14.4 3.1c-.2 2-.2 4-.1 5.9 1.9.2 3.8.2 5.7.1"/>
+  <path d="M8 12.2c2.8-.3 5.6-.3 8.3-.2M8.1 16c2.3-.3 4.6-.3 6.9-.2"/>
+  <path opacity=".55" d="M8.2 12.7c2.6-.2 5.2-.2 7.8-.1M8.3 16.5c2.1-.2 4.2-.2 6.4-.1"/>
+</symbol>
+
+<symbol id="i-pages" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M8.2 2.6c2.8-.3 5.6-.3 8.3-.2 1.5 1.6 3 3.1 4.4 4.8.2 3.5.2 7.1-.1 10.6-4.2.3-8.4.3-12.6.1-.3-5.2-.3-10.3-.1-15.3Z"/>
+  <path opacity=".55" d="M8.7 3.1c2.5-.2 5-.2 7.5-.1 1.3 1.4 2.7 2.8 3.9 4.3.1 3.2.1 6.4-.1 9.6-3.8.2-7.6.2-11.4.1-.2-4.7-.2-9.3.1-13.9Z"/>
+  <path d="M16.2 21.5c-4.2.3-8.3.2-12.5 0-.3-4.9-.3-9.9-.1-14.8"/>
+  <path opacity=".55" d="M15.7 21c-3.8.2-7.6.1-11.4 0-.2-4.5-.2-9-.1-13.5"/>
+</symbol>
+
+<symbol id="i-table" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3.1 4.3c6.1-.4 12.3-.4 18.3-.2.3 5.2.3 10.5.1 15.7-6.2.4-12.4.4-18.6.2-.3-5.3-.3-10.5.2-15.7Z"/>
+  <path opacity=".55" d="M3.6 4.8c5.8-.3 11.6-.3 17.4-.2.2 4.9.2 9.8 0 14.7-5.8.3-11.7.3-17.5.1-.2-4.9-.2-9.8.1-14.6Z"/>
+  <path d="M3.3 9.1c6.1-.3 12.2-.3 18.2-.2M3.4 14.3c6-.3 12-.3 18-.2"/>
+  <path opacity=".55" d="M3.6 9.6c5.8-.2 11.6-.2 17.4-.1M3.7 14.8c5.7-.2 11.4-.2 17.1-.1"/>
+  <path d="M11.7 4.4c-.3 5.1-.3 10.3-.2 15.4"/>
+  <path opacity=".55" d="M12.2 4.9c.2 4.9.2 9.8.1 14.7"/>
+</symbol>
+
+<symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4.3 6.2c.8-.4 1.6.2 1.6 1 0 .8-.9 1.3-1.6.8-.6-.4-.6-1.4 0-1.8Z"/>
+  <path opacity=".55" d="M4.6 6.6c.6-.3 1.2.2 1.1.8 0 .6-.7 1-1.2.5-.4-.3-.4-1 .1-1.3Z"/>
+  <path d="M4.3 11.1c.8-.4 1.6.2 1.6 1 0 .8-.9 1.3-1.6.8-.6-.4-.6-1.4 0-1.8Z"/>
+  <path opacity=".55" d="M4.6 11.5c.6-.3 1.2.2 1.1.8 0 .6-.7 1-1.2.5-.4-.3-.4-1 .1-1.3Z"/>
+  <path d="M4.3 16c.8-.4 1.6.2 1.6 1 0 .8-.9 1.3-1.6.8-.6-.4-.6-1.4 0-1.8Z"/>
+  <path opacity=".55" d="M4.6 16.4c.6-.3 1.2.2 1.1.8 0 .6-.7 1-1.2.5-.4-.3-.4-1 .1-1.3Z"/>
+  <path d="M9 7c3.8-.3 7.6-.3 11.4-.2M9 11.9c3.4-.3 6.9-.3 10.3-.2M9 16.8c3.7-.3 7.4-.3 11.1-.2"/>
+  <path opacity=".55" d="M9.3 7.5c3.6-.2 7.2-.2 10.8-.1M9.3 12.4c3.2-.2 6.5-.2 9.8-.1M9.3 17.3c3.5-.2 7-.2 10.5-.1"/>
+</symbol>
+
+<symbol id="i-list-numbered" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3.4 4.7c.6-.4 1.1-.6 1.7-.7.1 1.6.1 3.2 0 4.7M3.6 8.9c1-.2 2-.2 2.9 0"/>
+  <path opacity=".55" d="M3.8 5.1c.4-.2.8-.4 1.2-.5.1 1.5.1 3 0 4.4"/>
+  <path d="M3.3 11.4c.7-.8 2.1-.8 2.7 0 .5.8-.2 1.7-.9 2.2-.6.5-1.4 1.1-1.8 2 1.1.1 2.2.1 3.2 0"/>
+  <path opacity=".55" d="M3.7 11.8c.6-.6 1.7-.6 2.1 0 .4.6-.2 1.3-.8 1.8-.5.4-1.1.9-1.4 1.6"/>
+  <path d="M3.4 18.1c.8-.6 2.2-.4 2.5.4.2.7-.4 1.2-1.1 1.2.8 0 1.6.4 1.4 1.2-.2 1-1.8 1.1-2.6.5"/>
+  <path opacity=".55" d="M3.8 18.5c.6-.4 1.6-.3 1.9.3.2.5-.3.9-.8.9"/>
+  <path d="M9.2 6.4c3.7-.3 7.4-.3 11.1-.2M9.2 12.8c3.4-.3 6.8-.3 10.2-.2M9.2 19.2c3.6-.3 7.2-.3 10.8-.2"/>
+  <path opacity=".55" d="M9.5 6.9c3.5-.2 7-.2 10.5-.1M9.5 13.3c3.2-.2 6.4-.2 9.6-.1M9.5 19.7c3.4-.2 6.8-.2 10.2-.1"/>
+</symbol>
+
+<!-- ──── moving things about ──── -->
+
+<!-- Rotate with CSS for the other three directions. -->
+<symbol id="i-arrow-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12.2 20.3c-.4-5.2-.4-10.5-.3-15.7"/>
+  <path opacity=".55" d="M11.7 20c.2-5.1.2-10.2.1-15.3"/>
+  <path d="M6 10.6c2-1.9 4-3.7 5.9-5.7"/>
+  <path opacity=".55" d="M6.5 11c1.8-1.8 3.6-3.5 5.4-5.4"/>
+  <path d="M17.9 10.3c-1.8-2-3.7-3.7-5.7-5.4"/>
+  <path opacity=".55" d="M17.4 10.7c-1.6-1.8-3.3-3.4-5.1-4.9"/>
+</symbol>
+
+<!-- Start a new page at this line: the line lifts up off a rule. -->
+<symbol id="i-split" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3.2 17.2c6.1-.4 12.3-.4 18.3-.2M3.4 21c6-.3 12-.3 17.9-.2"/>
+  <path opacity=".55" d="M3.6 17.7c5.8-.3 11.6-.3 17.4-.1M3.8 21.5c5.7-.2 11.4-.2 17.1-.1"/>
+  <path d="M12.2 13.9c-.3-3.5-.3-7-.2-10.5"/>
+  <path opacity=".55" d="M11.7 13.6c.2-3.4.2-6.8.1-10.2"/>
+  <path d="M7.5 8.4c1.5-1.8 3-3.4 4.5-4.9"/>
+  <path opacity=".55" d="M8 8.8c1.3-1.6 2.7-3.1 4.1-4.5"/>
+  <path d="M16.6 8.2c-1.4-1.8-2.9-3.3-4.5-4.7"/>
+  <path opacity=".55" d="M16.1 8.6c-1.2-1.6-2.6-3-4.1-4.3"/>
+</symbol>
+
+<!-- Merge into the page above: a stroke that turns back and rises. -->
+<symbol id="i-merge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20.6 19.4c-3.8.3-7.6.4-11.4 0-2.8-.3-4.7-2.1-4.8-4.8-.1-2.8-.1-5.6 0-8.4"/>
+  <path opacity=".55" d="M20.2 19.9c-3.6.2-7.2.3-10.8 0C6.8 19.6 5 18 4.9 15.5c-.1-2.7-.1-5.4 0-8.1"/>
+  <path d="M1.6 11c1.1-1.3 2.2-2.6 3.4-3.8"/>
+  <path opacity=".55" d="M2.1 11.4c1-1.2 2-2.3 3-3.4"/>
+  <path d="M8.5 10.8C7.5 9.5 6.4 8.3 5.2 7.2"/>
+  <path opacity=".55" d="M8 11.2C7.1 10 6.1 8.9 5 7.9"/>
+</symbol>
+
+<!-- ──── the app's own nouns ──── -->
+
+<!-- Initials required: a written flourish on a rule, the mark a parent leaves. -->
+<symbol id="i-initial" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 15.9c1.6-3.6 2.8-7.4 3.4-11.3.4 3.9.4 7.9 0 11.8 1.3-3.1 3.1-6 5.3-8.5-.6 2.8-.7 5.7-.2 8.4 1.5-2.6 3.6-4.7 6.1-6.1"/>
+  <path opacity=".55" d="M4.5 15.4c1.4-3.3 2.5-6.8 3.1-10.4.3 3.6.3 7.2 0 10.8 1.2-2.8 2.8-5.4 4.8-7.7-.5 2.5-.6 5.1-.2 7.6 1.4-2.3 3.2-4.2 5.5-5.5"/>
+  <path d="M3.8 20.2c5.6-.5 11.3-.5 16.9-.2"/>
+  <path opacity=".55" d="M4.1 19.7c5.3-.3 10.7-.3 16-.1"/>
+</symbol>
+
+<symbol id="i-signed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4.3 11.2c1.7 1.2 3.2 2.8 4.5 4.7C11.1 11.1 14.7 6.8 18.9 3.9"/>
+  <path opacity=".55" d="M4.9 11.9c1.4 1.1 2.7 2.5 3.8 4.1C11.2 11.8 14.5 7.8 18.3 4.7"/>
+  <path d="M3.8 20.2c5.6-.5 11.3-.5 16.9-.2"/>
+  <path opacity=".55" d="M4.1 19.7c5.3-.3 10.7-.3 16-.1"/>
+</symbol>
+
+<!-- Import. The arrow points UP out of the tray, not down into it: a downward
+     arrow is what every browser and mail client uses for DOWNLOAD, and this
+     button does the opposite — it takes a document off the teacher's machine
+     and puts it into the syllabus. Same reason the convention exists for
+     upload. -->
+<symbol id="i-import" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4.2 14.3c-.2 2.1-.2 4.2 0 6.3 5.4.3 10.8.3 16.2.1.2-2.1.2-4.3 0-6.4"/>
+  <path opacity=".55" d="M4.7 14.8c-.2 1.8-.2 3.6 0 5.4 5 .2 10 .2 15 .1.1-1.8.1-3.7 0-5.5"/>
+  <path d="M12.2 3.1c-.3 4.4-.3 8.8-.2 13.2"/>
+  <path opacity=".55" d="M11.7 3.5c.2 4.3.2 8.6.1 12.9"/>
+  <path d="M7 8.9c1.8-1.8 3.5-3.5 5.2-5.3"/>
+  <path opacity=".55" d="M7.5 9.4c1.6-1.6 3.1-3.2 4.6-4.8"/>
+  <path d="M17.2 8.7c-1.7-1.8-3.4-3.5-5.2-5.2"/>
+  <path opacity=".55" d="M16.7 9.2c-1.5-1.6-3-3.1-4.6-4.7"/>
+</symbol>
+
+<!-- Classes. A school desk, side on.
+     Structure borrowed from the way Lucide builds furniture: as few strokes as
+     will carry the silhouette, all of them structural. The first attempt had a
+     slanted lid and a sheet lying on top, and at 18px in the nav the sheet
+     collapsed into a blob and the slant read as a wobble rather than a lid.
+     Four elements now — top, two legs, and the cubby shelf between them —
+     which is what makes it a school desk rather than a table. -->
+<symbol id="i-desk" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M2.6 7.6c6.4-.4 12.9-.4 19.2-.2"/>
+  <path opacity=".55" d="M3 8.2c6.1-.3 12.2-.3 18.4-.2"/>
+  <path d="M5.3 8.1c-.3 4.3-.3 8.6-.2 12.9"/>
+  <path opacity=".55" d="M5.9 8.6c.2 4.1.2 8.2.1 12.3"/>
+  <path d="M19 8c-.3 4.3-.3 8.7-.2 13"/>
+  <path opacity=".55" d="M18.4 8.5c-.2 4.1-.2 8.3-.1 12.4"/>
+  <path d="M5.6 13.6c4.4-.3 8.9-.3 13.3-.2"/>
+  <path opacity=".55" d="M5.9 14.2c4.1-.2 8.3-.2 12.5-.1"/>
+</symbol>
+
+<!-- Fix format. An outline: a heading, its body indented under it, then the next
+     heading. Literally the thing the button decides.
+     The headings are drawn HEAVIER, not merely shorter. Weight is what the eye
+     reads as hierarchy, and on the first pass length alone left this looking
+     like the list icon with its bullets taken off — which is the one icon it
+     sits nearest and must not be confused with. -->
+<symbol id="i-format" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke-width="2.6" d="M3.2 5.1c2.9-.3 5.8-.3 8.7-.2"/>
+  <path stroke-width="2.6" opacity=".5" d="M3.5 5.7c2.7-.2 5.4-.2 8.2-.1"/>
+  <path stroke-width="1.2" d="M8 9.6c4.2-.3 8.5-.3 12.7-.2"/>
+  <path stroke-width="1.2" opacity=".55" d="M8.3 10.1c3.9-.2 7.9-.2 11.9-.1"/>
+  <path stroke-width="1.2" d="M8 13.1c4.2-.3 8.5-.3 12.7-.2"/>
+  <path stroke-width="1.2" opacity=".55" d="M8.3 13.6c3.9-.2 7.9-.2 11.9-.1"/>
+  <path stroke-width="2.6" d="M3.2 17.4c2.9-.3 5.8-.3 8.7-.2"/>
+  <path stroke-width="2.6" opacity=".5" d="M3.5 18c2.7-.2 5.4-.2 8.2-.1"/>
+  <path stroke-width="1.2" d="M8 21.4c4.2-.3 8.5-.3 12.7-.2"/>
+  <path stroke-width="1.2" opacity=".55" d="M8.3 21.9c3.9-.2 7.9-.2 11.9-.1"/>
+</symbol>
+
+<!-- Save draft. A folder: the sheet is being filed, not written to a disk. A
+     floppy would be the conventional mark and means nothing to anyone who has
+     not seen one. -->
+<symbol id="i-save" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3.3 20.6c-.3-4.8-.3-9.6-.1-14.4 2.7-.3 5.4-.3 8-.2.9.9 1.7 1.9 2.6 2.7 2.6.1 5.2.1 7.8 0 .3 4 .3 7.9.1 11.9-6.1.3-12.3.3-18.4 0Z"/>
+  <path opacity=".55" d="M3.8 20.1c-.2-4.5-.2-9-.1-13.5 2.5-.2 5-.2 7.5-.1.8.8 1.6 1.7 2.4 2.5 2.4.1 4.9.1 7.3 0 .2 3.7.2 7.4 0 11.1-5.7.3-11.4.3-17.1 0Z"/>
+  <path d="M8.1 20.4c-.2-2.4-.2-4.8-.1-7.2 2.7-.2 5.5-.2 8.2-.1.2 2.4.2 4.9.1 7.3"/>
+  <path opacity=".55" d="M8.6 20c-.1-2.2-.1-4.4 0-6.6 2.5-.2 5-.2 7.5-.1.1 2.2.1 4.5 0 6.7"/>
+</symbol>
+
+<!-- Sign out. A doorway with the arrow leaving through it. The bracket is open
+     on the side the arrow goes, so the two read as one movement rather than as
+     a box with a line beside it. -->
+<symbol id="i-signout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M11.2 3.6c-2.5-.3-5-.3-7.5-.2-.3 5.7-.3 11.4-.1 17.1 2.5.3 5.1.3 7.6.1"/>
+  <path opacity=".55" d="M11 4.2c-2.3-.2-4.6-.2-6.9-.1-.2 5.3-.2 10.6 0 15.9 2.3.2 4.7.2 7 .1"/>
+  <path d="M9.4 12.1c3.9-.3 7.9-.3 11.8-.2"/>
+  <path opacity=".55" d="M9.7 12.7c3.6-.2 7.3-.2 11-.1"/>
+  <path d="M17.2 8.2c1.5 1.3 2.9 2.6 4.2 4.1"/>
+  <path opacity=".55" d="M17.6 7.7c1.4 1.4 2.7 2.8 3.9 4.3"/>
+  <path d="M17.4 16.1c1.4-1.4 2.7-2.8 3.9-4.3"/>
+  <path opacity=".55" d="M17 15.6c1.5-1.3 2.9-2.7 4.2-4.1"/>
+</symbol>
+
+<symbol id="i-publish" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21.5 2.8C15.4 5 9.3 7.5 3.5 10.4c2.2 1.1 4.5 1.9 6.8 2.6 2.2 2.1 4.2 4.3 6 6.7 2.1-5.6 3.9-11.3 5.2-16.9Z"/>
+  <path opacity=".55" d="M21 3.4C15.2 5.5 9.4 7.9 3.9 10.7c2 1 4.1 1.7 6.2 2.3 2 2 3.9 4 5.5 6.2 1.9-5.2 3.6-10.5 4.8-15.8Z"/>
+  <path d="M10.3 13c3.6-3.6 7.4-7 11.2-10.2"/>
+  <path opacity=".55" d="M10.8 13.5c3.4-3.4 7-6.7 10.7-9.8"/>
+</symbol>
+</svg>

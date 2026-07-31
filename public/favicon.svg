@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+<!--
+  iniSHial, as a scrawled SH.
+
+  The name has the SH picked out mid-word, and the thing the app is FOR is a
+  parent putting their initials on a page. So the mark is not a logo of an
+  object, it is a pair of initials written in a hurry, sitting on a ruled line.
+
+  Same hand as the icons in icons.svg: every stroke drawn twice, neither pass
+  quite on the other, the second at opacity .55 so the crossings pool. The S is
+  one continuous run that overshoots at both ends; the H is three separate
+  strokes, none of them meeting exactly, because nobody writing initials stops
+  to close a corner.
+
+  Explicit colours, not currentColor: a favicon is rendered with no document
+  around it, so there is nothing for currentColor to inherit from. The dark
+  variant is a media query INSIDE this file, which is how an SVG favicon
+  follows the reader's theme.
+
+  One file, no .ico. Every browser this app targets takes an SVG favicon, and a
+  drawn mark that scales beats a 16px bitmap of the same thing.
+-->
+<style>
+  .ink { fill: none; stroke: #2b2724; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .rule { stroke: #c9a227; stroke-width: 1.6; }
+  @media (prefers-color-scheme: dark) {
+    .ink { stroke: #f2efe6; }
+    .rule { stroke: #d8b544; }
+  }
+</style>
+
+<!-- The line it is written on. Amber, like the margin rule on the paper. -->
+<path class="ink rule" d="M3.4 26.6c8.6-.7 17.3-.7 25.8-.3"/>
+<path class="ink rule" opacity=".5" d="M3.8 25.9c8.1-.5 16.3-.5 24.5-.2"/>
+
+<!-- S -->
+<path class="ink" d="M14.1 7.9c-2.1-1.6-5.7-1.4-7 .7-1.2 1.9.6 3.6 2.6 4.4 2 .8 4.3 1.9 4.2 4.2-.1 2.4-3.1 3.8-5.6 3.2-1-.2-2-.7-2.7-1.4"/>
+<path class="ink" opacity=".55" d="M13.6 8.5c-1.9-1.3-5-1.1-6.1.7-1 1.6.6 3.1 2.4 3.8 1.8.7 3.9 1.8 3.8 3.8-.1 2.1-2.8 3.3-5 2.8-.9-.2-1.7-.6-2.3-1.2"/>
+
+<!-- H -->
+<path class="ink" d="M18.6 7.6c-.3 4.6-.3 9.2-.2 13.8"/>
+<path class="ink" opacity=".55" d="M19.2 8.1c.2 4.5.2 9 .1 13.4"/>
+<path class="ink" d="M26.4 7.4c-.3 4.6-.3 9.3-.2 13.9"/>
+<path class="ink" opacity=".55" d="M25.8 7.9c.2 4.5.2 9 .1 13.5"/>
+<path class="ink" d="M18.8 14.4c2.5-.3 5.1-.3 7.6-.2"/>
+<path class="ink" opacity=".55" d="M19.1 15c2.3-.2 4.7-.2 7-.1"/>
+</svg>

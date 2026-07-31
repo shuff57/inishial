@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Syllabus editor · iniSHial</title>
 <link rel="stylesheet" href="/app.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <!-- The stored theme, applied before the first paint. Inline and tiny on
      purpose: a blocking <script src> here cost ~88ms of first paint, and a
      cross-document view transition cannot start until the new page paints,
@@ -166,6 +167,15 @@
 
   .tools { display: flex; gap: .25rem; flex: 0 0 auto; opacity: 0; transition: opacity .15s; }
   .blk:hover .tools, .blk:focus-within .tools { opacity: 1; }
+  /* A picked row shows its tools whatever the input was. On a touchscreen there
+     is no hover, so before this the delete/split/move buttons could not be
+     reached at all -- they were revealed by a state a finger cannot produce. */
+  .blk.picked .tools { opacity: 1; }
+  /* Picked means "the next drag here is a move, not a scroll", and the browser
+     has to be told BEFORE the gesture starts -- touch-action set mid-gesture
+     does not call back a scroll that has already begun. Only the picked row, so
+     every other row still scrolls the page. */
+  .blk.picked, .sec.picked { touch-action: none; }
   /* Exactly one rule tall, so a row of tools beside a one-line block occupies
      that block's line rather than three quarters of it. */
   .tools button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .45rem; font-size: .8rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm);
@@ -279,7 +289,11 @@
 
   /* A whole rule of air, not 1.2rem. At a 17px root that was 20.4px, and the
      5.6px left over put this row -- and its buttons -- off the lines. */
-  .adders { display: flex; gap: .4rem; flex-wrap: wrap; margin: var(--rule) 0; }
+  /* row-gap: 0 because this row wraps, and a wrapping row spends its `gap`
+     vertically too -- see the note on .book-bar in app.css. Six buttons and a
+     label wrap well before a phone width, and the leftover 6.8px put every
+     block below them off the lines. Each button is exactly one rule. */
+  .adders { display: flex; column-gap: .4rem; row-gap: 0; flex-wrap: wrap; margin: var(--rule) 0; }
   .adders button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); font-size: .8rem; }
   .adders button:hover { background: var(--sand); color: var(--ink); }
   /* Lifted onto the lines: a dashed box whose edges land 6px below a rule
@@ -338,6 +352,11 @@
      only the rose ones survived, because `[data-needs="1"]` reaches (0,2,1) on
      its own and wins on source order. The rail read as "some pages have tabs"
      rather than "these are the pages a parent has to sign". */
+  /* The rail's own tabs drag to reorder pages, and that gesture is bound to
+     pointerdown -- so on a touchscreen it has always been in a race with the
+     page scroll. The rail is a narrow strip at the edge, so giving up scrolling
+     over it costs nothing and settles the race. */
+  .pages button { touch-action: none; }
   .pages button:not(.danger) {
     display: block; width: 100%; min-height: 0; height: 1.35rem; line-height: 1.35rem;
     padding: 0 .4rem 0 0; text-indent: 1.1rem; text-align: left;
@@ -423,10 +442,19 @@
   }
   @media (prefers-reduced-motion: reduce) { .pages button { transition: none; } }
   @media (max-width: 68rem) {
+    /* row-gap: 0 -- see the note on .book-bar in app.css. The rail inherits
+       `gap: .3rem` from the column layout above, which costs nothing while it
+       is a floated column but is charged between every wrapped LINE here.
+       The tab height has to come with it: 1.35rem is fine in the rail, which
+       is out of flow, but this row is IN flow and a 23px line can never be a
+       whole rule however the gap is set. A rule tall also gives the tab a
+       target a finger can actually hit. */
     .pages { position: static; float: none; width: auto; margin: 0 0 var(--rule);
-             flex-direction: row; flex-wrap: wrap; }
-    .pages button { width: auto; max-width: 9rem; clip-path: none; border-radius: 3px;
-                    text-indent: 0; padding: 0 .5rem; transform: none; }
+             flex-direction: row; flex-wrap: wrap; column-gap: .3rem; row-gap: 0; }
+    .pages button:not(.danger) {
+      width: auto; max-width: 9rem; height: var(--rule); line-height: var(--rule);
+      clip-path: none; border-radius: 3px; text-indent: 0; padding: 0 .5rem; transform: none;
+    }
     .pages button:hover, .pages button[aria-current="true"] { transform: none; }
   }
 
@@ -530,13 +558,13 @@
 <header class="site"><nav aria-label="Main">
   <a class="brand" href="/admin/">ini<span class="sh">SH</span>ial</a>
   <ul class="nav-main">
-    <li><a href="/admin/">Classes</a></li>
-    <li><a href="/admin/editor/" data-keep-course>Syllabus editor</a></li>
-    <li><a href="/admin/progress/" data-keep-course>Who has signed</a></li>
+    <li><a class="to-icon" href="/admin/" title="Classes"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-desk"/></svg><span class="label">Classes</span></a></li>
+    <li><a class="to-icon" href="/admin/editor/" data-keep-course title="Syllabus editor"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-pencil"/></svg><span class="label">Syllabus editor</span></a></li>
+    <li><a class="to-icon" href="/admin/progress/" data-keep-course title="Who has signed"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signed"/></svg><span class="label">Who has signed</span></a></li>
   </ul>
   <div class="nav-end">
-    <button type="button" class="theme-toggle"><svg class="sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.2v2.1M12 19.7v2.1M4.6 4.6l1.5 1.5M17.9 17.9l1.5 1.5M2.2 12h2.1M19.7 12h2.1M4.6 19.4l1.5-1.5M17.9 6.1l1.5-1.5"/></svg><svg class="moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.8 8.8 0 0 1 9.2 3.5a8.8 8.8 0 1 0 11.3 11.3Z"/></svg></button>
-    <button type="button" class="secondary" id="navSignout">Sign out</button>
+    <button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
+    <button type="button" class="secondary to-icon" id="navSignout" title="Sign out"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signout"/></svg><span class="label">Sign out</span></button>
     <!--
       Settings. A <details> rather than a scripted menu: open/close, Escape,
       and the focus order are the browser's job, and the only thing in here is
@@ -545,7 +573,7 @@
     -->
     <details class="settings" id="settings">
       <summary aria-label="Settings" title="Settings">
-        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-settings"/></svg>
       </summary>
       <div class="menu">
         <label for="aiModel">AI model</label>
@@ -557,14 +585,20 @@
 </nav></header>
 
 <div class="toolbar"><div>
-  <strong id="who">Syllabus editor</strong>
+  <!-- The CLASS being edited, filled in on load. Starts empty on purpose: it
+       used to read "Syllabus editor", which is the nav link you just pressed to
+       get here, so on a narrow screen -- where the nav wraps onto its own row
+       directly above this bar -- the words appeared twice, one under the other.
+       The highlighted tab already says which section you are in; this line is
+       for the one thing it cannot tell you, which class you have open. -->
+  <strong id="who"></strong>
   <span class="spacer"></span>
   <span class="status" id="status"></span>
-  <button class="secondary" id="importBtn" title="Start over from a .docx or pasted text">Import…</button>
-  <button class="secondary" id="structureBtn" title="Ask the AI which lines are sections, which are subsections, and which are body text. Retags only — never changes a word.">Fix format</button>
-  <button class="secondary" id="suggestBtn" title="Ask the AI which sections should need initials">Suggest initials</button>
-  <button class="secondary" id="saveBtn">Save draft</button>
-  <button id="publishBtn">Publish…</button>
+  <button class="secondary to-icon" id="importBtn" title="Start over from a .docx or pasted text"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-import"/></svg><span class="label">Import…</span></button>
+  <button class="secondary to-icon" id="structureBtn" title="Ask the AI which lines are sections, which are subsections, and which are body text. Retags only — never changes a word."><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-format"/></svg><span class="label">Fix format</span></button>
+  <button class="secondary to-icon" id="suggestBtn" title="Ask the AI which sections should need initials"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-initial"/></svg><span class="label">Suggest initials</span></button>
+  <button class="secondary to-icon" id="saveBtn" title="Save draft"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-save"/></svg><span class="label">Save draft</span></button>
+  <button class="to-icon" id="publishBtn" title="Publish…"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-publish"/></svg><span class="label">Publish…</span></button>
 </div></div>
 
 <main id="main" tabindex="-1">
@@ -1238,7 +1272,23 @@ $('blocks').addEventListener('mousemove', (e) => {
 });
 $('blocks').addEventListener('mouseleave', () => setHover(null));
 
+// Which device is driving this press.
+//
+// A touchscreen fires pointerdown AND THEN a compatibility `mousedown`, so
+// without this every finger press ran the touch path and the mouse path both,
+// and each of them started a drag. Two drags means two placeholders, and the
+// drop then walks out of its own placeholder into the other one, finds nothing
+// it recognises, and resolves to "leave it where it was" -- a drag that looked
+// completely normal, ghost and all, and silently moved nothing.
+//
+// pointerdown precedes both the real and the synthesised mousedown, so reading
+// the type there tells the mouse handler which it is about to get. Not a
+// timeout: there is nothing to guess at.
+let pressIsTouch = false;
+document.addEventListener('pointerdown', (e) => { pressIsTouch = e.pointerType !== 'mouse'; }, true);
+
 $('blocks').addEventListener('mousedown', (e) => {
+  if (pressIsTouch) return;                            // the pointer path owns this press
   if (e.button !== 0) return;
   // Both tool strips: the per-block .tools and the per-page .page-tools. Miss
   // one and its buttons stop working ENTIRELY -- the press falls through to the
@@ -1272,6 +1322,66 @@ $('blocks').addEventListener('mousedown', (e) => {
   startDrag(e, target.at, target.kind);
 });
 
+// ---- the same gesture, by finger ----
+//
+// A touchscreen could not reorder anything at all. Two reasons, and the first
+// is fatal on its own: the handler above listens for `mousedown`, which a
+// touchscreen synthesises only AFTER it has decided the gesture was not a
+// scroll -- which is to say after the finger has lifted. The press-and-drag
+// never arrived.
+//
+// The second is that the mouse gesture is ONE motion: the press selects and
+// starts the drag together. A finger cannot say that, because the identical
+// press is how the browser scrolls, and neither party knows which was meant
+// until the finger has already moved -- by which time the scroll has started
+// and cannot be called back.
+//
+// So a finger gets the two-step version of the same model, which is the one
+// this editor already speaks: the first tap PICKS A ROW UP, and a drag on an
+// already-picked row MOVES it. Nothing is timed and nothing is guessed. A
+// picked row carries `touch-action: none`, so by the time the second gesture
+// begins the browser has already been told that a drag starting there belongs
+// to us; every other row still scrolls the page normally.
+//
+// Deliberately NOT preventDefault: `touch-action` has already stopped the
+// scroll, and suppressing the synthesised events too would take double-tap to
+// edit with it. The 4px slop inside startDrag() means a second tap that does
+// not move is a drag that never goes live, so it costs nothing.
+let touchTap = null;
+
+$('blocks').addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse') return;        // the mousedown path above owns the mouse
+  if (e.target.closest('.tools, .page-tools')) return;
+  if (caretIn && caretIn.contains(e.target)) return;
+
+  const target = pickTargetFor(e.target);
+  touchTap = null;
+  if (!target) return;
+
+  if (isPicked(target)) { startDrag(e, target.at, target.kind); return; }
+  // Not picked yet, so this gesture still belongs to the browser. If it turns
+  // out to have been a tap rather than a scroll, pointerup picks the row up.
+  touchTap = { x: e.clientX, y: e.clientY, target };
+});
+
+$('blocks').addEventListener('pointerup', (e) => {
+  if (e.pointerType === 'mouse' || !touchTap) return;
+  const { x, y, target } = touchTap;
+  touchTap = null;
+  // Travelled: that was a scroll, and the row must not be selected by it.
+  if (Math.abs(e.clientX - x) + Math.abs(e.clientY - y) > 10) return;
+  pick(target);
+});
+
+// Tapping off the list drops the selection, the same as the mouse rule below.
+// Without it a picked row keeps `touch-action: none` and that patch of the page
+// silently stops scrolling.
+document.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'mouse') return;
+  if (e.target.closest('#blocks, .toolbar, .adders')) return;
+  if (selected || caretIn) { endCaret(); pick(null); }
+}, true);
+
 $('blocks').addEventListener('dblclick', (e) => {
   const row = e.target.closest('.blk');
   if (!row) return;
@@ -1293,6 +1403,7 @@ $('blocks').addEventListener('dblclick', (e) => {
 // In the bubble phase this test would therefore read every in-list press as
 // "outside" and cancel the selection it had just made.
 document.addEventListener('mousedown', (e) => {
+  if (pressIsTouch) return;                            // the pointer path above already did this
   if (e.target.closest('#blocks, .toolbar, .adders')) return;
   if (selected || caretIn) { endCaret(); pick(null); }
 }, true);
@@ -1695,6 +1806,10 @@ function confirmReplace() {
 
 async function takeDocx(file) {
   if (!file) return;
+  // A DROPPED file never asks the input whether it is disabled, so the lock has
+  // to be checked here rather than left to the attribute. Both ways in -- the
+  // picker and the drop zone -- land on this function.
+  if (aiRunning) { notice('Wait for the model to finish before importing.', 'error'); return; }
   if (!confirmReplace()) return;
   try {
     status('Converting…');
@@ -2181,14 +2296,51 @@ async function aiRun(path, payload, label) {
 
 // ---- suggest / save / publish ----
 
+/**
+ * What an AI answer is indexed against.
+ *
+ * Both endpoints reply with {index, ...} pointers into the block list they were
+ * SENT. Anything that adds, removes or reorders a block between the request and
+ * the reply moves those indices, and the answer then lands on the wrong lines
+ * -- silently, because an index is always valid for SOME block. Importing a new
+ * document mid-run was the worst case, but a single ✕ during the three seconds
+ * a model takes is enough to do it.
+ *
+ * Types only, not the words: editing the TEXT of a block leaves every index
+ * pointing where it did, so a teacher who keeps typing while the model thinks
+ * does not lose its answer for nothing.
+ *
+ * ponytail: reordering two blocks of the SAME type is the one structural change
+ * this does not see. Give blocks an id if that ever matters -- nothing else in
+ * the editor needs one today.
+ */
+const blockShape = (blocks) => blocks.map((b) => b.type).join('|');
+
+// Everything that would replace or restructure the document while a model is
+// mid-answer. Disabled together, so the teacher is never invited to do the
+// thing blockShape() would then have to refuse.
+const AI_LOCKS = ['structureBtn', 'suggestBtn', 'importBtn', 'pasteBtn', 'file'];
+let aiRunning = false;
+
+function aiBusy(on) {
+  aiRunning = on;
+  for (const id of AI_LOCKS) { const el = $(id); if (el) el.disabled = on; }
+}
+
 async function runStructure() {
   if (!state.blocks.length) { notice('Nothing to look at yet.', 'error'); return; }
-  $('structureBtn').disabled = true;
+  aiBusy(true);
+  const shape = blockShape(state.blocks);
   status('Checking headings…');
   try {
     const body = await aiRun('/api/admin/structure', { blocks: state.blocks }, 'Checking headings');
     if (!body.available) { notice(body.reason || 'Not available.', 'error'); return; }
     if (!body.retag.length) { notice('Headings already look right — nothing changed.', 'ok'); return; }
+    if (blockShape(state.blocks) !== shape) {
+      notice('The document changed while the model was reading it, so that answer no longer'
+        + ' points at the right lines. Nothing was altered — run Fix format again.', 'error');
+      return;
+    }
 
     // retag() rebuilds only the tag; blockText() proves the words are untouched.
     const before = JSON.stringify(state.blocks.map((b) => blockText(b.html)));
@@ -2213,7 +2365,7 @@ async function runStructure() {
     notice(`Retagged ${body.retag.length} line(s) — ${parts.join(', ')}. Wording unchanged.`, 'ok');
   } catch {
     notice('Could not reach the server.', 'error');
-  } finally { $('structureBtn').disabled = false; status(''); }
+  } finally { aiBusy(false); status(''); }
 }
 
 $('structureBtn').addEventListener('click', runStructure);
@@ -2230,12 +2382,18 @@ function offerStructureIfFlat(imported) {
 
 $('suggestBtn').addEventListener('click', async () => {
   if (!state.blocks.length) { notice('Nothing to look at yet.', 'error'); return; }
-  $('suggestBtn').disabled = true;
+  aiBusy(true);
+  const shape = blockShape(state.blocks);
   status('Asking the model…');
   try {
     const body = await aiRun('/api/admin/suggest', { blocks: state.blocks }, 'Suggesting initials');
     if (!body.available) { notice(body.reason || 'Suggestions are not available.', 'error'); return; }
     if (!body.suggestions.length) { notice('No further sections suggested.', 'ok'); return; }
+    if (blockShape(state.blocks) !== shape) {
+      notice('The document changed while the model was reading it, so those suggestions no longer'
+        + ' point at the right sections. Nothing was marked — ask again.', 'error');
+      return;
+    }
     // Stamps the pointer on each block; the document is unchanged until the
     // teacher accepts. See reorder.js:setPendingSuggestions for the rule.
     state.blocks = setPendingSuggestions(state.blocks, body.suggestions);
@@ -2248,7 +2406,7 @@ $('suggestBtn').addEventListener('click', async () => {
       'ok', { label: 'Accept all', run: acceptAll });
   } catch {
     notice('Could not reach the server.', 'error');
-  } finally { $('suggestBtn').disabled = false; status(''); }
+  } finally { aiBusy(false); status(''); }
 });
 
 /** Go to the page that holds the first pending block. No-op when there are
@@ -2358,7 +2516,11 @@ addEventListener('beforeunload', (e) => { if (state.dirty) { e.preventDefault();
 // ---- load ----
 
 (async function load() {
-  if (!courseId) { notice('No class chosen. Open this from the admin page.', 'error'); return; }
+  if (!courseId) {
+    $('who').textContent = 'No class chosen';
+    notice('No class chosen. Open this from the admin page.', 'error');
+    return;
+  }
   const res = await fetch(`/api/admin/syllabus?course_id=${courseId}`);
   if (res.status === 401) { location.href = '/admin/login/?next=' + encodeURIComponent(location.pathname + location.search); return; }
   const body = await res.json();

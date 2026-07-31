@@ -329,6 +329,48 @@ header.site nav {
   display: grid; place-items: center;
   padding: 0 !important;
 }
+/* The hand-drawn set in /icons.svg, pulled in with
+   `<svg class="icon"><use href="/icons.svg#i-name"/></svg>`.
+   Stroke colour comes from currentColor, so an icon takes the colour of
+   whatever it sits in and needs no per-place rule. Size is set here and
+   overridden where a particular slot wants a different one. */
+.icon { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; vertical-align: -.18em; }
+/* Icons are decoration beside a label, never the hit target itself -- a click
+   must always land on the button, not on the drawing inside it. */
+.icon { pointer-events: none; }
+
+/*
+ * Narrow screens trade the WORDS on a control for its icon.
+ *
+ * Wide: the label reads, and `.icon.only` is not drawn at all -- the desktop
+ * bars are unchanged. Narrow: the icon appears and the label goes to
+ * .visually-hidden rather than display:none, which matters -- a button whose
+ * text is display:none has no accessible name left, so a screen reader would
+ * announce eight identically nameless buttons. Hidden this way the name
+ * survives for anyone not looking at the screen, and the tooltip survives for
+ * anyone who is.
+ */
+.icon.only { display: none; }
+
+/* Off-screen but still in the accessibility tree. The clip-path/1px recipe
+   rather than `display:none` or `visibility:hidden`, both of which remove the
+   text from that tree along with the pixels. */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+}
+
+@media (max-width: 44rem) {
+  .icon.only { display: block; }
+  .to-icon .label { position: absolute; width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0; clip-path: inset(50%);
+    overflow: hidden; white-space: nowrap; }
+  /* Square once the words are gone, so a row of them reads as a row of marks
+     rather than as buttons that lost their text. */
+  .to-icon { padding-left: .55rem; padding-right: .55rem; }
+}
+
 .theme-toggle svg { width: 1.05rem; height: 1.05rem; }
 .theme-toggle::before { display: none; }
 .theme-toggle:hover { background: color-mix(in srgb, var(--desk-ink) 12%, transparent) !important; }
@@ -1115,8 +1157,23 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
 /* Same offsets as .on-rules, so the two-rule buttons in here sit BETWEEN two
    lines instead of having one drawn across them. Padding on the bar rather
    than a lift on each button: the bar stays a whole number of rules. */
+/*
+ * ROW-GAP ON A WRAPPING ROW -- read this before adding `gap` to a flex or grid
+ * container that can wrap.
+ *
+ * `gap` is not only the space BETWEEN items, it is also the space between
+ * FLEX LINES. A row that never wraps spends it horizontally and costs nothing;
+ * the moment it wraps, the same value is charged vertically as well, and the
+ * container stops being a whole number of rules. Everything below it then sits
+ * off the ruling -- and it only happens at the narrow widths where the row
+ * wraps, which is to say on a phone, which is where most readers are.
+ *
+ * So: wrapping rows set `column-gap` and `row-gap` separately, and the row-gap
+ * is 0. The items are each a whole number of rules, so touching rows still land
+ * on the lines -- on ruled paper a chip per line reads correctly anyway.
+ */
 .book-bar {
-  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  display: flex; align-items: center; column-gap: .6rem; row-gap: 0; flex-wrap: wrap;
   margin: var(--rule) 0 0;
   padding: calc(var(--baseline) + var(--sit)) 0 var(--lift);
 }
@@ -1288,11 +1345,23 @@ main .flags button::before, main .flags button::after { content: none; }
 /* No margin to put them in on a narrow window, and a flag over the text is
    worse than no flag. They lie down into a strip above the page instead. */
 @media (max-width: 62rem) {
+  /* row-gap: 0 -- see the note on .book-bar. This rail is the worst place in
+     the app to get that wrong: it only wraps on a phone, it is the control a
+     parent uses to find the sections still owed, and the drift lands on the
+     document they are signing. Each flag is exactly one rule, so the rows
+     touch and every one of them sits on a line. */
   .flags {
     position: static; float: none; width: auto; margin: 0 0 var(--rule);
-    flex-direction: row; flex-wrap: wrap; gap: .3rem;
+    flex-direction: row; flex-wrap: wrap; column-gap: .3rem; row-gap: 0;
   }
-  .flags button {
+  /* `:not(.danger)` is specificity, not meaning -- the same trick used at the
+     base rule above, and needed for the same reason. A plain `.flags button` is
+     (0,1,1) and loses to `.flags button:not(.danger)` at (0,2,1), so NONE of
+     this block applied: the flags kept the rail's 1.35rem height on a phone.
+     That is 22.95px against a 32px rule -- the wrapped rows could never land on
+     the ruling however the gap was set -- and it is also the tap target a
+     parent aims at to reach a section they still owe. */
+  .flags button:not(.danger) {
     width: auto; max-width: 9rem; height: var(--rule); line-height: var(--rule);
     clip-path: none; border-radius: 3px; text-indent: 0; padding: 0 .6rem;
     transform: none;
@@ -1444,6 +1513,24 @@ main .flags button::before, main .flags button::after { content: none; }
   .nav-main {
     order: 3; flex-basis: 100%; justify-content: flex-start;
     flex-wrap: wrap; overflow-x: visible; row-gap: .1rem;
+  }
+  /* ...unless the links have already become icons, which is the admin nav.
+     The rule above exists because five WORDS cannot share a row with the brand
+     at 390px. Three marks can -- they come to about a third of the width -- so
+     forcing them onto a line of their own just spends a row saying nothing.
+     The public nav is still words and still wraps, which is why this is scoped
+     by :has() rather than by page. */
+  /* Keeps the base `flex: 1 1 auto; justify-content: center`, so the marks sit
+     CENTRED in whatever room is left between the brand and the controls --
+     which is what the strip does at full width, and what it should keep doing.
+     Only `order` and `flex-basis: 100%` are undone, because those are what put
+     it on a row of its own.
+     This works now only because Sign out became an icon too: at its full text
+     width the three bases came to more than the line could hold, the row wrapped
+     before any of the centring applied, and the header read as links hard left
+     on one row and controls hard right on the next. */
+  .nav-main:has(.to-icon) {
+    order: 0; flex-basis: auto; margin-left: .4rem;
   }
   .nav-end { margin-left: auto; }
 }
