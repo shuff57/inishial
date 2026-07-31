@@ -203,7 +203,7 @@ async function loadSyllabus() {
   $('docMeta').textContent =
     [body.course, body.period && ('Period ' + body.period), 'Version ' + body.version].filter(Boolean).join(' · ');
   $('progressWho').textContent =
-    body.student + (body.role === 'parent' ? ' — parent or guardian' : ' — student');
+    body.student + (body.role === 'parent' ? ' · parent or guardian' : ' · student');
 
   render();
 }

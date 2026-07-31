@@ -116,7 +116,7 @@ writeSteps('student', {
     },
     {
       title: 'Fill in your information',
-      body: 'Enter your student ID number and last name exactly as they appear on your school ID, then your school email. The parent or guardian email is optional — only fill it in if the syllabus should go to an address different from the one your school already has on file.',
+      body: 'Enter your student ID number and last name exactly as they appear on your school ID, then your school email. The parent or guardian email is optional. Only fill it in if the syllabus should go to an address different from the one your school already has on file.',
       clip: 'student-register-fill.mp4',
     },
     {

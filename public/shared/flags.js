@@ -44,7 +44,7 @@ export function buildFlags(host, { onPick } = {}) {
     // The visible label is clipped by CSS at this width, so the accessible
     // name carries the whole thing plus the state -- a screen reader must not
     // be handed "Academic Honesty and Use…" with no idea whether it is done.
-    flag.title = `${label} — ${done ? 'initialled' : 'needs initials'}`;
+    flag.title = `${label}: ${done ? 'initialled' : 'needs initials'}`;
     flag.setAttribute('aria-label', `${label}, page ${i + 1}, ${done ? 'initialled' : 'needs initials'}`);
     if (done) flag.dataset.signed = '1';
     flag.addEventListener('click', () => onPick?.(i));

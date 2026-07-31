@@ -160,7 +160,7 @@
   <h1>Start a class</h1>
   <p class="muted small">
     A class can exist before its roster does. Name it now, write the syllabus, and add the
-    students whenever the list settles — or drop the Aeries export in below and start with
+    students whenever the list settles, or drop the Aeries export in below and start with
     them already in it.
   </p>
 
@@ -170,8 +170,8 @@
     <input id="course" type="text" placeholder="Algebra I">
 
     <p class="small muted">
-      <b>Roster — optional.</b> Export from Aeries with columns for student ID, name, period,
-      and parent email (<code>PEM</code>). Re-importing later is how you handle adds and drops —
+      Roster, optional. Export from Aeries with columns for student ID, name, period,
+      and parent email (<code>PEM</code>). Re-importing later is how you handle adds and drops,
       students missing from the file are marked dropped, never deleted.
     </p>
 
@@ -235,7 +235,7 @@ let fileText = '';
 async function takeFile(file) {
   if (!file) return;
   fileText = await file.text();
-  notice($('importMsg'), `Loaded ${file.name} — ${fileText.split(/\r?\n/).filter(Boolean).length - 1} data rows. Start the class to see what it would change.`, 'ok');
+  notice($('importMsg'), `Loaded ${file.name}: ${fileText.split(/\r?\n/).filter(Boolean).length - 1} data rows. Start the class to see what it would change.`, 'ok');
   resetPlan();
 }
 $('file').addEventListener('change', (e) => takeFile(e.target.files[0]));
@@ -318,7 +318,7 @@ $('confirmBtn').addEventListener('click', async () => {
     const { res, body } = await send(pending.text, pending.course, false);
     if (!res.ok) { notice($('importMsg'), body.error || 'Import failed.', 'error'); return; }
     notice($('importMsg'),
-      `Imported ${body.imported} students — ${body.inserted} new, ${body.updated} updated, ${body.dropped} marked dropped.`, 'ok');
+      `Imported ${body.imported} students: ${body.inserted} new, ${body.updated} updated, ${body.dropped} marked dropped.`, 'ok');
     resetPlan();
     fileText = ''; $('paste').value = ''; $('file').value = ''; $('course').value = '';
     loadCourses();

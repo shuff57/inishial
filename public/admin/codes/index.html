@@ -98,10 +98,10 @@
   <div id="msg" hidden></div>
 
   <p class="muted small">
-    Every student has <b>two</b> codes. Mail the parent theirs; the student's is
+    Every student has two codes. Mail the parent theirs; the student's is
     shown to them when they set up their account, and is here so you can read it
     back to anyone who lost it. Which code is used at sign-in is what decides
-    whose initials it writes — so they are never the same string.
+    whose initials it writes, so they are never the same string.
   </p>
 
   <p class="row">
@@ -140,12 +140,12 @@ function codeCell(c) {
   if (c.code) return `<span class="code">${esc(c.code)}</span>`;
   if (c.no_account) return '<span class="code none">—</span>';
   if (!c.issued_at && !c.recoverable) return '<span class="code none">not issued yet</span>';
-  return `<span class="code none" title="Issued ${esc(when(c.issued_at))}. Reissue to see a code — the current one stops working.">cannot be shown</span>`;
+  return `<span class="code none" title="Issued ${esc(when(c.issued_at))}. Reissue to see a code, and the current one stops working.">cannot be shown</span>`;
 }
 
 function render() {
   const registered = data.students.filter((s) => s.account_id).length;
-  $('sub').textContent = `${data.course} — ${registered} of ${data.students.length} registered`;
+  $('sub').textContent = `${data.course} · ${registered} of ${data.students.length} registered`;
   $('rows').innerHTML = data.students.map((s) => `<tr data-id="${s.account_id ?? ''}">
       <td class="name">${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
       <td data-label="Per.">${esc(s.period)}</td>
@@ -159,7 +159,7 @@ function render() {
   $('empty').hidden = data.students.length > 0;
 
   if (!data.vault) {
-    notice('CODE_SECRET is not set on this deployment, so codes cannot be read back — '
+    notice('CODE_SECRET is not set on this deployment, so codes cannot be read back. '
       + 'only ones issued from this page in this request are visible. Set the secret and reissue.', 'error');
   }
 }

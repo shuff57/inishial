@@ -19,14 +19,14 @@
     },
     {
       "title": "Open the syllabus editor",
-      "body": "A brand new class opens straight to \"Start from a document,\" because there is nothing in the draft yet to show instead. The editor works one page at a time — the same page a parent turns to — with Fix format, Suggest initials, Save draft, and Publish along the top. Nothing here is visible to parents until you publish it.",
+      "body": "A brand new class opens straight to \"Start from a document,\" because there is nothing in the draft yet to show instead. The editor works one page at a time, the same page a parent turns to, with Fix format, Suggest initials, Save draft, and Publish along the top. Nothing here is visible to parents until you publish it.",
       "clip": "teacher-setup-editor-open.mp4",
       "n": 3,
       "clipDark": "teacher-setup-editor-open-dark.mp4"
     },
     {
       "title": "Start from a document",
-      "body": "Drop a .docx here, or paste text straight from Word or Google Docs — the box grows to fit whatever you paste. Pasted text is split into blocks automatically: a short line with no punctuation becomes a heading, everything else becomes a paragraph or a list.",
+      "body": "Drop a .docx here, or paste text straight from Word or Google Docs. The box grows to fit whatever you paste. Pasted text is split into blocks automatically: a short line with no punctuation becomes a heading, everything else becomes a paragraph or a list.",
       "clip": "teacher-setup-start-paste.mp4",
       "n": 4,
       "clipDark": "teacher-setup-start-paste-dark.mp4"
@@ -40,14 +40,14 @@
     },
     {
       "title": "Fix format straightens out the structure",
-      "body": "A pasted document often has real headings that do not look like headings to a simple rule — a title that ends with a period, or a line that got bolded instead of styled. Fix format asks an AI model to tell headings from body text and retags them. It never rewrites a word; only the tag around a line ever changes.",
+      "body": "A pasted document often has real headings that do not look like headings to a simple rule: a title that ends with a period, or a line that got bolded instead of styled. Fix format asks an AI model to tell headings from body text and retags them. It never rewrites a word; only the tag around a line ever changes.",
       "clip": "teacher-setup-fix-headings.mp4",
       "n": 6,
       "clipDark": "teacher-setup-fix-headings-dark.mp4"
     },
     {
       "title": "Suggest initials flags sections worth a signature",
-      "body": "This asks the same model which sections a parent should have to initial individually — grading and late work, attendance, safety, academic honesty, anything that costs money. Suggestions show up as a note in the margin; nothing is required until you click Require initials on a page yourself.",
+      "body": "This asks the same model which sections a parent should have to initial individually: grading and late work, attendance, safety, academic honesty, anything that costs money. Suggestions show up as a note in the margin; nothing is required until you click Require initials on a page yourself.",
       "clip": "teacher-setup-suggest-initials.mp4",
       "n": 7,
       "clipDark": "teacher-setup-suggest-initials-dark.mp4"
@@ -61,28 +61,28 @@
     },
     {
       "title": "Reorder or delete a block",
-      "body": "Click a block once to pick it up, then drag it — or use the ↑ / ↓ arrows to nudge it a line at a time. The ✕ on the right deletes it. A heading carries its whole page with it when you drag it; a loose line moves on its own.",
+      "body": "Click a block once to pick it up, then drag it, or use the ↑ / ↓ arrows to nudge it a line at a time. The ✕ on the right deletes it. A heading carries its whole page with it when you drag it; a loose line moves on its own.",
       "clip": "teacher-setup-reorder-delete.mp4",
       "n": 9,
       "clipDark": "teacher-setup-reorder-delete-dark.mp4"
     },
     {
       "title": "Save draft keeps it private",
-      "body": "Save draft writes your changes to the server, but nothing changes for parents — they still see whatever was last published. Save often; there is no autosave, and the page warns you before you navigate away with unsaved changes.",
+      "body": "Save draft writes your changes to the server, but nothing changes for parents. They still see whatever was last published. Save often; there is no autosave, and the page warns you before you navigate away with unsaved changes.",
       "clip": "teacher-setup-save-draft.mp4",
       "n": 10,
       "clipDark": "teacher-setup-save-draft-dark.mp4"
     },
     {
       "title": "Review what changed before publishing",
-      "body": "This class already has a published syllabus and an open draft with real edits: a softened late-work policy, and a new Tutoring and Extra Help page. Read through a draft before publishing it — Publish shows you a count of what changed, but not the actual wording.",
+      "body": "This class already has a published syllabus and an open draft with real edits: a softened late-work policy, and a new Tutoring and Extra Help page. Read through a draft before publishing it. Publish shows you a count of what changed, but not the actual wording.",
       "clip": "teacher-setup-biology-preview.mp4",
       "n": 11,
       "clipDark": "teacher-setup-biology-preview-dark.mp4"
     },
     {
       "title": "Publish when it is ready",
-      "body": "Publishing asks you to confirm how many sections are new or changed, how many are unchanged, and how many changed sections require initials — then makes the new version live immediately. Anyone who already initialed a section that changed now shows as having signed an older version and has to initial it again, even if the change was small.",
+      "body": "Publishing asks you to confirm how many sections are new or changed, how many are unchanged, and how many changed sections require initials, then makes the new version live immediately. Anyone who already initialed a section that changed now shows as having signed an older version and has to initial it again, even if the change was small.",
       "clip": "teacher-setup-publish.mp4",
       "n": 12,
       "clipDark": "teacher-setup-publish-dark.mp4"

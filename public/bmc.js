@@ -27,7 +27,7 @@
   panel.className = 'bmc-invite';
   panel.setAttribute('aria-label', 'Buy the teacher a coffee');
   panel.innerHTML = '<p class="bmc-invite-msg">If iniSHial saved you time, '
-    + 'please consider buying me a coffee — thank you.</p>';
+    + 'please consider buying me a coffee. Thank you.</p>';
   document.body.appendChild(panel);
 
   var dismissed = false;

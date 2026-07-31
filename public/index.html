@@ -79,7 +79,7 @@
 
     <div class="card plain">
       <h2>I'm a student</h2>
-      <p class="muted">First day of class. Takes <span class="mark">about a minute</span> — you'll
+      <p class="muted">First day of class. Takes <span class="mark">about a minute</span>. You'll
         need your student ID number and a parent or guardian's email address.</p>
       <!-- An <a> styled as a button, not a <button> wrapped in an <a>: nesting
            them is invalid, and screen readers announce the pair inconsistently. -->
@@ -97,7 +97,7 @@
   <!-- ---------- set up an account ---------- -->
   <section class="view" id="view-register" data-path="/register/" hidden>
     <h1>Set up your account</h1>
-    <p class="muted">Already set one up? Enter your student ID and last name and leave the rest blank —
+    <p class="muted">Already set one up? Enter your student ID and last name and leave the rest blank,
       it takes you back to your syllabus.</p>
 
     <form id="registerForm" class="card plain" novalidate>
@@ -108,13 +108,13 @@
       <label for="reg-last">Last name</label>
       <input id="reg-last" class="blank-name" name="last" type="text" autocomplete="family-name" required>
 
-      <label for="reg-username">School email <span class="hint">— first time only</span>
+      <label for="reg-username">School email <span class="hint">(first time only)</span>
         <span class="hint">The address your school gave you.
           Leave blank if you already have an account.</span></label>
       <input id="reg-username" class="blank-name" name="username" type="email"
              inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false">
 
-      <label for="reg-email">Parent or guardian's email <span class="hint">— optional</span>
+      <label for="reg-email">Parent or guardian's email <span class="hint">(optional)</span>
         <span class="hint">Your school already has a contact email for most families. Only fill this in if
           your parent or guardian should get the syllabus at a different address.</span></label>
       <input id="reg-email" name="parent_email" type="email" autocomplete="off">
@@ -133,7 +133,7 @@
            exists. Said plainly rather than in fine print, because the cost of
            missing it is asking a teacher to reissue. -->
       <div id="doneCode" hidden>
-        <p class="small muted">Your access code — write it down. You need it to come back
+        <p class="small muted">Your access code. Write it down. You need it to come back
           and finish later, and this is the only time it is shown.</p>
         <p class="code-out"><b id="doneCodeValue"></b></p>
       </div>

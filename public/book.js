@@ -1,13 +1,13 @@
 // The syllabus, one section per page.
 //
 // A page is a MAJOR SECTION: a heading and everything under it until the next
-// heading. That definition is shared/sections.js — the same one the editor drags
+// heading. That definition is shared/sections.js -- the same one the editor drags
 // by and the same one a signature is hashed against, so a page is exactly the
 // span of text a parent initials. Nothing here decides what a section is; it
 // only decides which one is on screen.
 //
 // No turn animation. A page turn built from CSS transforms can only pivot a
-// rigid rectangle — it cannot bend paper — so it read as a flash rather than as
+// rigid rectangle -- it cannot bend paper -- so it read as a flash rather than as
 // a page. The lined paper and the page count carry the notebook instead.
 //
 // Two rules it keeps:

@@ -502,8 +502,8 @@ export function structureProblem(blocks) {
 export function structureAdvice(problem) {
   const fix = ' "Fix format" retags them for you; your wording is never changed.';
   if (problem === 'none') {
-    return 'This came in with no headings, so the whole thing is one block —'
-      + ' nothing can be dragged or marked for initials as a section yet.' + fix;
+    return 'This came in with no headings, so the whole thing is one block.'
+      + ' Nothing can be dragged or marked for initials as a section yet.' + fix;
   }
   if (problem === 'too-many') {
     return 'Lines like "Instructor: …" and "Email: …" were read as headings, so the sections'

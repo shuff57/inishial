@@ -612,7 +612,7 @@
   <span class="spacer"></span>
   <span class="status" id="status"></span>
   <button class="secondary to-icon" id="importBtn" title="Start over from a .docx or pasted text"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-import"/></svg><span class="label">Import…</span></button>
-  <button class="secondary to-icon" id="structureBtn" title="Ask the AI which lines are sections, which are subsections, and which are body text. Retags only — never changes a word."><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-format"/></svg><span class="label">Fix format</span></button>
+  <button class="secondary to-icon" id="structureBtn" title="Ask the AI which lines are sections, which are subsections, and which are body text. Retags only, and never changes a word."><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-format"/></svg><span class="label">Fix format</span></button>
   <button class="secondary to-icon" id="suggestBtn" title="Ask the AI which sections should need initials"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-initial"/></svg><span class="label">Suggest initials</span></button>
   <button class="secondary to-icon" id="saveBtn" title="Save draft"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-save"/></svg><span class="label">Save draft</span></button>
   <button class="to-icon" id="publishBtn" title="Publish…"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-publish"/></svg><span class="label">Publish…</span></button>
@@ -644,18 +644,18 @@
     used to sit between them and contributed half a rule.
   -->
   <details class="ai-log" id="aiLog" hidden>
-    <summary><span id="aiTitle">AI — live log</span><span class="ai-meta" id="aiMeta"></span></summary>
+    <summary><span id="aiTitle">AI, live log</span><span class="ai-meta" id="aiMeta"></span></summary>
     <!-- aria-live is off deliberately: a token-by-token live region reads the
          same sentence back a dozen times. The result is announced by notice(). -->
     <pre id="aiStream" aria-live="off" tabindex="0"></pre>
   </details>
 
   <h1 id="title" contenteditable="true" spellcheck="false">Course Syllabus</h1>
-  <p class="muted small">You are editing <b>one page at a time</b> — the same pages a parent turns
+  <p class="muted small">You are editing <b>one page at a time</b>, the same pages a parent turns
     through. <b>Double-click</b> to type. <b>Click</b> a block to pick it up and drag it, or use ↑ / ↓.
     <b>Shift-click</b> a second line, or <b>Shift + ↓</b>, to pick up several and move them together.
     <b>Tab</b> and <b>Shift + Tab</b> turn a picked line into a subheading, a section heading, or plain
-    text again — the words never change.
+    text again. The words never change.
     <b>⤒</b> starts a new page at that line; <b>↑ ↓</b> on a block send it to the page before or after.
     Nothing is live until you publish.</p>
 
@@ -1165,7 +1165,7 @@ function blockRow(block, index) {
     const split = document.createElement('button');
     split.type = 'button';
     split.textContent = '⤒';
-    split.title = 'Start a new page here — this line becomes its heading';
+    split.title = 'Start a new page here. This line becomes its heading';
     split.addEventListener('click', () => {
       const words = blockText(block.html);
       if (!words) return;
@@ -1551,7 +1551,7 @@ function ladderPicked(dir) {
     const tag = ladderTag(state.blocks[i], dir);
     if (tag) changes.push({ index: i, tag });
   }
-  if (!changes.length) { notice('Nothing there can be a heading — a table, a list and an initials prompt all stay put.', 'error'); return false; }
+  if (!changes.length) { notice('Nothing there can be a heading: a table, a list and an initials prompt all stay put.', 'error'); return false; }
   state.blocks = retag(state.blocks, changes);
   markDirty();
   render();
@@ -1561,10 +1561,10 @@ function ladderPicked(dir) {
 /**
  * `kind` picks what the drag moves and therefore what it can land between:
  *
- *   'section' — the unit is a whole section card, and the drop candidates are
+ *   'section' -- the unit is a whole section card, and the drop candidates are
  *               the other section cards. A section can only land between
  *               sections, never inside one.
- *   'block'   — the unit is a single row, and the candidates are every other
+ *   'block'   -- the unit is a single row, and the candidates are every other
  *               row in the document, so a paragraph can move into another
  *               section. Rows are nested inside section cards now, but
  *               querySelectorAll returns document order, which is exactly the
@@ -1855,7 +1855,7 @@ function confirmReplace() {
     + ` will be discarded.
 
 `
-    + `Published versions are untouched — this only replaces the draft you are editing.`,
+    + `Published versions are untouched. This only replaces the draft you are editing.`,
   );
 }
 
@@ -2034,7 +2034,7 @@ function renderPageRail(ranges) {
     tab.setAttribute('aria-current', String(i === page));
     // The visible label is clipped by CSS, so the accessible name carries the
     // whole thing and the state.
-    tab.title = `Page ${i + 1}: ${label}${needs ? ' — asks for initials' : ''}`;
+    tab.title = `Page ${i + 1}: ${label}${needs ? ' (asks for initials)' : ''}`;
     tab.setAttribute('aria-label', tab.title);
     tab.addEventListener('click', () => { if (!tabDragged) goPage(i); });
     tab.addEventListener('pointerdown', (ev) => startTabDrag(ev, i, tab, rail));
@@ -2273,7 +2273,7 @@ document.addEventListener('keydown', (e) => {
     aiModel.firstChild.textContent = 'default';
     const note = document.createElement('p');
     note.className = 'hint';
-    note.textContent = 'Could not load the model list — you may need to sign in again. '
+    note.textContent = 'Could not load the model list. You may need to sign in again. '
       + 'The default model still works.';
     aiModel.after(note);
   }
@@ -2367,7 +2367,7 @@ async function aiRun(path, payload, label) {
     if (!done) throw new Error('the stream ended before the model finished');
     return finish(done);
   } catch (err) {
-    aiWrite(`\nStreaming unavailable (${err.message}) — asking the plain way.\n`, 'note');
+    aiWrite(`\nStreaming unavailable (${err.message}), asking the plain way.\n`, 'note');
     try {
       const res = await fetch(path, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -2421,10 +2421,10 @@ async function runStructure() {
   try {
     const body = await aiRun('/api/admin/structure', { blocks: state.blocks }, 'Checking headings');
     if (!body.available) { notice(body.reason || 'Not available.', 'error'); return; }
-    if (!body.retag.length) { notice('Headings already look right — nothing changed.', 'ok'); return; }
+    if (!body.retag.length) { notice('Headings already look right, nothing changed.', 'ok'); return; }
     if (blockShape(state.blocks) !== shape) {
       notice('The document changed while the model was reading it, so that answer no longer'
-        + ' points at the right lines. Nothing was altered — run Fix format again.', 'error');
+        + ' points at the right lines. Nothing was altered, so run Fix format again.', 'error');
       return;
     }
 
@@ -2448,7 +2448,7 @@ async function runStructure() {
       n('subheading') && `${n('subheading')} tucked in as subheadings`,
       n('text') && `${n('text')} back to body text`,
     ].filter(Boolean);
-    notice(`Retagged ${body.retag.length} line(s) — ${parts.join(', ')}. Wording unchanged.`, 'ok');
+    notice(`Retagged ${body.retag.length} line(s): ${parts.join(', ')}. Wording unchanged.`, 'ok');
   } catch {
     notice('Could not reach the server.', 'error');
   } finally { aiBusy(false); status(''); }
@@ -2477,7 +2477,7 @@ $('suggestBtn').addEventListener('click', async () => {
     if (!body.suggestions.length) { notice('No further sections suggested.', 'ok'); return; }
     if (blockShape(state.blocks) !== shape) {
       notice('The document changed while the model was reading it, so those suggestions no longer'
-        + ' point at the right sections. Nothing was marked — ask again.', 'error');
+        + ' point at the right sections. Nothing was marked, so ask again.', 'error');
       return;
     }
     // Stamps the pointer on each block; the document is unchanged until the
@@ -2488,7 +2488,7 @@ $('suggestBtn').addEventListener('click', async () => {
     // moves them to the next one, in document order, across page boundaries.
     jumpToFirstPending();
     render();
-    notice(`${body.suggestions.length} suggestion(s) ready. Walk through and accept — or accept all.`,
+    notice(`${body.suggestions.length} suggestion(s) ready. Walk through and accept, or accept all.`,
       'ok', { label: 'Accept all', run: acceptAll });
   } catch {
     notice('Could not reach the server.', 'error');
@@ -2552,7 +2552,7 @@ $('saveBtn').addEventListener('click', async () => {
   status('Saving…');
   try {
     const body = await save();
-    notice(`Draft saved — ${body.blocks} sections, version ${body.draft.num} (not yet published).`, 'ok');
+    notice(`Draft saved: ${body.blocks} blocks, version ${body.draft.num} (not yet published).`, 'ok');
     status('Saved');
   } catch (err) { notice(err.message, 'error'); status(''); }
   finally { $('saveBtn').disabled = false; }
@@ -2575,7 +2575,7 @@ $('publishBtn').addEventListener('click', async () => {
       '',
       `${d.added.length} section(s) new or changed`,
       `${d.removed.length} removed`,
-      `${d.unchanged} unchanged — existing signatures on these stay valid`,
+      `${d.unchanged} unchanged, existing signatures on these stay valid`,
     ];
     if (d.resign_required) {
       lines.push('', `${d.resign_required} changed section(s) ask for initials.`,
