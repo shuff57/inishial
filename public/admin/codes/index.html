@@ -87,7 +87,7 @@
     <li><a class="to-icon" href="/admin/progress/" data-keep-course title="Who has signed"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signed"/></svg><span class="label">Who has signed</span></a></li>
   </ul>
   <div class="nav-end">
-    <button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
+    
     <button type="button" class="secondary to-icon" id="navSignout" title="Sign out"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signout"/></svg><span class="label">Sign out</span></button>
   </div>
 </nav></header>
@@ -211,5 +211,15 @@ $('rows').addEventListener('click', (e) => {
   }
 })();
 </script>
+
+<!-- Light/dark toggle, in the corner rather than the nav, matching the
+     student side. The nav is already carrying the class links and the
+     sign-out control; this is a preference, not navigation. -->
+<button type="button" class="theme-toggle theme-fab"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
+
+<!-- Buy Me a Coffee. The teacher is who the ask is aimed at, so it belongs
+     on this side too. Behaviour and the height cap live in /bmc.js. -->
+<script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="shuff57" data-description="Support me on Buy me a coffee!" data-message="" data-color="#FFE08A" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
+<script src="/bmc.js" defer></script>
 </body>
 </html>

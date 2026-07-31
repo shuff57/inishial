@@ -110,6 +110,25 @@ npx wrangler pages secret put OLLAMA_API_KEY --project-name inishial
 
 Not needed until the editor exists.
 
+### 7. Optional, for the donation button
+
+The `Buy Steven a coffee` card uses BMC's hosted widget loaded from
+`cdnjs.buymeacoffee.com`. No backend, no secrets, no Stripe keys.
+
+It runs on the public pages and on the teacher pages (sign-in, sign-up,
+Classes, access codes, Who has signed). Not the syllabus editor: BMC pins its
+chip at `--nav-h + 24px`, which on that page lands inside the sticky toolbar.
+
+To switch handles later, edit `data-id="shuff57"` in the BMC `<script>` tag on
+each page that carries it — `grep -rl 'BMC-Widget' public/` lists them — plus
+`data-slug` in the loader tag in `public/index.html`. Behaviour and the panel's
+height cap live in `public/bmc.js`, which every page shares.
+
+The suggested amounts on the panel (`+10 / +25 / +50`) are NOT set here. They
+come back from BMC's server against the account: the embed can only send
+`description` and `color`. Change them in the Buy Me a Coffee dashboard, in the
+setting their API calls `suggested_amounts`.
+
 ## Verifying the deploy
 
 ```bash

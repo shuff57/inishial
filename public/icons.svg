@@ -350,4 +350,17 @@
   <path d="M10.3 13c3.6-3.6 7.4-7 11.2-10.2"/>
   <path opacity=".55" d="M10.8 13.5c3.4-3.4 7-6.7 10.7-9.8"/>
 </symbol>
+
+<!-- Buy Steven a coffee. A mug seen slightly from above: an oval rim, a side
+     with a C-curve handle, two thin steam lines rising. The doubled steam is
+     deliberate, to keep the symbol reading as "warm drink" once the icon is
+     shrunk to 20px and the cup drops below the legibility floor. -->
+<symbol id="i-coffee" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4.3 8.6c3.7-.2 7.4-.3 11.1-.1.2 3.3.2 6.6 0 9.8-3.5.3-7.1.3-10.6.1-1-.3-1.6-1.1-1.7-2.1-.1-2.6-.1-5.1.1-7.7Z"/>
+  <path opacity=".55" d="M4.7 9.1c3.3-.2 6.7-.2 10.1-.1.1 2.9.1 5.8-.1 8.7-3.1.2-6.4.2-9.6.1-.7-.3-1.1-1-1.2-1.7-.1-2.4-.1-4.7.1-7Z"/>
+  <path d="M15.4 10.5c2.5-.2 4.7 1 5 3 .3 1.7-.9 3-2.5 3.3-1.2.2-2.4 0-3.5-.4"/>
+  <path opacity=".55" d="M15.7 11c2.2-.2 4.1.8 4.4 2.6.3 1.4-.7 2.6-2 2.9-1.1.2-2.2 0-3.2-.4"/>
+  <path d="M8.4 5.6c-.3-1.5-.3-2.9 0-4.4M11.7 5.4c-.1-1.4-.1-2.7 0-4"/>
+  <path opacity=".55" d="M8.7 5.6c-.2-1.3-.2-2.5 0-3.7M12.1 5.5c-.1-1.2-.1-2.4 0-3.5"/>
+</symbol>
 </svg>

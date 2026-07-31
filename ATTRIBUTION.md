@@ -102,3 +102,14 @@ Still planned:
 None on the server. No framework, no build step. Hashing and signing use
 WebCrypto, already present in the Workers runtime; tests use `node:sqlite` and
 `node:test` from the standard library.
+
+The only third-party request the public side makes is to
+`buymeacoffee.com`, when a reader clicks `Buy Steven a coffee`. Everything
+else stays on the school's origin.
+
+`https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js` is loaded on every
+public page so its floating widget is ready when the footer card scrolls into
+view. The script decides where its button lives (floating, bottom-left) rather
+than our markup, so any change to its position comes from BMC and not from
+`index.html`. The "More about Steven" link in the footer is a quiet outbound
+for readers who did not see the widget.

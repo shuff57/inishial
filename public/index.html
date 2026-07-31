@@ -11,6 +11,11 @@
 <script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <script src="/ui.js" defer></script>
 <script src="/app.js" type="module"></script>
+<!-- Buy Me a Coffee button. Hosted widget -- not a script we own -- so the
+     third-party request is deferred to the moment the footer is on screen. The
+     `data-name="bmc-button"` tag is what BMC's loader keys on; renaming it
+     silently drops the button. -->
+<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="shuff57" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" defer></script>
 </head>
 <!--
   The whole public side lives here: the start page, registration, and signing.
@@ -40,10 +45,24 @@
     <li><a class="to-icon" href="/sign/" title="Read & initial"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-initial"/></svg><span class="label">Read &amp; initial</span></a></li>
   </ul>
   <div class="nav-end">
-    <button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
     <a class="to-icon" href="/admin/login/" title="Teacher sign-in"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signin"/></svg><span class="label">Teacher sign-in</span></a>
   </div>
 </nav></header>
+
+<!-- BMC's floating widget: a small "Support me on Buy Me a Coffee!" card that
+     pins to the right edge of the viewport. Sits above the theme toggle in
+     source order so the loader initialises first and the cards stack cleanly
+     on the corner. The thank-you message is the line the widget shows
+     -- a short note rather than a paragraph, since the card is two lines tall. -->
+<script data-name="BMC-Widget" data-cfasync="false" src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js" data-id="shuff57" data-description="Support me on Buy me a coffee!" data-message="" data-color="#FFE08A" data-position="Right" data-x_margin="18" data-y_margin="18"></script>
+
+<script src="/bmc.js" defer></script>
+
+
+<!-- Light/dark toggle. On a wide screen it sits in the nav with everything else;
+     on a phone the nav is already crowded, so it floats in the bottom-right
+     corner instead. Two surfaces, one button. -->
+<button type="button" class="theme-toggle theme-fab"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
 
 <div class="progress" id="progress" hidden><div>
   <span id="progressWho"></span>
@@ -175,6 +194,10 @@
     <p class="notice error">This page needs JavaScript. Registering and initialing a
       syllabus both talk to the server as you go, so there is nothing to show without it.</p>
   </noscript>
+
+  <!-- The BMC widget carries the donation CTA and message. The footer card
+       that used to live here was a near-duplicate of the widget's own
+       message + button, so it was removed: one prompt, one place. -->
 </main>
 </body>
 </html>
