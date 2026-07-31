@@ -74,11 +74,25 @@ test('subdomains are opt-in, not automatic', () => {
   assert.equal(domainAllowed('t@notschool.org', ['.school.org']), false);
 });
 
-test('no configured domain means sign-up is off, not open', async () => {
+test('no configured domain means sign-up is open to anyone', async () => {
+  // Deliberately the reverse of how this started. An unset TEACHER_DOMAINS used
+  // to close sign-up entirely, on the reasoning that a missing allowlist must
+  // never read as "allow everything". Sign-up is now meant to be open to anyone
+  // who finds the site, so unset IS the configuration and the allowlist is an
+  // opt-in restriction. The test below still pins the restriction working when
+  // it is set, which is the half that protects a school that wants one.
   const e = freshEnv({ TEACHER_DOMAINS: '' });
-  assert.equal((await create(e, 'anyone@anywhere.com')).status, 403);
-  assert.equal(domainAllowed('t@school.org', []), false, 'an empty list can never allow');
-  assert.equal((await signupInfo({ env: e }).json()).available, false);
+  assert.equal((await create(e, 'anyone@anywhere.com')).status, 200);
+  assert.equal(domainAllowed('t@school.org', []), true, 'an empty list allows any address');
+  assert.equal((await signupInfo({ env: e }).json()).available, true);
+});
+
+test('a configured domain still shuts everyone else out', async () => {
+  // The half that must not regress: opening the default cannot quietly open the
+  // gate for a school that asked for one.
+  const e = env();
+  assert.equal((await create(e, 'teacher@gmail.com')).status, 400);
+  assert.equal(domainAllowed('t@gmail.com', ['school.org']), false);
 });
 
 test('the page is told which domains to ask for', async () => {

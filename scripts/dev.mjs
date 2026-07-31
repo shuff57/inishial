@@ -114,8 +114,16 @@ const env = {
   // failure would be "it worked on my machine" for the one check whose whole
   // job is to refuse people.
   //
-  // school.edu is appended because the seeded DEV_ADMIN lives there.
-  TEACHER_DOMAINS: [tomlVar('TEACHER_DOMAINS'), 'school.edu'].filter(Boolean).join(','),
+  // school.edu is appended because the seeded DEV_ADMIN lives there -- but ONLY
+  // when a restriction is configured at all. Empty now means open sign-up, and
+  // appending school.edu to an empty list would turn that back into an
+  // allowlist locally: production would accept anyone while dev refused them,
+  // which is the same "worked on my machine" failure this comment warns about,
+  // just running the other way. Empty stays empty, and @school.edu is accepted
+  // because every address is.
+  TEACHER_DOMAINS: tomlVar('TEACHER_DOMAINS')
+    ? [tomlVar('TEACHER_DOMAINS'), 'school.edu'].join(',')
+    : '',
   // `.secrets.local` wins over the ambient environment for these three, which is
   // the opposite of the usual precedence and deliberate: a machine-wide
   // OLLAMA_HOST pointing at somebody's local daemon (0.0.0.0:11434) otherwise

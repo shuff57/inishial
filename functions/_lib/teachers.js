@@ -20,11 +20,21 @@ export const listFrom = (value) =>
  * silently accepting `anything.school.org` would widen the gate past what the
  * person configuring it asked for.
  *
- * `domains` empty means sign-up is not configured. Returns false, never true --
- * a missing allowlist must not be read as "allow everything".
+ * `domains` empty means OPEN sign-up: any address may create an account. That
+ * is a deliberate reversal of how this started, and the trade is worth stating
+ * plainly. It used to return false on an empty list so that an unconfigured
+ * allowlist could never be read as "allow everything". Sign-up is now meant to
+ * be open to anyone who finds the site, so an unset TEACHER_DOMAINS is the
+ * configuration rather than the absence of one, and setting it re-gates.
+ *
+ * What that costs: the domain was the only thing keeping strangers off the
+ * admin side, and nothing here emails the address, so an account proves only
+ * that someone typed a plausible string. Rate limiting still caps how fast
+ * accounts can be minted, and Cloudflare Access in front of /admin/* is the
+ * real control if one is ever wanted -- requireAdmin already accepts it.
  */
 export function domainAllowed(email, domains) {
-  if (!domains.length) return false;
+  if (!domains.length) return true;
   const at = email.lastIndexOf('@');
   if (at < 1 || at === email.length - 1) return false;
   const host = email.slice(at + 1);

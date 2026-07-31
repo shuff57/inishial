@@ -71,26 +71,33 @@ npx wrangler pages secret put ADMIN_EMAILS --project-name inishial
 # or set it as a plain var in wrangler.toml — it is not secret
 ```
 
-### 5b. Let other teachers sign themselves up
+### 5b. Who can sign themselves up
 
-Set `TEACHER_DOMAINS` in `wrangler.toml` to your school's email domain, and
-teachers can create their own account at `/admin/signup/`. Each one sees only
-their own classes, rosters and syllabus.
+Sign-up at `/admin/signup/` is **open by default**: anyone who finds the site
+can create a teacher account. Each account sees only its own classes, rosters
+and syllabus.
+
+To restrict it to one school, set `TEACHER_DOMAINS` in `wrangler.toml`:
 
 ```toml
+TEACHER_DOMAINS = ""                    # any address (the default)
 TEACHER_DOMAINS = "yourschool.org"      # that domain exactly
 TEACHER_DOMAINS = ".yourschool.org"     # and its subdomains
-TEACHER_DOMAINS = ""                    # sign-up off (the default)
 ```
 
-Empty means **nobody**, never "anybody" — leaving it unset is safe.
+Empty means **anybody**. That is a reversal of how this used to work, so if you
+are upgrading and were relying on an unset value to keep sign-up closed, set the
+variable explicitly.
 
 Two things to be clear-eyed about:
 
-- **This does not verify identity.** Nothing emails the address, so anyone who
-  knows the domain can claim any name at it. It narrows who can sign up; it
-  does not prove who they are. If you need proof, put Cloudflare Access in
-  front of `/admin/*` — `requireAdmin` already accepts an Access identity.
+- **This does not verify identity.** Nothing emails the address, so an account
+  proves only that someone typed a plausible string. With sign-up open, that
+  means a stranger can reach the admin side and create their own classes. What
+  still holds: an account sees only its own courses, its address is recorded
+  against every roster import it makes, and sign-ups are rate limited to five
+  per hour per IP. If you need real proof, put Cloudflare Access in front of
+  `/admin/*`, which `requireAdmin` already accepts an identity from.
 - **Set `ADMIN_EMAILS` first.** The first account to sign up adopts every class
   that predates teacher accounts. With `ADMIN_EMAILS` set, only an address on
   that list can, so a colleague signing up ahead of you cannot walk off with

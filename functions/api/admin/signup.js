@@ -1,17 +1,18 @@
 // POST /api/admin/signup   -- a teacher creates their own account
 // GET  /api/admin/signup   -- is sign-up available, and for which domains
 //
-// Gated on the email domain: TEACHER_DOMAINS lists the school's, and an address
-// outside it is refused. Unset means self-service sign-up is off entirely --
-// the safe default, since an unconfigured allowlist read as "allow everything"
-// would hand the roster to the open internet.
+// Open by default: anyone who finds the site can create a teacher account.
+// TEACHER_DOMAINS is now an optional restriction rather than a required one. Set
+// it to a school's domains and only those addresses are accepted; leave it unset
+// and any address is.
 //
 // What this deliberately is NOT: proof of identity. Nothing emails the address,
-// so anyone who knows the domain can claim any name at it. What the gate buys
-// is that they can only claim ONE account, it holds only their own courses, and
-// the address is recorded against every roster import they make. Real proof
-// needs either a verification email (no mail sender exists here) or Cloudflare
-// Access in front of /admin/*, which requireAdmin already accepts.
+// so an account proves only that someone typed a plausible string. What is left
+// holding the line is that an account can claim only ONE address, it holds only
+// its own courses, the address is recorded against every roster import made
+// with it, and sign-ups are rate limited per IP. Real proof needs either a
+// verification email (no mail sender exists here) or Cloudflare Access in front
+// of /admin/*, which requireAdmin already accepts.
 
 import { json, badRequest, serverMisconfigured, readJson } from '../../_lib/http.js';
 import { hashCode } from '../../_lib/codes.js';
@@ -22,18 +23,19 @@ import { normalizeEmail, listFrom, domainAllowed, looksLikeEmail, passwordProble
 /** What the sign-up page needs to render itself, without leaking anything: the
  *  domain list is about to be shown to anyone who submits the form anyway. */
 export function onRequestGet({ env }) {
+  // Always available now. `domains` empty tells the page there is no rule to
+  // announce, rather than that the form is closed.
   const domains = listFrom(env.TEACHER_DOMAINS);
-  return json({ available: domains.length > 0, domains });
+  return json({ available: true, domains });
 }
 
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return serverMisconfigured('the DB binding');
   if (!env.SESSION_SECRET) return serverMisconfigured('SESSION_SECRET');
 
+  // No 403 for an empty list any more: unset TEACHER_DOMAINS now means sign-up
+  // is open to anyone, not that it is switched off. See domainAllowed().
   const domains = listFrom(env.TEACHER_DOMAINS);
-  if (!domains.length) {
-    return json({ error: 'Teacher sign-up is not turned on for this school.' }, 403);
-  }
 
   const body = await readJson(request);
   const email = normalizeEmail(body?.email);
