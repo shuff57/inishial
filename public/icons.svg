@@ -281,6 +281,69 @@
   <path opacity=".55" d="M17 15.6c1.5-1.3 2.9-2.7 4.2-4.1"/>
 </symbol>
 
+<!-- ──── the public side ──── -->
+
+<!-- Start. A house, for the page everything begins on. -->
+<symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M2.7 11.5c3.1-3 6.3-5.8 9.5-8.4 3.3 2.6 6.5 5.4 9.5 8.4"/>
+  <path opacity=".55" d="M3.3 12c2.9-2.8 5.8-5.4 8.9-7.8 3 2.4 6 5 8.8 7.8"/>
+  <path d="M5.2 10.4c-.3 3.5-.3 7-.2 10.5 4.7.3 9.5.3 14.2.1.2-3.5.2-7.1.1-10.6"/>
+  <path opacity=".55" d="M5.8 10.9c-.2 3.3-.2 6.6 0 9.9 4.4.2 8.8.2 13.2.1.1-3.3.1-6.6 0-9.9"/>
+  <path d="M9.7 20.9c-.2-2.4-.2-4.7-.1-7.1 1.7-.2 3.4-.2 5.1-.1.2 2.4.2 4.8.1 7.2"/>
+  <path opacity=".55" d="M10.2 20.5c-.1-2.2-.1-4.4 0-6.6 1.5-.1 3-.1 4.5 0 .1 2.2.1 4.4 0 6.6"/>
+</symbol>
+
+<!-- Why iniSHial. A question mark. The second letterform in the set, and it
+     sits nowhere near the pilcrow, so the two never have to be told apart. -->
+<symbol id="i-why" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M8.1 8.3c-.3-2.6 1.9-4.9 4.5-4.8 2.5.1 4.5 2.3 4.1 4.7-.4 2.3-2.7 3.2-3.7 4.9-.6 1-.7 2.2-.7 3.4"/>
+  <path opacity=".55" d="M8.7 8.6c-.2-2.3 1.7-4.3 4-4.2 2.2.1 3.9 2 3.6 4.1-.3 2-2.4 2.9-3.3 4.4-.5.9-.6 1.9-.6 3"/>
+  <path d="M12.2 19.2c.8-.4 1.6.2 1.6 1 0 .8-.9 1.3-1.6.8-.6-.4-.6-1.4 0-1.8Z"/>
+  <path opacity=".55" d="M12.5 19.6c.6-.3 1.2.2 1.1.8 0 .6-.7 1-1.2.5-.4-.3-.4-1 .1-1.3Z"/>
+</symbol>
+
+<!-- How to use. An open book, spine down the middle, both leaves lifting. -->
+<symbol id="i-guide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12.1 7.5c-.2 4.4-.2 8.8-.1 13.2"/>
+  <path opacity=".55" d="M11.6 7.9c.2 4.3.2 8.6.1 12.9"/>
+  <path d="M12 7.7C9.5 5.9 6.4 5.2 3.4 5.6c-.3 4.5-.3 9-.1 13.5 3-.4 6 .3 8.5 2.1"/>
+  <path opacity=".55" d="M11.6 8.3C9.3 6.7 6.5 6.1 3.8 6.4c-.2 4.2-.2 8.4 0 12.6 2.7-.3 5.4.3 7.7 1.9"/>
+  <path d="M12.2 7.7c2.5-1.8 5.6-2.5 8.6-2.1.3 4.5.3 9 .1 13.5-3-.4-6 .3-8.5 2.1"/>
+  <path opacity=".55" d="M12.6 8.3c2.3-1.6 5.1-2.2 7.8-1.9.2 4.2.2 8.4 0 12.6-2.7-.3-5.4.3-7.7 1.9"/>
+</symbol>
+
+<!-- Set up my account. A person: head and shoulders. -->
+<symbol id="i-person" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M11.9 3.6c2.4-.2 4.4 1.8 4.3 4.2-.1 2.3-2.2 4.1-4.5 3.9-2.2-.2-3.9-2.2-3.7-4.4.2-2 2-3.6 3.9-3.7"/>
+  <path opacity=".55" d="M12.3 4.2c2-.1 3.6 1.6 3.5 3.6-.1 1.9-1.9 3.4-3.8 3.2-1.8-.2-3.2-1.9-3-3.7.2-1.6 1.6-2.9 3.3-3.1"/>
+  <path d="M3.9 20.9c.3-3.7 3.4-6.7 7.1-7 .7-.1 1.4-.1 2.1 0 3.7.3 6.8 3.3 7.1 7"/>
+  <path opacity=".55" d="M4.5 21.4c.3-3.4 3.2-6.2 6.6-6.5.6 0 1.3 0 1.9 0 3.4.3 6.3 3.1 6.6 6.5"/>
+</symbol>
+
+<!-- Set up a teacher account. The same person with a plus beside them. -->
+<symbol id="i-person-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9.4 3.7c2.2-.2 4 1.7 3.9 3.8-.1 2.1-2 3.7-4.1 3.5-2-.2-3.5-2-3.3-4 .2-1.8 1.8-3.2 3.5-3.3"/>
+  <path opacity=".55" d="M9.8 4.3c1.8-.1 3.3 1.4 3.2 3.2-.1 1.7-1.7 3.1-3.5 2.9-1.6-.2-2.9-1.7-2.7-3.3.2-1.4 1.4-2.6 3-2.8"/>
+  <path d="M2.4 20.9c.3-3.4 3.1-6.2 6.5-6.5.6-.1 1.3-.1 1.9 0 3.4.3 6.2 3.1 6.5 6.5"/>
+  <path opacity=".55" d="M3 21.4c.3-3.1 2.9-5.7 6-6 .6 0 1.2 0 1.7 0 3.1.3 5.7 2.9 6 6"/>
+  <path d="M19.6 4.4c.1 1.6.1 3.3 0 4.9M17.1 6.8c1.6.1 3.3.1 4.9 0"/>
+  <path opacity=".55" d="M20 4.8c-.1 1.5-.1 3 0 4.4M17.5 7.2c1.5-.1 3-.1 4.4 0"/>
+</symbol>
+
+<!-- Teacher sign-in. The doorway from i-signout, mirrored: the arrow goes IN
+     through it rather than out. Deliberately the same door, so the pair read
+     as one gesture in two directions. -->
+<symbol id="i-signin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12.8 3.6c2.5-.3 5-.3 7.5-.2.3 5.7.3 11.4.1 17.1-2.5.3-5.1.3-7.6.1"/>
+  <path opacity=".55" d="M13 4.2c2.3-.2 4.6-.2 6.9-.1.2 5.3.2 10.6 0 15.9-2.3.2-4.7.2-7 .1"/>
+  <path d="M2.6 12.1c3.9-.3 7.9-.3 11.8-.2"/>
+  <path opacity=".55" d="M2.9 12.7c3.6-.2 7.3-.2 11-.1"/>
+  <path d="M10.4 8.2c1.5 1.3 2.9 2.6 4.2 4.1"/>
+  <path opacity=".55" d="M10.8 7.7c1.4 1.4 2.7 2.8 3.9 4.3"/>
+  <path d="M10.6 16.1c1.4-1.4 2.7-2.8 3.9-4.3"/>
+  <path opacity=".55" d="M10.2 15.6c1.5-1.3 2.9-2.7 4.2-4.1"/>
+</symbol>
+
 <symbol id="i-publish" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
   <path d="M21.5 2.8C15.4 5 9.3 7.5 3.5 10.4c2.2 1.1 4.5 1.9 6.8 2.6 2.2 2.1 4.2 4.3 6 6.7 2.1-5.6 3.9-11.3 5.2-16.9Z"/>
   <path opacity=".55" d="M21 3.4C15.2 5.5 9.4 7.9 3.9 10.7c2 1 4.1 1.7 6.2 2.3 2 2 3.9 4 5.5 6.2 1.9-5.2 3.6-10.5 4.8-15.8Z"/>

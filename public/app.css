@@ -367,8 +367,18 @@ header.site nav {
     margin: -1px; padding: 0; border: 0; clip-path: inset(50%);
     overflow: hidden; white-space: nowrap; }
   /* Square once the words are gone, so a row of them reads as a row of marks
-     rather than as buttons that lost their text. */
-  .to-icon { padding-left: .55rem; padding-right: .55rem; }
+     rather than as buttons that lost their text. Tight, because the public nav
+     carries FIVE of these plus the brand and two controls, and at .6rem the
+     side padding alone came to ~100px -- enough on its own to push the row
+     past 390px and wrap it. The tap target is the button, which stays a full
+     rule tall; this only trims the dead width either side of the drawing.
+
+     The class is doubled to raise specificity. `.nav-main a` and
+     `.toolbar button` both set padding at (0,1,1); a plain `.to-icon` is
+     (0,1,0) and loses to them, so the rule silently did nothing.
+     `.to-icon.to-icon` is (0,2,0) and wins, without having to name every
+     container that might ever hold one. */
+  .to-icon.to-icon { padding-left: .34rem; padding-right: .34rem; }
 }
 
 .theme-toggle svg { width: 1.05rem; height: 1.05rem; }
