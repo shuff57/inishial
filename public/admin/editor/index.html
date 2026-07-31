@@ -646,8 +646,8 @@
   <div id="importCard" class="card plain">
     <h2>Start from a document</h2>
     <div class="drop" id="drop">
-      <p>Drop a <code>.docx</code> here, or paste the text below</p>
-      <input type="file" id="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      <p>Drop a <code>.docx</code> or <code>.md</code> here, or paste the text below</p>
+      <input type="file" id="file" accept=".docx,.md,.markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown">
     </div>
     <label for="paste">…or paste your syllabus
       <span class="hint">Copy from Word or Google Docs and the headings, lists and tables come with it. The box below only shows the words.</span></label>
@@ -1804,13 +1804,44 @@ function confirmReplace() {
   );
 }
 
-async function takeDocx(file) {
+/** Markdown by its extension, and ONLY by its extension.
+ *
+ *  Not by sniffing the contents: a .docx is a zip, and handing one to the text
+ *  reader would spray binary through the document as paragraphs rather than
+ *  fail. Anything not named .md is read the way it always was, so an unknown
+ *  extension keeps the old behaviour instead of getting a new guess. */
+const isMarkdownFile = (name) => /\.(md|markdown|mdown|mkd)$/i.test(String(name ?? ''));
+
+async function takeFile(file) {
   if (!file) return;
   // A DROPPED file never asks the input whether it is disabled, so the lock has
   // to be checked here rather than left to the attribute. Both ways in -- the
   // picker and the drop zone -- land on this function.
   if (aiRunning) { notice('Wait for the model to finish before importing.', 'error'); return; }
   if (!confirmReplace()) return;
+
+  // Markdown needs no converter. textToBlocks already reads #, ##, tables,
+  // bulleted and numbered runs, links and bold -- it has to, because that is
+  // what a teacher pastes -- so a .md file is the same path with the file's
+  // text instead of the box's, and one syllabus reads identically whether it
+  // arrives by file or by paste.
+  if (isMarkdownFile(file.name)) {
+    try {
+      status('Reading…');
+      state.blocks = textToBlocks(await file.text());
+      selected = null;
+      importOpen = false;
+      markDirty();
+      render();
+      const summary = `Imported ${state.blocks.length} sections from ${file.name}.`;
+      notice(summary, 'ok');
+      offerStructureIfFlat(summary);
+    } catch {
+      notice('Could not read that file.', 'error');
+    } finally { status(''); }
+    return;
+  }
+
   try {
     status('Converting…');
     const { value, messages } = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
@@ -1825,7 +1856,7 @@ async function takeDocx(file) {
     notice(summary, 'ok');
     offerStructureIfFlat(summary);
   } catch (err) {
-    notice('Could not read that file. Is it a .docx?', 'error');
+    notice('Could not read that file. Is it a .docx or a .md?', 'error');
   } finally { status(''); }
 }
 
@@ -1835,12 +1866,12 @@ $('file').addEventListener('change', (e) => {
   // a change event. Without this, declining the replace prompt and retrying with
   // the same document silently does nothing.
   e.target.value = '';
-  takeDocx(file);
+  takeFile(file);
 });
 const drop = $('drop');
 for (const t of ['dragenter', 'dragover']) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add('over'); });
 for (const t of ['dragleave', 'drop']) drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove('over'); });
-drop.addEventListener('drop', (e) => takeDocx(e.dataTransfer.files[0]));
+drop.addEventListener('drop', (e) => takeFile(e.dataTransfer.files[0]));
 
 /**
  * Grow the paste box to whatever is in it, so a pasted syllabus is read on the
