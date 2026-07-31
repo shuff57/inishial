@@ -176,6 +176,23 @@
      does not call back a scroll that has already begun. Only the picked row, so
      every other row still scrolls the page. */
   .blk.picked, .sec.picked { touch-action: none; }
+
+  /* Where the keyboard is standing.
+     The rows became tabbable so the arrows, the shift-span and the Tab ladder
+     could be reached without a pointer -- but a tab stop nobody can see is
+     worse than no tab stop, because focus moves and nothing on screen says so.
+     Dashed, so it is never mistaken for `.picked`, which is the solid outline
+     and means "this is being carried". Focus says where you ARE; picked says
+     what you HAVE.
+     :focus-visible, not :focus -- a mouse press focuses the row too, and a ring
+     appearing on every click is noise. */
+  .blk:focus-visible, .sec:focus-visible {
+    outline: 2px dashed var(--accent);
+    outline-offset: 2px;
+  }
+  /* The typing box has its own ring (.typing above) and sits INSIDE the row, so
+     without this a row being typed in wears two. */
+  .blk:focus-within:not(:focus-visible) { outline: none; }
   /* Exactly one rule tall, so a row of tools beside a one-line block occupies
      that block's line rather than three quarters of it. */
   .tools button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .45rem; font-size: .8rem; font-weight: 600; background: transparent; color: var(--ink-stone); border-color: var(--border-warm);
@@ -996,6 +1013,12 @@ function blockRow(block, index) {
   row.dataset.type = block.type;
   if (block.type === 'heading') row.dataset.level = String(block.level ?? 2);
   row.dataset.index = index;
+  // The keyboard's way in. `selected` was only ever set from a press, so every
+  // keyboard-driven thing below -- the arrows, the shift-span, the Tab heading
+  // ladder -- was unreachable without a pointer, while the help text above the
+  // sheet advertised "or use ↑ / ↓" as though arrows were a standalone path.
+  // Tab reaches a row; Enter or Space picks it up; Escape lets it go.
+  row.tabIndex = 0;
   // Pending is the model's pointer, not a real initials flag. The accent ring
   // is the same colour as the existing .why line so the two halves of the
   // pointer (reason + block) read as one thing.
@@ -1010,6 +1033,11 @@ function blockRow(block, index) {
   const edit = document.createElement('div');
   edit.className = 'edit';
   edit.contentEditable = 'true';
+  // Out of the tab order. A contenteditable box is focusable by default, so
+  // without this every row would be TWO tab stops -- the row and the box
+  // inside it -- and Tab would land a caret rather than pick anything up.
+  // Still focusable programmatically, which is how double-click opens it.
+  edit.tabIndex = -1;
   edit.spellcheck = false;
   // Prompts are plain text; everything else carries the document's own markup.
   if (block.type === 'initial' || block.type === 'agree') edit.textContent = block.html;
@@ -1407,6 +1435,33 @@ document.addEventListener('mousedown', (e) => {
   if (e.target.closest('#blocks, .toolbar, .adders')) return;
   if (selected || caretIn) { endCaret(); pick(null); }
 }, true);
+
+// Pick up whatever the keyboard is standing on.
+//
+// Runs BEFORE the handler below, which does nothing until something is picked.
+// Enter and Space are what a list of selectable things answers to everywhere
+// else; Enter a second time opens the row for typing, which is the keyboard's
+// version of the double-click.
+$('blocks').addEventListener('keydown', (e) => {
+  if (caretIn) return;                                 // typing owns the keyboard
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest?.('.blk, .sec');
+  if (!row || e.target.closest('.tools, .page-tools')) return;   // let a focused button be pressed
+  const target = pickTargetFor(row);
+  if (!target) return;
+  e.preventDefault();
+  // Already holding it: Enter again starts typing, the way a second press of
+  // the mouse does. Space never types -- it would insert a space.
+  if (isPicked(target) && e.key === 'Enter') {
+    const edit = row.querySelector('.edit');
+    if (edit) { endCaret(); caretIn = edit; edit.classList.add('typing'); edit.focus(); }
+    return;
+  }
+  pick(target);
+  // pick() re-renders, so the node that had focus is gone. Put focus back on
+  // the row at the same index or the arrows have nothing to fire against.
+  $('blocks').querySelector(`.blk[data-index="${target.at}"], .sec[data-index="${target.at}"]`)?.focus();
+});
 
 document.addEventListener('keydown', (e) => {
   if (!selected || caretIn) return;                    // typing owns the keyboard
@@ -1833,7 +1888,7 @@ async function takeFile(file) {
       importOpen = false;
       markDirty();
       render();
-      const summary = `Imported ${state.blocks.length} sections from ${file.name}.`;
+      const summary = `Imported ${state.blocks.length} blocks from ${file.name}.`;
       notice(summary, 'ok');
       offerStructureIfFlat(summary);
     } catch {
@@ -1851,7 +1906,7 @@ async function takeFile(file) {
     markDirty();
     render();
     const warned = messages.filter((m) => m.type === 'warning').length;
-    const summary = `Imported ${state.blocks.length} sections from ${file.name}.`
+    const summary = `Imported ${state.blocks.length} blocks from ${file.name}.`
       + (warned ? ` ${warned} formatting detail(s) were simplified.` : '');
     notice(summary, 'ok');
     offerStructureIfFlat(summary);
@@ -1937,8 +1992,8 @@ $('pasteBtn').addEventListener('click', () => {
   markDirty();
   render();
   const pasted = rich
-    ? `Split into ${state.blocks.length} sections, keeping the headings, lists and tables you copied.`
-    : `Split into ${state.blocks.length} sections.`;
+    ? `Split into ${state.blocks.length} blocks, keeping the headings, lists and tables you copied.`
+    : `Split into ${state.blocks.length} blocks.`;
   notice(pasted, 'ok');
   offerStructureIfFlat(pasted);
 });

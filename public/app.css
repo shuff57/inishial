@@ -22,7 +22,25 @@
   /* Variable font, 400-700. Self-hosted: no CDN, per the open-source rule.
      Declared as plain truetype -- some Safari versions reject the
      -variations form and drop the face entirely. */
-  src: url('/fonts/Caveat.ttf') format('truetype');
+  /* WOFF2 first, the .ttf as the fallback for anything that cannot take it.
+     The .ttf shipped raw at 403,648 bytes for a face used only as an accent --
+     the masthead, the initials stamp, the margin notes -- and every page paid
+     it. Subset to Latin-1 plus the punctuation a syllabus and a parent's
+     initials can actually contain (753 glyphs -> 209) and compressed to WOFF2,
+     it is 75,036: an 81% cut on the largest asset the parent path downloads.
+
+     The wght 400-700 axis survives the subset; it is the same variable face,
+     just carrying fewer glyphs. font-display: swap below means the text is
+     readable throughout either way, so this buys reflow-free reading sooner
+     rather than fixing a blank-text problem.
+
+     Regenerate with:
+       pyftsubset public/fonts/Caveat.ttf --output-file=public/fonts/Caveat.woff2 \
+         --flavor=woff2 --layout-features='*' --name-IDs='*' \
+         --unicodes="U+0020-007E,U+00A0-00FF,U+2010-2015,U+2018-201A,U+201C-201E,\
+U+2020-2022,U+2026,U+2030,U+2039,U+203A,U+20AC,U+2122" */
+  src: url('/fonts/Caveat.woff2') format('woff2'),
+       url('/fonts/Caveat.ttf') format('truetype');
   font-weight: 400 700;
   font-display: swap;
 }
@@ -46,7 +64,18 @@
   --ink-charcoal: #3a3833;
   --ink-olive: #4d4a43;
   --ink-stone: #6b6358;
-  --ink-silver: #a8a297;
+  /* Was #a8a297, which measured 2.35:1 on --paper and 2.15:1 on --sand: a long
+     way under the 4.5:1 floor, and it carries real text -- the editor's
+     "Unsaved changes" / "Saved", the settings hint, the initials placeholder.
+     Darkened to the lightest value that clears 4.5:1 on paper, ivory AND sand.
+
+     That lands it very near --ink-stone, and the honest reading is that on this
+     paper there is no room for a third, lighter ink that is still readable:
+     every place this token is used is small text, so none of them qualify for
+     the 3:1 large-text allowance. Kept as its own token rather than merged, so
+     the eight call sites keep meaning "the lightest ink still legible" -- but
+     the two are close enough now that merging them would lose nothing. */
+  --ink-silver: #6e6b63;
 
   --border-cream: #efece3;
   --border-warm: #e4e0d5;
@@ -154,7 +183,9 @@
     --ink-charcoal: light-dark(#3a3833, #cfcabd);
     --ink-olive: light-dark(#4d4a43, #b3ada0);
     --ink-stone: light-dark(#6b6358, #a29c8e);
-    --ink-silver: light-dark(#a8a297, #6f6a5f);
+    /* Dark had the same problem the other way: #6f6a5f measured 2.86:1 on the
+       dark --ivory and 2.38:1 on --sand. Lightened to clear 4.5:1 on all three. */
+    --ink-silver: light-dark(#6e6b63, #9c9991);
 
     --border-cream: light-dark(#efece3, rgba(255,255,255,.06));
     --border-warm: light-dark(#e4e0d5, rgba(255,255,255,.11));
@@ -329,6 +360,19 @@ header.site nav {
   display: grid; place-items: center;
   padding: 0 !important;
 }
+/* Floats in the corner at every width. Wide screens pick it up the same way
+   a phone would; the earlier nav-cell placement has been retired. */
+.theme-toggle.theme-fab {
+  position: fixed; right: 1rem; bottom: 1rem; z-index: 30;
+  width: 2.6rem; height: 2.6rem;
+  padding: 0 !important; margin: 0;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--ring);
+  box-shadow: 0 4px 14px rgba(0,0,0,.18);
+}
+.theme-toggle.theme-fab svg { width: 1.2rem; height: 1.2rem; }
+.theme-toggle.theme-fab:hover { background: var(--paper) !important; border-color: var(--desk-ink); }
 /* The hand-drawn set in /icons.svg, pulled in with
    `<svg class="icon"><use href="/icons.svg#i-name"/></svg>`.
    Stroke colour comes from currentColor, so an icon takes the colour of
@@ -383,6 +427,22 @@ header.site nav {
 
 .theme-toggle svg { width: 1.05rem; height: 1.05rem; }
 .theme-toggle::before { display: none; }
+/* On a phone the toggle is a FAB, not a nav cell. Higher specificity than
+   the bare .theme-toggle rule and the !important background above, so it
+   wins on size, position, and colour. */
+@media (max-width: 44rem) {
+  .theme-toggle.theme-fab {
+    position: fixed; right: 1rem; bottom: 1rem; z-index: 30;
+    width: 2.6rem; height: 2.6rem;
+    padding: 0 !important; margin: 0;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 1px solid var(--ring);
+    box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  }
+  .theme-toggle.theme-fab svg { width: 1.2rem; height: 1.2rem; }
+  .theme-toggle.theme-fab:hover { background: var(--paper) !important; border-color: var(--desk-ink); }
+}
 .theme-toggle:hover { background: color-mix(in srgb, var(--desk-ink) 12%, transparent) !important; }
 .theme-toggle .sun { display: none; }
 .theme-toggle .moon { display: block; }
@@ -975,6 +1035,142 @@ main :is(.flags, .filters, .tabs, .pages, .adders, .tools, .page-tools, .sec-too
 main :is(button, .button).compact::before,
 main :is(button, .button).compact::after { content: none; }
 
+/* BMC's floating widget, pinned top-right and opened downward.
+
+   Two pieces:
+   - `#bmc-wbtn` is BMC's floating chip. BMC positions it with `bottom`.
+   - `#bmc-iframe` is the panel that opens when the chip is clicked. BMC
+     positions it with `bottom + 72px` and animates with `transform: scale(0)`
+     from `transform-origin: right bottom`, so it currently grows upward from
+     the bottom-right corner. We move it to the top and flip the origin to
+     `right top`, so the panel hangs DOWN from the chip -- the curtain falls
+     instead of rising.
+
+   BMC's source uses `!important` on `bottom`, so we have to out-`!important`
+   it the same way. If BMC ever moves to a more aggressively-scoped style,
+   this can come back with stronger selectors. */
+#bmc-wbtn,
+#bmc-wbtn[data-position="Right"] {
+  bottom: auto !important;
+  /* Push the chip clear of the nav: nav-h is the measured nav height, plus a
+     breath of breathing room so the chip doesn't kiss the divider. */
+  top: calc(var(--nav-h) + 24px) !important;
+  /* Override BMC's data-color brush with the page's own marker-yellow, so the
+     chip agrees with the inline `.mark` highlighter used everywhere else. */
+  background: var(--mark) !important;
+  border: 1px solid var(--mark-deep) !important;
+}
+
+/* The chevron BMC swaps in once the panel is open. It ships as an inline
+   <svg><path fill="white">, and white on our marker-yellow chip (#FFE08A) is
+   about 1.4:1 -- the arrow all but disappears. A presentation attribute like
+   `fill="white"` sits BELOW any stylesheet rule in the cascade, so this needs
+   no specificity games; the !important is only there in case BMC later moves
+   the colour into its own stylesheet. */
+#bmc-wbtn svg path { fill: var(--ink) !important; }
+
+/* BMC injects a thank-you message div with no class/id, position:fixed, as a
+   direct child of body. The overlay wrapper `l` (also no id/class, fixed) is
+   the miss: it has `top: 0; left: 0; z-index: 9999999` while the message div
+   has the chip's offset. Exclude `l` by its `top: 0; left: 0` signature. */
+body > div[style*="position: fixed"]:not([id]):not([class]):not([style*="top: 0"]):not([style*="top:0"]) {
+  display: none !important;
+}
+
+/* BMC injects `#bmc-close-btn` (the X button on the iframe panel). No
+   dismissal: the in-page invite was the hinge, and once the user clicks the
+   chip the iframe should stay until it's done -- the typical close path is
+   a confirmation, and the X got in the way. */
+#bmc-close-btn {
+  display: none !important;
+}
+/* BMC's iframe sits at `top: calc(var(--nav-h) + 100px)`, anchored to the chip
+   rather than the bottom. BMC positions it with `bottom` by default; we flip
+   it to `top` so the panel hangs down from the chip. The MutationObserver in
+   index.html caps the inline height, since BMC re-assigns it on every click. */
+iframe#bmc-iframe,
+iframe[src*="buymeacoffee.com"] {
+  bottom: auto !important;
+  top: calc(var(--nav-h) + 100px) !important;
+  transform-origin: right top !important;
+
+  /* The height cap has to live HERE, not in the MutationObserver below in
+     index.html. That observer sets an inline `style.height`, and an inline
+     style loses to an `!important` declaration in a stylesheet -- which is
+     exactly what BMC ships. Measured: the observer wrote 380px while the panel
+     rendered 680px, so the cap had never once applied to the drawn box.
+
+     Capped against the room actually left BELOW the chip rather than against a
+     fraction of the viewport: the panel is anchored at `--nav-h + 100px`, so a
+     percentage of the window says nothing about how much space remains under
+     it. At 1280x800 that was 33px off the bottom; on a 390x740 phone, 151px.
+
+     dvh, not vh: on a phone vh is the tallest the viewport ever gets, so a
+     panel sized by it hides behind the browser's own chrome exactly when the
+     address bar is showing. The vh line is the fallback for anything without
+     dvh, and is deliberately first.
+
+     min-height has to be released first, and that is the whole reason a cap
+     looked applied but did nothing. BMC sets `min-height: 680px` (and `100%`
+     on a phone), and in CSS min-height ALWAYS wins a conflict with max-height
+     -- so the computed style read `max-height: 629px` and `height: 680px` at
+     the same time, which looks impossible until you see the min. */
+  min-height: 0 !important;
+  max-height: calc(100vh - var(--nav-h) - 118px) !important;
+  max-height: calc(100dvh - var(--nav-h) - 118px) !important;
+}
+
+/* BMC's overlay wrapper `l` is fullscreen and ignores the iframe's box. The
+   iframe is `position: fixed` (its own positioning), so the wrapper cap
+   doesn't crop it. Skip the wrapper; rely on the iframe's own height (capped
+   by the MutationObserver in index.html) and clip overflow visually. */
+
+/* In-page invitation that sits next to the BMC chip. The chip is a tiny
+   pill; this carries the words the BMC iframe would otherwise show, so the
+   teacher gets a real prompt without the page having to host its own payment
+   surface. Anchored to the top-right next to the chip; tucked under the
+   same `--nav-h` so they read as one corner. */
+.bmc-invite {
+  position: fixed;
+  top: calc(var(--nav-h) + 24px);
+  right: calc(18px + 64px + 12px); /* matches data-x_margin + chip width + gap */
+  z-index: 30;
+  max-width: 260px;
+  padding: 14px 16px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--border-warm);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  /* Out of the way on a phone: the chip is the only surface there. */
+  display: none;
+}
+@media (min-width: 720px) {
+  .bmc-invite { display: block; }
+}
+.bmc-invite-msg {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--ink-olive);
+  cursor: pointer;
+}
+.bmc-invite[hidden] { display: none; }
+
+/* BMC's iframe is cross-origin so its internal CSS is unreachable. The widget
+   shell around it injects a handful of `<div>`s/`<i>`/`<svg>` children -- the
+   close icon and any caret/chevron it ships with -- into BMC's own wrapper
+   divs. Force those surfaces to a dark ink in light mode so they read on the
+   pale iframe chrome; in dark mode the wrapper usually paints lighter on its
+   own, so leave it. light-dark() picks the right ink automatically. */
+body > div[style*="z-index: 9999999"] i,
+body > div[style*="z-index: 9999999"] svg path,
+body > div[style*="z-index: 9999999"] .bmc-close-icon {
+  color: var(--ink) !important;
+  fill: var(--ink) !important;
+  stroke: var(--ink) !important;
+}
+
 /* Under forced colours both pseudo-elements are discarded and only the box is
    left, so the box has to still be a button. The border is transparent rather
    than absent for exactly this: forced-colors repaints it, and keeping it
@@ -1406,6 +1602,16 @@ main .flags button::before, main .flags button::after { content: none; }
 .block:has(> :is(h1, h2, h3)) + .block > :is(h1, h2, h3) { margin-top: var(--rule); }
 .block ul, .block ol { padding-left: 1.3rem; margin: 0 0 var(--rule); }
 .block li { margin: 0; line-height: var(--rule); }
+
+/* The scroller app.js wraps every imported table in. Only the table moves
+   sideways; the sheet stays put. `max-width: 100%` rather than a width, so a
+   narrow table is still just as wide as its content and does not stretch. */
+.table-scroll { max-width: 100%; overflow-x: auto; margin: 0 0 var(--rule); }
+/* Anything else in teacher-authored content that can be wider than the page.
+   A pasted URL or an email address has no break opportunity in it at all, and
+   one long enough will push the sheet out on its own. */
+.block { overflow-wrap: anywhere; }
+.block img { max-width: 100%; height: auto; }
 
 /* Numbered lists get a fixed-width marker column instead of the browser's.
  *

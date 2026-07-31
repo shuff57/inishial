@@ -21,6 +21,27 @@ const $ = (id) => document.getElementById(id);
 const views = () => [...document.querySelectorAll('.view')];
 const pathOf = (p) => (p.replace(/\/+$/, '') || '/');
 
+/**
+ * fetch with a ceiling on how long it may hang.
+ *
+ * A phone on cellular can leave a request neither succeeding nor failing: the
+ * connection stalls and the promise never settles. Every button on this side
+ * disables itself while it waits, so a stall left the control dead with no way
+ * out but closing the tab -- worst on the Initial button, where the parent has
+ * already typed and has no idea whether it went.
+ *
+ * A bare fetch has no timeout of its own; the browser will wait out its own
+ * much longer TCP limits. AbortSignal.timeout REJECTS, which drops into the
+ * catch every one of these calls already has, so the existing "could not reach
+ * the server" path handles it with no new branching.
+ *
+ * 12s is chosen to be longer than a slow-but-working request on a bad 3G
+ * connection, and shorter than a parent's patience with a dead button.
+ */
+const NET_TIMEOUT_MS = 12_000;
+const netFetch = (url, opts = {}) =>
+  fetch(url, { ...opts, signal: AbortSignal.timeout(NET_TIMEOUT_MS) });
+
 const TITLES = {
   '/': 'iniSHial',
   '/register': 'Set up your account · iniSHial',
@@ -111,7 +132,7 @@ $('registerForm').addEventListener('submit', async (event) => {
   submit.textContent = 'Checking…';
 
   try {
-    const res = await fetch('/api/register', {
+    const res = await netFetch('/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.fromEntries(new FormData(form).entries())),
@@ -151,7 +172,7 @@ $('loginForm').addEventListener('submit', async (event) => {
   btn.textContent = 'Checking…';
 
   try {
-    const res = await fetch('/api/sign/login', {
+    const res = await netFetch('/api/sign/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.fromEntries(new FormData(event.target).entries())),
@@ -168,7 +189,7 @@ $('loginForm').addEventListener('submit', async (event) => {
 });
 
 async function loadSyllabus() {
-  const res = await fetch('/api/sign/syllabus');
+  const res = await netFetch('/api/sign/syllabus');
   if (res.status === 401) return;          // not signed in; stay on the form
   const body = await res.json();
   if (!res.ok) { notice($('loginMsg'), body.error || 'Nothing to show yet.', 'error'); return; }
@@ -244,6 +265,24 @@ function contentBlock(block) {
   div.className = 'block';
   // Teacher-authored HTML from the editor. Not user input.
   div.innerHTML = block.html;
+
+  // A table is the one thing in here whose width the teacher controls and the
+  // page cannot. A grading-weights table imported from a .docx can carry five
+  // columns, and at 360px that pushed <main> wider than the viewport, so the
+  // whole signed document scrolled sideways -- the parent's own sheet, not
+  // some widget. The admin tables were given a stacking fix for exactly this;
+  // the page a parent actually signs never got one.
+  //
+  // Wrapped rather than restyled: `display: block` on the table itself would
+  // make it scroll but would also stop it being a table for layout, so the
+  // columns would stop lining up. The wrapper scrolls; the table inside keeps
+  // its own geometry, and the rest of the page stops moving.
+  for (const table of div.querySelectorAll('table')) {
+    const scroller = document.createElement('div');
+    scroller.className = 'table-scroll';
+    table.replaceWith(scroller);
+    scroller.appendChild(table);
+  }
   return div;
 }
 
@@ -286,7 +325,7 @@ function initialBox(block) {
     error.hidden = true;
     button.disabled = true;
     try {
-      const res = await fetch('/api/sign/initial', {
+      const res = await netFetch('/api/sign/initial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ block_id: block.id, initials: input.value }),
@@ -326,4 +365,10 @@ $('nextPage').addEventListener('click', () => book?.go(book.at() + 1));
 // ---- start ----
 
 swap(viewFor(location.pathname));   // no transition on first paint
-loadSyllabus();                     // an existing session skips the sign-in form
+// An existing session skips the sign-in form. Caught, because this one is not
+// awaited by anything: on a dropped connection the rejection had nowhere to go
+// and became an unhandled promise rejection, leaving the parent on a bare
+// sign-in form with no hint that the problem was the network rather than them.
+loadSyllabus().catch(() => {
+  notice($('loginMsg'), 'Could not reach the server. Check your connection and reload.', 'error');
+});
