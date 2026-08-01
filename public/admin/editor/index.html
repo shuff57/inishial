@@ -268,7 +268,7 @@
     border-radius: var(--radius-sm);
   }
   /* The Accept / Dismiss buttons on a section that has pendings. They share
-     the page-tools strip with the existing ✍ button, so the same typography
+     the page-tools strip with the Require initials button, so the same typography
      applies; the colour is the only difference, and only on the Accept. */
   .page-tools .accept {
     background: var(--accent); color: var(--ivory); border: 1px solid var(--accent);
@@ -485,6 +485,13 @@
   .page-tools .name { flex: 1; font-size: .82rem; color: var(--ink-stone); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .page-tools button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .5rem; font-size: .8rem; background: transparent; color: var(--ink-stone); border-color: var(--border-warm); }
   .page-tools button:hover { background: var(--sand); color: var(--ink); }
+  /* The two initials toggles carry a drawn icon beside their label now. Both
+     strips fix their buttons at one rule with a line-height to match, which
+     centres text and leaves an svg sitting on the text baseline a pixel low --
+     so these two lay their contents out instead. The icon is a shade smaller
+     than the .icon default: at 1.15rem it out-weighed .8rem label beside it. */
+  .page-tools button, .tools button { display: inline-flex; align-items: center; gap: .3rem; }
+  .page-tools button .icon, .tools button .icon { width: .95rem; height: .95rem; vertical-align: 0; }
   .page-tools button.on { background: var(--tab-3); color: var(--ink); border-color: var(--tab-3); }
 
   /* The Ollama log. Sized in whole rules like everything else, so opening it
@@ -552,7 +559,7 @@
    *
    * --tab-3, the rose, means ONE thing: a parent has to initial this. It is the
    * bar down a signing section, the flag on a page that asks for initials, and
-   * the "✍ Initials required" toggle. Nothing else may borrow it.
+   * the "Require initials" toggle. Nothing else may borrow it.
    *
    * --mark, the highlighter yellow, means "this one" -- the state you are in.
    * It is the selected tab on /how/, the chosen filter on Who has signed, and
@@ -973,7 +980,15 @@ function sectionCard(from, to) {
     const signed = sectionSigns(state.blocks, from, to);
     const ini = document.createElement('button');
     ini.type = 'button';
-    ini.textContent = signed ? '✍ Initials required' : '✍ Require initials';
+    // i-initial from the sprite, not the ✍ emoji this used to carry. An emoji
+    // is drawn by the operating system, so it arrived full-colour on one
+    // machine and flat on another, at a weight nobody here chose, sitting
+    // beside a toolbar of icons that were all drawn by hand. innerHTML rather
+    // than createElement because <use> is SVG-namespaced and createElement
+    // would build an HTML element of the same name that renders nothing; the
+    // string is a literal, with nothing interpolated into it.
+    ini.innerHTML = '<svg class="icon" aria-hidden="true"><use href="/icons.svg#i-initial"/></svg>'
+      + `<span class="label">${signed ? 'Initials required' : 'Require initials'}</span>`;
     ini.title = signed
       ? 'Stop asking for initials on this page'
       : 'Ask the parent to initial this page';
@@ -1075,8 +1090,8 @@ function blockRow(block, index) {
   // Per-heading initials toggle. The markable unit is the HEADING -- a
   // single paragraph is too small a unit (a teacher's "I have read the
   // late-work policy" is about the heading and everything under it as a
-  // named thing). The section-level ✍ on the page bar is still there for
-  // the whole-section case; ✎ is for \"this one heading only\".
+  // named thing). The section-level Require initials button on the page bar is
+  // still there for the whole-section case; this one is for \"this heading only\".
   const tools = document.createElement('div');
   tools.className = 'tools';
   if (block.type === 'heading') {
@@ -1084,7 +1099,12 @@ function blockRow(block, index) {
     const ini = document.createElement('button');
     ini.type = 'button';
     ini.className = 'ini';
-    ini.textContent = on ? '✎ Initials on' : '✎ Initials';
+    // i-pencil, the drawn one, where a ✎ emoji used to be. Deliberately a
+    // DIFFERENT symbol from the section toggle above: these two controls do
+    // nearly the same thing at different scopes, and the emoji pair carried
+    // that distinction. Two identical icons would throw it away.
+    ini.innerHTML = '<svg class="icon" aria-hidden="true"><use href="/icons.svg#i-pencil"/></svg>'
+      + `<span class="label">${on ? 'Initials on' : 'Initials'}</span>`;
     ini.title = on
       ? 'Stop asking for initials on this heading.'
       : 'Ask the parent to initial just this heading -- not the whole section.';
