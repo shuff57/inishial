@@ -13,6 +13,7 @@
 // agreed to.
 
 import { unauthorized, serverMisconfigured, badRequest, requireAdmin, owns, escapeHtml, html } from '../_lib/http.js';
+import { attestationKey, promptKeys } from '../_lib/syllabus.js';
 
 export async function onRequestGet({ request, env }) {
   const admin = await requireAdmin(request, env);
@@ -65,16 +66,43 @@ export async function onRequestGet({ request, env }) {
     'SELECT id, type, html, needs_initials, level FROM blocks WHERE version_id = ?1 ORDER BY ord',
   ).bind(version.id).all();
 
+  // EVERY signature this account holds, not only the ones written against the
+  // version being printed. An amendment re-asks for initials on the sections it
+  // changed and no others, so a family's record is legitimately spread across
+  // versions: five sections agreed to in August, one re-agreed in October.
+  // Filtering to a single version_id printed the October signature and left the
+  // August ones reading "not initialed" -- on the document a school produces
+  // when a parent disputes having agreed to something.
   const { results: sigs } = await env.DB.prepare(
-    `SELECT block_id, role, initials, signed_at, ip, user_agent, block_hash
-       FROM signatures WHERE account_id = ?1 AND version_id = ?2`,
-  ).bind(accountId, version.id).all();
+    `SELECT s.role, s.initials, s.signed_at, s.ip, s.user_agent, s.block_hash,
+            b.html AS prompt, v.num AS version_num
+       FROM signatures s
+       JOIN versions v ON v.id = s.version_id
+       JOIN blocks   b ON b.id = s.block_id
+      WHERE s.account_id = ?1
+      ORDER BY s.signed_at`,
+  ).bind(accountId).all();
 
-  const byBlock = new Map();
+  // Keyed by what was agreed to -- the section's text plus the prompt's own
+  // sentence, the same key attestedByAccount() uses. Ordered by signed_at and
+  // first one wins: the original signing is the record, and a later duplicate
+  // of identical text adds nothing to it.
+  const byKey = new Map();
   for (const s of sigs ?? []) {
-    if (!byBlock.has(s.block_id)) byBlock.set(s.block_id, {});
-    byBlock.get(s.block_id)[s.role] = s;
+    const key = attestationKey(s.block_hash, s.prompt);
+    if (!byKey.has(key)) byKey.set(key, {});
+    const slot = byKey.get(key);
+    if (!slot[s.role]) slot[s.role] = s;
   }
+
+  // Each prompt as it stands in the version being printed, so a signature is
+  // matched to a section by the text it covers rather than by a block id that
+  // did not survive the last publish.
+  const keys = await promptKeys(blocks ?? []);
+  const byBlock = new Map();
+  (blocks ?? []).forEach((b, i) => {
+    if (keys[i] && byKey.has(keys[i])) byBlock.set(b.id, byKey.get(keys[i]));
+  });
 
   const when = (t) => (t ? new Date(t * 1000).toISOString().replace('T', ' ').replace(/\..+/, ' UTC') : '—');
 
@@ -85,7 +113,11 @@ export async function onRequestGet({ request, env }) {
     const stamp = (role, label) => {
       const s = signed[role];
       if (!s) return `<div class="unsigned">${label}: not initialed</div>`;
+      // The version carries real weight now that a signature can predate the
+      // one being printed: it is the difference between "they agreed to this
+      // wording in August" and "they agreed to it last week".
       return `<div class="stamp"><b>${escapeHtml(s.initials)}</b> — ${label}, ${escapeHtml(when(s.signed_at))}`
+        + ` <span class="on-version">on version ${escapeHtml(String(s.version_num))}</span>`
         + `<div class="audit">IP ${escapeHtml(s.ip ?? '—')} · text hash ${escapeHtml(String(s.block_hash).slice(0, 16))}…</div></div>`;
     };
     return `<div class="initial-box${signed.parent ? ' done' : ''}">
@@ -112,6 +144,10 @@ export async function onRequestGet({ request, env }) {
   .record dd { margin: 0; }
   .unsigned { color: var(--rose); font-size: .9rem; font-weight: 600; }
   .audit { font: 11px var(--font-mono); color: var(--ink-stone); margin-top: .15rem; }
+  /* Which version this section was agreed to on. Quiet, but never dropped from
+     print -- once signatures carry across an amendment it is the difference
+     between two dates that mean different things. */
+  .on-version { color: var(--ink-stone); font-size: .82rem; }
   @media print { .record { border-color: #999; background: #fff; } }
 </style>
 </head>

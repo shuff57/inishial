@@ -188,3 +188,94 @@ export async function diffVersions(db, fromVersionId, toVersionId) {
     resign_required: resignRequired,
   };
 }
+
+/**
+ * What identifies one prompt across a version boundary.
+ *
+ * The attestation hash alone is not enough, and the reason is in attestedBlocks
+ * above: a prompt attests to its whole SECTION, so two prompts sitting in one
+ * section -- which per_block exists precisely to allow -- produce the identical
+ * hash. Keyed on the hash alone, initialing "I have read the late work policy"
+ * would silently satisfy "I have read the attendance policy" beside it, and the
+ * teacher's count would read 1 of 2 forever.
+ *
+ * So the key is the span PLUS the prompt's own sentence. Same words above it
+ * and same words in it means the same attestation; either one moving breaks the
+ * match and initials are asked for again.
+ *
+ * The hash is fixed-length hex, so a plain concatenation is unambiguous no
+ * matter what the prompt text contains.
+ */
+export const attestationKey = (hash, promptHtml) => `${hash}:${promptHtml}`;
+
+/**
+ * The key of every prompt in a version, in document order.
+ *
+ * `null` for blocks that ask for nothing, so the array lines up index-for-index
+ * with the blocks it was computed from and a caller can ask about block i
+ * without keeping a second map.
+ */
+export async function promptKeys(blocks) {
+  const out = [];
+  for (let i = 0; i < blocks.length; i++) {
+    out.push(blocks[i].needs_initials
+      ? attestationKey(await attestationHash(blocks, i), blocks[i].html)
+      : null);
+  }
+  return out;
+}
+
+/**
+ * Everything this account has ever attested to, keyed by attestation hash.
+ *
+ * THIS IS WHAT MAKES AN AMENDMENT AN AMENDMENT RATHER THAN A RE-SIGNING.
+ *
+ * Publishing clones every block into a new version, so ids never survive the
+ * boundary. Matching a signature by `version_id + block_id` therefore finds
+ * nothing the moment a new version goes live, and a parent who was asked to
+ * initial one changed paragraph was instead asked to initial the whole syllabus
+ * again -- which is both a worse experience and a worse record, because the
+ * second signature says nothing the first did not already say.
+ *
+ * The hash is the right key because it is exactly what was agreed to:
+ * `block_hash` on a signature is attestationHash() over the whole section, so
+ * an identical hash means identical text, and a signature on it is still a true
+ * statement about the new version. Change one word of that section and the hash
+ * moves, the carry-forward stops, and initials are asked for again -- which is
+ * the entire point of hashing the section rather than the prompt sentence.
+ *
+ * Returns Map<attestationKey, { initials, signed_at, version_num }> -- the
+ * ORIGINAL signing, not a copy of it. Nothing is written here; a carried
+ * signature is the same row it always was, read through a different key.
+ */
+export async function attestedByAccount(db, accountId, role) {
+  const { results } = await db.prepare(
+    // The FIRST time they agreed to this text, and the rest of that same row.
+    //
+    // Exactly one MIN() in the query, which is load-bearing: SQLite guarantees
+    // that when a query has a single min() or max() aggregate, the bare columns
+    // beside it come from the row that produced it. So `initials` and `v.num`
+    // are the ones belonging to that original signing, not values picked
+    // independently. Adding a second aggregate here would quietly break that
+    // and could print one signing's date beside another's initials -- on the
+    // page a school hands to a parent who is disputing what they agreed to.
+    // `b.html` is the prompt's own sentence, joined back through the block the
+    // signature was written against. Those rows outlive their version -- nothing
+    // deletes a published version's blocks -- so the sentence is still readable
+    // however long ago it was signed.
+    `SELECT s.block_hash,
+            b.html           AS prompt,
+            MIN(s.signed_at) AS signed_at,
+            s.initials       AS initials,
+            v.num            AS version_num
+       FROM signatures s
+       JOIN versions v ON v.id = s.version_id
+       JOIN blocks   b ON b.id = s.block_id
+      WHERE s.account_id = ?1 AND s.role = ?2
+      GROUP BY s.block_hash, b.html`,
+  ).bind(accountId, role).all();
+
+  return new Map((results ?? []).map((r) => [attestationKey(r.block_hash, r.prompt), {
+    initials: r.initials, signed_at: r.signed_at, version_num: r.version_num,
+  }]));
+}

@@ -55,6 +55,17 @@
   .pill.complete { background: var(--tab-1); color: #10352a; }
   .pill.partial { background: var(--tab-5); color: #4a3a10; }
   .pill.stale { background: var(--tab-2); color: #2f2450; }
+
+  /* The amendment panel. Closed by default: on most visits nothing has been
+     amended and this is not what the page is for. A whole rule of margin so
+     opening it does not walk the table below off the ruled paper. */
+  .notify { margin: var(--rule) 0; }
+  .notify > summary {
+    cursor: pointer; line-height: var(--rule);
+    font-weight: 600; color: var(--ink);
+  }
+  .notify textarea { min-height: calc(var(--rule) * 4); }
+  #notifyAddresses { min-height: calc(var(--rule) * 2); }
   .pill.not_started, .pill.no_code { background: var(--sand); color: var(--ink-olive); }
   .pill.not_registered { background: var(--tab-3); color: #5a1f2c; }
   /* row-gap: 0 -- a wrapping row spends its `gap` vertically as well, and seven
@@ -114,6 +125,39 @@
   <div id="msg" hidden></div>
 
   <div class="summary" id="summary"></div>
+
+  <!--
+    After an amendment: who still owes initials on the new version, and the
+    two things you need to go and ask them.
+
+    The app does not send this. It has never sent mail -- access codes go out
+    the same way, as a CSV you mail-merge -- and adding a sender would mean a
+    provider account, an API key and DNS records for a message that lands in
+    more inboxes coming from a school address than from a service nobody at
+    the school recognises. So it writes the message and hands you the list.
+
+    Hidden unless there is a previous version AND somebody is behind on it.
+  -->
+  <details id="notify" class="notify" hidden>
+    <summary id="notifySummary"></summary>
+    <p class="muted small" id="notifyWhat"></p>
+
+    <p class="row">
+      <button class="secondary" id="copyTo">Copy addresses</button>
+      <button class="secondary" id="copyMsg">Copy message</button>
+      <a id="notifyCsv" class="button secondary" href="#">Download CSV</a>
+    </p>
+
+    <label for="notifyAddresses">Addresses
+      <span class="hint">Everyone still owing initials on this version who has an address on file. Paste into Bcc.</span></label>
+    <textarea id="notifyAddresses" readonly spellcheck="false"></textarea>
+
+    <label for="notifyBody">Message
+      <span class="hint">Edit it before you send if you want. Copying takes whatever is in the box.</span></label>
+    <textarea id="notifyBody" spellcheck="false"></textarea>
+
+    <p class="small muted" id="notifyNoEmail" hidden></p>
+  </details>
 
   <div class="filters on-rules" id="filters">
     <button data-f="all" aria-pressed="true">Everyone</button>
@@ -208,8 +252,102 @@ for (const btn of $('filters').querySelectorAll('button')) {
     + `<div class="stat"><b>${c.stale ?? 0}</b><span>older version</span></div>`;
 
   if (!data.published) notice('No syllabus is published for this class yet, so nobody can sign. Publish one first.', 'error');
+  buildNotify();
   render();
 })();
+
+/**
+ * The amendment panel.
+ *
+ * Built from what is already on the page: `amendment` says which version
+ * replaced which and which sections moved, and the student list already
+ * carries every address and status. Nothing is fetched twice.
+ */
+function buildNotify() {
+  const a = data.amendment;
+  if (!a) return;                       // a first publish is not an amendment
+
+  // Who is actually behind. `complete` families have nothing to read, and a
+  // family with no address on file cannot be mailed -- counted, so the number
+  // in the summary and the number of addresses agree or say why they do not.
+  const behind = data.students.filter((s) => s.status !== 'complete' && s.account_id);
+  if (!behind.length) return;
+
+  const withEmail = behind.filter((s) => s.email);
+  const missing = behind.length - withEmail.length;
+
+  $('notify').hidden = false;
+  $('notifySummary').textContent =
+    `Tell families about version ${a.version} (${behind.length} of ${data.total} still to initial)`;
+
+  const what = a.changed_sections.length
+    ? `Changed since version ${a.previous_version}: ${a.changed_sections.join(', ')}.`
+    : `Version ${a.previous_version} was replaced by version ${a.version}.`;
+  $('notifyWhat').textContent = what;
+
+  // Semicolons: Outlook's separator, and Gmail accepts them too. One line, so
+  // a paste into Bcc lands as one field rather than as a column.
+  $('notifyAddresses').value = withEmail.map((s) => s.email).join('; ');
+  $('notifyNoEmail').hidden = missing === 0;
+  if (missing) {
+    $('notifyNoEmail').textContent = missing === 1
+      ? '1 family has no address on file and is not in this list. They are in the table above, and the CSV.'
+      : `${missing} families have no address on file and are not in this list. They are in the table above, and the CSV.`;
+  }
+
+  // One section or several changes three sentences, so the count is worked out
+  // once and the wording follows it. A message that says "one section" over a
+  // list of three is the kind of thing a parent notices and stops trusting.
+  const n = a.changed_sections.length;
+  const one = n === 1;
+  const sections = n
+    ? (one ? `The ${a.changed_sections[0]} section has changed.`
+      : `These sections have changed: ${a.changed_sections.join(', ')}.`)
+    : 'Part of the syllabus has changed.';
+
+  // Says what changed, what is being asked, and that the rest still stands --
+  // the last part matters, because "sign the syllabus again" is what a parent
+  // will otherwise assume and is the reason they will not do it.
+  $('notifyBody').value = [
+    `Subject: ${data.course.name} syllabus — updated, please initial ${one ? 'one section' : 'the updated sections'}`,
+    '',
+    'Hello,',
+    '',
+    `The ${data.course.name} syllabus has been updated. ${sections}`,
+    '',
+    `Please sign in at ${location.origin}/sign/ with your student's ID number and`,
+    `your access code. ${one ? 'The section that changed is' : 'The sections that changed are'} marked`,
+    `"Updated since you signed" and ${one ? 'is the only one' : 'are the only ones'} needing your initials`,
+    'again — everything you have already signed still stands.',
+    '',
+    'Thank you,',
+  ].join('\n');
+
+  $('notifyCsv').href = `/api/admin/progress?course_id=${courseId}&format=csv`;
+
+  // Copy, with the selection left behind as the fallback. navigator.clipboard
+  // needs a secure context, and this page is reachable over plain http on a
+  // school network -- so when the API is missing or refused, the text ends up
+  // selected and Ctrl+C finishes the job rather than the button doing nothing.
+  const copy = (id, btn) => async () => {
+    const el = $(id);
+    el.select();
+    const done = (ok) => {
+      btn.textContent = ok ? 'Copied' : 'Press Ctrl+C';
+      setTimeout(() => { btn.textContent = btn.dataset.label; }, 2000);
+    };
+    try {
+      await navigator.clipboard.writeText(el.value);
+      done(true);
+    } catch {
+      done(false);
+    }
+  };
+  for (const [id, btn] of [['notifyAddresses', $('copyTo')], ['notifyBody', $('copyMsg')]]) {
+    btn.dataset.label = btn.textContent;
+    btn.addEventListener('click', copy(id, btn));
+  }
+}
 </script>
 
 <!-- Light/dark toggle, in the corner rather than the nav, matching the

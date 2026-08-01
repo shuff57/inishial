@@ -80,19 +80,68 @@ test('signing every required section reads as complete', async () => {
   assert.ok(body.students[0].last_signed_at > 0);
 });
 
-test('a parent who completed an older version is flagged, not counted as done', async () => {
+test('a parent who completed a version whose text has since changed is flagged', async () => {
   const { env, courseId, code, blockIds } = await setup();
   await signBlocks(env, code, [blockIds[1], blockIds[2]]);
 
-  // A new version goes live. Their signatures belong to v1.
-  seedSyllabus(env._raw, courseId, BLOCKS, { num: 2 });
+  // A new version goes live, and the policy they agreed to is not what it was.
+  seedSyllabus(env._raw, courseId, [
+    { type: 'text', html: '<p>Late work loses 5% per day.</p>' },      // amended
+    { type: 'initial', html: 'I have read the late work policy.', needs_initials: true },
+    { type: 'initial', html: 'I have read the attendance policy.', needs_initials: true },
+  ], { num: 2 });
 
   const body = await (await get(env, `course_id=${courseId}`)).json();
   assert.equal(body.students[0].status, 'stale');
   assert.equal(body.students[0].last_signed_version, 1);
   assert.equal(body.published.num, 2);
   assert.notEqual(body.students[0].status, 'complete',
-    'a replaced version must not silently keep counting as signed');
+    'a policy that changed under a signature must not keep counting as signed');
+});
+
+test('republishing without touching the text does not ask anyone to sign again', async () => {
+  const { env, courseId, code, blockIds } = await setup();
+  await signBlocks(env, code, [blockIds[1], blockIds[2]]);
+
+  // The same words, published again -- a typo fixed elsewhere, a section
+  // reordered, or simply a second publish. Publishing clones every block, so
+  // matching signatures by block id found nothing here and asked a family who
+  // had already read the whole syllabus to initial all of it a second time.
+  seedSyllabus(env._raw, courseId, BLOCKS, { num: 2 });
+
+  const body = await (await get(env, `course_id=${courseId}`)).json();
+  assert.equal(body.students[0].status, 'complete');
+  assert.equal(body.students[0].parent_signed, 2);
+});
+
+test('only the section that changed comes back unsigned', async () => {
+  // Headings matter here: a prompt attests to its own section, so with them
+  // an amendment to one policy leaves the others alone. This is the whole
+  // point of an amendment rather than a re-signing.
+  const SECTIONED = [
+    { type: 'heading', html: 'Late Work' },
+    { type: 'text', html: '<p>Late work loses 10% per day.</p>' },
+    { type: 'initial', html: 'I have read the late work policy.', needs_initials: true },
+    { type: 'heading', html: 'Attendance' },
+    { type: 'text', html: '<p>Three absences triggers a call home.</p>' },
+    { type: 'initial', html: 'I have read the attendance policy.', needs_initials: true },
+  ];
+  const env = freshEnv();
+  const { courseId, rosterId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { code } = await seedAccount(env._raw, rosterId);
+  const { blockIds } = seedSyllabus(env._raw, courseId, SECTIONED);
+  await signBlocks(env, code, [blockIds[2], blockIds[5]]);
+
+  assert.equal((await (await get(env, `course_id=${courseId}`)).json()).students[0].status, 'complete');
+
+  // Amend late work only.
+  const amended = SECTIONED.map((b, i) => (i === 1 ? { ...b, html: '<p>Late work loses 5% per day.</p>' } : b));
+  seedSyllabus(env._raw, courseId, amended, { num: 2 });
+
+  const body = await (await get(env, `course_id=${courseId}`)).json();
+  assert.equal(body.students[0].required, 2);
+  assert.equal(body.students[0].parent_signed, 1, 'attendance still stands; late work does not');
+  assert.equal(body.students[0].status, 'stale');
 });
 
 test('a dropped student disappears from the working list', async () => {

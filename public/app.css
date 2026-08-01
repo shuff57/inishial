@@ -1692,6 +1692,39 @@ main .flags button::before, main .flags button::after { content: none; }
 .initial-box input::placeholder { color: var(--ink-silver); font-size: 1.3rem; }
 
 .initial-box.done { border-left-color: var(--tab-1); background: transparent; }
+
+/* The one sentence a returning family reads before anything else. Two whole
+   rules of margin so the sheet below still starts on a ruled line. */
+.amended-banner {
+  margin: var(--rule) 0;
+  padding: calc(var(--rule) / 2 - 1px) 1.1rem;
+  line-height: var(--rule);
+  border: 1px solid var(--ring);
+  border-left: 4px solid var(--mark-deep);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--mark) 22%, transparent);
+  color: var(--ink);
+}
+
+/* An amended section: signed once, and the words have moved since.
+   The left edge is the whole signal -- a different colour on the rule this box
+   already had, rather than a badge or a tint, because a parent scrolling for
+   the one thing they have to re-read is looking down the margin.
+   The line is a WHOLE rule tall and the box keeps its existing padding, so
+   marking a section amended does not push the page off the ruled paper. */
+.initial-box.updated { border-left-color: var(--mark-deep); }
+.updated-flag {
+  margin: 0 0 var(--rule);
+  line-height: var(--rule);
+  font-size: .85rem; font-weight: 600;
+  color: var(--ink-olive);
+}
+/* The marker band, the same one "you are here" uses everywhere else. */
+.updated-flag::before {
+  content: ''; display: inline-block; vertical-align: top;
+  width: .55rem; height: .55rem; margin: calc((var(--rule) - .55rem) / 2) .45rem 0 0;
+  border-radius: 50%; background: var(--mark-deep);
+}
 .stamp { font-size: .85rem; line-height: var(--rule); color: var(--ink-stone); margin: 0; }
 /* The initials are handwriting at 1.6rem sitting in a 1rem line. As a
    baseline-aligned inline-block its own baseline sits 3px off the strut's, so

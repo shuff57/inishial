@@ -7,6 +7,7 @@
 
 import { json, unauthorized, serverMisconfigured } from '../../_lib/http.js';
 import { currentSession, SIGNER_ROLES } from '../../_lib/session.js';
+import { attestedByAccount, promptKeys } from '../../_lib/syllabus.js';
 
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return serverMisconfigured('the DB binding');
@@ -41,13 +42,24 @@ export async function onRequestGet({ request, env }) {
        FROM blocks WHERE version_id = ?1 ORDER BY ord`,
   ).bind(version.id).all();
 
-  const { results: signed } = await env.DB.prepare(
-    `SELECT block_id, initials, signed_at
-       FROM signatures
-      WHERE account_id = ?1 AND version_id = ?2 AND role = ?3`,
-  ).bind(claims.sub, version.id, claims.role).all();
+  // Matched on what was AGREED TO, not on which row said it.
+  //
+  // Publishing clones every block, so ids do not cross a version boundary and
+  // the old `version_id = current AND block_id = ...` lookup found nothing the
+  // moment an amendment went live -- a family that changed one line of the late
+  // work policy asked every parent to re-initial the entire syllabus. Sections
+  // whose text is untouched keep the signature they already have; the ones that
+  // moved come back unsigned, because their hash moved with them.
+  const attested = await attestedByAccount(env.DB, claims.sub, claims.role);
+  const hashes = await promptKeys(blocks ?? []);
 
-  const signedBy = new Map((signed ?? []).map((s) => [s.block_id, s]));
+  // Has this family signed anything at all, ever? It decides whether an
+  // unsigned prompt is NEW or CHANGED, and those are different sentences: a
+  // parent opening the syllabus for the first time is not being told something
+  // was amended.
+  const returning = attested.size > 0;
+
+  const signedAt = (i) => (hashes[i] ? attested.get(hashes[i]) ?? null : null);
   const required = (blocks ?? []).filter((b) => b.needs_initials);
 
   return json({
@@ -58,7 +70,7 @@ export async function onRequestGet({ request, env }) {
     title: version.title,
     version: version.num,
     published_at: version.published_at,
-    blocks: (blocks ?? []).map((b) => ({
+    blocks: (blocks ?? []).map((b, i) => ({
       id: b.id,
       type: b.type,
       html: b.html,
@@ -68,8 +80,18 @@ export async function onRequestGet({ request, env }) {
       // own page: 15 for a 9-section syllabus, while the editor showed 9.
       level: b.level ?? 2,
       needs_initials: !!b.needs_initials,
-      signed: signedBy.get(b.id) ?? null,
+      signed: signedAt(i),
+      // This section asks for initials, this family has signed before, and what
+      // it says now is not what they agreed to. That is an amendment, and it is
+      // the only thing on the page they actually have to read again.
+      updated: !!b.needs_initials && returning && !signedAt(i),
     })),
-    progress: { signed: required.filter((b) => signedBy.has(b.id)).length, required: required.length },
+    progress: {
+      signed: (blocks ?? []).filter((b, i) => b.needs_initials && signedAt(i)).length,
+      required: required.length,
+    },
+    // How many sections changed under a returning family. Zero for a first
+    // visit, however many prompts are outstanding.
+    amended: (blocks ?? []).filter((b, i) => b.needs_initials && returning && !signedAt(i)).length,
   });
 }

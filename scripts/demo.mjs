@@ -17,6 +17,14 @@
 // Idempotent and additive. It adds a course if that course is not already
 // there and does nothing otherwise, so a real imported syllabus in the same
 // database is never touched. DEMO_RESET=1 rebuilds it from scratch.
+//
+// The one import is attestationHash. seedDemo() below takes its crypto by
+// injection so the fixture does not reach into the endpoints it exists to let
+// you exercise -- but this is the shared rule in _lib, not a handler, and it
+// has to be the SAME rule: a signature is matched to a section by this hash, so
+// a fixture that computed it differently would seed a demo class whose every
+// signature reads as missing.
+import { attestationHash } from '../functions/_lib/syllabus.js';
 
 const COURSE = 'Biology 1 (demo)';
 const PERIOD = '6';
@@ -246,6 +254,18 @@ export async function seedDemo(db, { hashCode, seal = async () => null, reset = 
 
   // Signatures against version 1, spread so the progress page shows every
   // state at once rather than one row repeated fifteen times.
+  //
+  // The hash is computed the same way /api/sign/initial computes it, and that
+  // is not tidiness. A signature is matched to a section by this hash, so that
+  // unchanged sections keep their initials across a republish -- seeded rows
+  // carrying a placeholder string ('demo-not-a-real-hash', which is what these
+  // used to hold) match no section at all, and the demo class opens with every
+  // signature apparently missing.
+  const shaped = v1.blocks.map(([type, html, needs]) => ({ type, html, needs_initials: needs }));
+  const promptIndexes = v1.blocks.map((b, i) => (b[2] === 1 ? i : -1)).filter((i) => i >= 0);
+  const hashOf = new Map();
+  for (const i of promptIndexes) hashOf.set(v1.blockIds[i], await attestationHash(shaped, i));
+
   const prompts = v1.blockIds.filter((_, i) => v1.blocks[i][2] === 1);
   const initials = (first, last) => (first[0] + last[0]).toUpperCase();
   let signed = 0;
@@ -258,7 +278,7 @@ export async function seedDemo(db, { hashCode, seal = async () => null, reset = 
         `INSERT INTO signatures (account_id, version_id, block_id, role, initials, block_hash, signed_at, ip, user_agent)
          VALUES (?, ?, ?, 'parent', ?, ?, ?, '198.51.100.7', 'demo seed')`,
       ).run(accountIds.get(extId), v1.versionId, blockId, initials(first, last),
-        'demo-not-a-real-hash', now - 60 * 60 * 24 * (10 - (i % 7)));
+        hashOf.get(blockId), now - 60 * 60 * 24 * (10 - (i % 7)));
       signed++;
     }
   }

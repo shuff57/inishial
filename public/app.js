@@ -205,6 +205,18 @@ async function loadSyllabus() {
   $('progressWho').textContent =
     body.student + (body.role === 'parent' ? ' · parent or guardian' : ' · student');
 
+  // A returning family whose syllabus has been amended. Said once, at the top,
+  // with a count -- so the answer to "what am I being asked to do again" is on
+  // screen before any scrolling, and the sections themselves carry the detail.
+  const amended = body.amended ?? 0;
+  const banner = $('amendedBanner');
+  banner.hidden = amended === 0;
+  if (amended) {
+    banner.textContent = amended === 1
+      ? 'One section has changed since you last signed. It is marked below and needs your initials again; everything else you have already signed still stands.'
+      : `${amended} sections have changed since you last signed. They are marked below and need your initials again; everything else you have already signed still stands.`;
+  }
+
   render();
 }
 
@@ -288,7 +300,18 @@ function contentBlock(block) {
 
 function initialBox(block) {
   const box = document.createElement('div');
-  box.className = 'initial-box' + (block.signed ? ' done' : '');
+  box.className = 'initial-box' + (block.signed ? ' done' : '') + (block.updated ? ' updated' : '');
+
+  // An amendment. This family signed this section before, and the words have
+  // changed since -- so the one thing worth saying is which of the twelve
+  // sections is not the one they already read. Said above the prompt, because
+  // by the time the eye reaches the initials box the reading has been done.
+  if (block.updated) {
+    const flag = document.createElement('p');
+    flag.className = 'updated-flag';
+    flag.textContent = 'Updated since you signed — please read this section again.';
+    box.appendChild(flag);
+  }
 
   const prompt = document.createElement('p');
   prompt.className = 'prompt';
@@ -334,6 +357,11 @@ function initialBox(block) {
       if (!res.ok) { notice(error, body.error || 'Could not save.', 'error'); return; }
 
       block.signed = { initials: body.initials, signed_at: body.signed_at };
+      // It has just been read and re-initialed, so it is no longer the section
+      // that changed. Without this the box comes back stamped AND still flagged
+      // "please read this again", which reads as the signature not having
+      // counted.
+      block.updated = false;
       render();
     } catch {
       notice(error, 'Could not reach the server. Try again.', 'error');
