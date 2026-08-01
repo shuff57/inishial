@@ -16,3 +16,12 @@ node_modules/
 # /preview/turn/ page only, which is itself a preview and not part of the app.
 public/vendor/turn.min.js
 public/vendor/jquery.min.js
+
+# Your own syllabus drafts, sitting in the repo root while you work on them.
+# They are real course documents with a real teacher and school in them, and
+# this repo is public. Ignored rather than trusted to a careful `git add`:
+# one `git add -A` already committed them once.
+/Syllabus*.docx
+/Syllabus*.pdf
+/Syllabus*.md
+/syllabus-gap-analysis.md
