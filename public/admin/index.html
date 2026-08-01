@@ -77,21 +77,59 @@
        the height stayed pinned at 32px. */
     main .tabs button { height: calc(var(--rule) * 2); line-height: var(--rule); }
   }
-  /* The management actions, on their own line under the three links that go
-     somewhere. Two groups because they answer different questions -- "take me
-     to this class" and "change what this class is" -- and six words in one run
-     made the row read as a single undifferentiated list where Delete sat one
-     comma away from Syllabus.
-
-     `main` and `:not(.danger)` are specificity, not meaning: without them this
-     is (0,1,0), the tape rule in app.css is (0,2,1), and its transparent
-     border wins -- the same trap the codes page documents. */
-  .row-actions { display: block; margin-top: .15rem; }
-  main .row-actions .compact:not(.danger) {
-    background: transparent; color: var(--ink-stone);
-    border-color: var(--border-warm); font-size: .8rem;
+  /* The class name is the rename control, and looks like a name until you go
+     near it. A button for the keyboard and the screen reader; everything a
+     button normally draws is taken back off so the table still reads as a
+     table. `main` and :not(.danger) are specificity, not meaning -- the tape
+     rule in app.css is (0,2,1) and a bare class would lose to it, the same
+     trap the codes page documents. */
+  main .name-edit:not(.danger) {
+    min-height: 0; height: var(--rule); line-height: var(--rule);
+    padding: 0 .3rem; margin: 0 0 0 -.3rem;
+    font: inherit; font-weight: inherit; color: inherit; text-align: left;
+    background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
   }
-  main .row-actions .compact:not(.danger):hover:not([disabled]) { background: var(--sand); color: var(--ink); }
+  main .name-edit:not(.danger):hover:not([disabled]) {
+    background: var(--sand); border-color: var(--border-warm); color: var(--ink);
+  }
+  main .name-edit:not(.danger)::before, main .name-edit:not(.danger)::after { content: none; }
+  /* Exactly the button's box, so swapping one for the other does not move the
+     row by a pixel. */
+  .name-input {
+    height: var(--rule); line-height: var(--rule);
+    padding: 0 .3rem; margin: 0 0 0 -.3rem; width: 100%; max-width: 16rem;
+    font: inherit; font-weight: inherit;
+    background: var(--paper); border: 1px solid var(--accent); border-radius: var(--radius-sm);
+  }
+
+  /* One target per row for everything destructive, at the end of the line. Not
+     coloured red at rest: it opens a question, it does not answer one. */
+  main .row-x:not(.danger) {
+    min-height: 0; width: var(--rule); height: var(--rule); line-height: var(--rule);
+    padding: 0; margin-left: .5rem; float: right;
+    font-size: 1.05rem; color: var(--ink-stone);
+    background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
+  }
+  main .row-x:not(.danger):hover:not([disabled]) {
+    background: var(--sand); border-color: var(--border-warm); color: var(--ink);
+  }
+  main .row-x:not(.danger)::before, main .row-x:not(.danger)::after { content: none; }
+  @media (max-width: 44rem) { main .row-x:not(.danger) { float: none; margin-left: 0; } }
+
+  /* The box the × opens. Sized to the words rather than the viewport, and the
+     backdrop dims what is behind so the choice is the only thing on screen. */
+  #classDialog {
+    max-width: 32rem; width: calc(100% - 2rem);
+    padding: var(--rule) 1.2rem;
+    color: var(--ink); background: var(--ivory);
+    border: 1px solid var(--border-warm); border-radius: var(--radius-md);
+    box-shadow: 0 12px 40px rgba(0,0,0,.28);
+  }
+  #classDialog::backdrop { background: rgba(28,28,30,.45); }
+  #classDialog h2 { margin: 0 0 .2rem; }
+  #classDialog input { width: 100%; }
+  #dlgDestroys { line-height: var(--rule); }
+
   /* Archived rows read as past tense, without hiding anything in them. */
   .classes tr.archived td.name { color: var(--ink-stone); font-weight: 500; }
   .classes td.name .when { display: block; font-size: .74rem; color: var(--ink-stone); font-weight: 400; }
@@ -177,6 +215,46 @@
     </table>
     <p id="coursesEmpty" class="muted small" hidden>No classes yet. Start one below.</p>
   </div>
+
+  <!--
+    What happens to a class. Opened by the × on its row.
+
+    A native <dialog>, so Escape, the backdrop, focus trapping and returning
+    focus to the × afterwards are the browser's job rather than three more
+    handlers to get wrong. ONE of these for the whole page, refilled per row --
+    a dialog per class would be twenty copies of the same markup in the DOM.
+
+    Two steps, and the second only for deletion: choosing is safe, and the
+    dangerous choice then asks for the class name. Archive is listed first and
+    reads as the ordinary answer, because it is.
+  -->
+  <dialog id="classDialog">
+    <form method="dialog">
+      <h2 id="dlgTitle"></h2>
+
+      <div id="dlgChoose">
+        <p class="muted small" id="dlgHolds"></p>
+        <p class="row">
+          <button type="button" class="secondary" id="dlgArchive"></button>
+          <button type="button" class="secondary danger" id="dlgDelete">Permanently delete…</button>
+        </p>
+        <p class="small muted" id="dlgArchiveNote"></p>
+      </div>
+
+      <div id="dlgConfirm" hidden>
+        <p id="dlgDestroys"></p>
+        <label for="dlgTyped">Type the class name to confirm
+          <span class="hint" id="dlgTypedHint"></span></label>
+        <input type="text" id="dlgTyped" autocomplete="off" spellcheck="false">
+        <p class="row">
+          <button type="button" class="secondary" id="dlgBack">Back</button>
+          <button type="button" class="danger" id="dlgReally" disabled>Delete permanently</button>
+        </p>
+      </div>
+
+      <p class="row"><button value="cancel" class="secondary" id="dlgCancel">Cancel</button></p>
+    </form>
+  </dialog>
 
   <!-- Last year's classes, folded away rather than filtered out. Closed by
        default because this is the answer to a question asked twice a year, and
@@ -465,10 +543,21 @@ const archivedWhen = (secs) => new Date(secs * 1000)
 // An archived class keeps all three links. Its syllabus, its roster and its
 // signed copies are exactly what someone comes back for in March, which is the
 // entire difference between archiving and deleting.
+// The name is a BUTTON, not a div with a click handler. It is the rename
+// control, so it has to be reachable by Tab and announce itself as something
+// you can press -- a styled div does neither, and the styling here deliberately
+// makes it look like text right up until you hover it.
+//
+// The × is the only other control: one target that opens the box where what
+// happens to a class is chosen. Three buttons sitting permanently in the row
+// meant Delete was always one stray click away from a year of signatures, and
+// put the rarest action in the same visual weight as the commonest.
 function row(c) {
   const gone = !!c.archived_at;
   return `<tr data-id="${c.id}"${gone ? ' class="archived"' : ''}>
-      <td class="name">${esc(c.name)}${gone ? `<span class="when">archived ${esc(archivedWhen(c.archived_at))}</span>` : ''}</td>
+      <td class="name">
+        <button type="button" class="name-edit" data-act="rename">${esc(c.name)}</button>
+        ${gone ? `<span class="when">archived ${esc(archivedWhen(c.archived_at))}</span>` : ''}</td>
       <td class="num" data-label="Active">${c.students ?? 0}</td>
       <td class="num" data-label="Dropped">${c.dropped ?? 0}</td>
       <td class="num" data-label="Registered">${c.registered ?? 0}</td>
@@ -478,12 +567,55 @@ function row(c) {
           <a href="/admin/editor/?course_id=${c.id}">Syllabus</a>
           &nbsp;·&nbsp;
           <a href="/admin/codes/?course_id=${c.id}">Access codes</a>
-        <span class="row-actions">
-          <button class="compact" data-act="rename">Rename</button>
-          <button class="compact" data-act="${gone ? 'restore' : 'archive'}">${gone ? 'Restore' : 'Archive'}</button>
-          <button class="compact danger" data-act="delete">Delete</button>
-        </span></td>
+        <button type="button" class="row-x" data-act="manage"
+          aria-label="What to do with ${esc(c.name)}" title="Archive or delete">×</button></td>
     </tr>`;
+}
+
+/**
+ * Rename in place.
+ *
+ * The button is replaced by an input carrying the same text, and put back
+ * whichever way it ends: Enter or blur saves, Escape abandons. No dialog and no
+ * prompt() -- renaming a class is a typo correction, and it should cost about
+ * what correcting a typo costs.
+ */
+function editName(btn, course) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'name-input';
+  input.value = course.name;
+  input.maxLength = 120;
+  input.setAttribute('aria-label', `Name of ${course.name}`);
+
+  let settled = false;
+  const restore = (text) => {
+    if (settled) return;
+    settled = true;
+    btn.textContent = text;
+    input.replaceWith(btn);
+  };
+
+  const commit = async () => {
+    if (settled) return;
+    const name = input.value.trim();
+    // Nothing typed, or nothing changed: put the text back and say nothing.
+    // A "renamed" confirmation for a rename that did not happen is noise.
+    if (!name || name === course.name) return restore(course.name);
+    restore(name);                          // optimistic; loadCourses() redraws either way
+    await courseAction('PATCH', { id: course.id, name }, (o) => `Renamed to ${o.course.name}.`);
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    // Escape before blur, or the blur handler would save what Escape rejected.
+    if (e.key === 'Escape') { e.preventDefault(); restore(course.name); }
+  });
+  input.addEventListener('blur', commit);
+
+  btn.replaceWith(input);
+  input.focus();
+  input.select();
 }
 
 /** PATCH or DELETE, then redraw. One place that talks to the endpoint. */
@@ -506,70 +638,111 @@ async function courseAction(method, payload, okMessage) {
   }
 }
 
-// Delegated, and bound to the card rather than to a tbody, so it covers both
-// tables and survives every redraw. Re-binding per row after each load was the
-// alternative, and the one that quietly stops working the first time a render
-// path forgets to call it.
-document.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.row-actions button');
+// Delegated, and bound to the document rather than to a tbody, so it covers
+// both tables and survives every redraw. Re-binding per row after each load was
+// the alternative, and the one that quietly stops working the first time a
+// render path forgets to call it.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.name-edit, .row-x');
   if (!btn) return;
   const c = byId(Number(btn.closest('tr').dataset.id));
   if (!c) return;
+  if (btn.dataset.act === 'rename') editName(btn, c);
+  else openClassDialog(c, btn);
+});
 
-  if (btn.dataset.act === 'rename') {
-    const name = prompt('Class name', c.name);
-    if (name === null || name.trim() === c.name) return;
-    await courseAction('PATCH', { id: c.id, name }, (o) => `Renamed to ${o.course.name}.`);
-    return;
-  }
+// ---- the archive-or-delete box ----
 
-  if (btn.dataset.act === 'archive') {
-    // Stated rather than asked as "are you sure": the point of the sentence is
-    // that nothing is lost, which is the fact that makes the click easy.
-    if (!confirm(`Archive ${c.name}?\n\nIt moves to "Previous years". Its roster, its `
-      + 'syllabus and every signed copy stay exactly as they are, and you can restore it '
-      + 'at any time.')) return;
-    await courseAction('PATCH', { id: c.id, archived: true }, () => `${c.name} archived.`);
-    return;
-  }
+const dlg = $('classDialog');
+let dlgCourse = null;
 
-  if (btn.dataset.act === 'restore') {
-    await courseAction('PATCH', { id: c.id, archived: false }, () => `${c.name} restored.`);
-    return;
-  }
+/** Step one every time it opens: the choice, not the confirmation. */
+function openClassDialog(c, opener) {
+  dlgCourse = c;
+  const gone = !!c.archived_at;
+  const sigs = c.signatures ?? 0;
+  const students = (c.students ?? 0) + (c.dropped ?? 0);
 
-  if (btn.dataset.act === 'delete') {
-    const sigs = c.signatures ?? 0;
-    const students = (c.students ?? 0) + (c.dropped ?? 0);
-    // Counted out in full before anything is typed. A teacher deciding this
-    // deserves the actual number of initials that stop existing, not a generic
-    // warning that this cannot be undone.
-    const lines = [
-      `Delete ${c.name} permanently?`,
-      '',
-      `This destroys ${students} student ${students === 1 ? 'record' : 'records'} and `
-        + `${sigs} ${sigs === 1 ? 'signature' : 'signatures'}, along with the syllabus and `
-        + 'every published version of it.',
-      '',
-      'Signed copies for this class can no longer be produced. Nothing here is recoverable.',
-    ];
-    // Only offered when there is something to lose. On an empty class the
-    // sentence would be advice to archive a thing nobody has used yet.
-    if (sigs) lines.push('', 'If you only want it off this list, cancel and use Archive instead.');
-    if (!confirm(lines.join('\n'))) return;
+  $('dlgTitle').textContent = c.name;
+  $('dlgHolds').textContent = `${students} student ${students === 1 ? 'record' : 'records'} · `
+    + `${sigs} ${sigs === 1 ? 'signature' : 'signatures'}`;
 
-    // The second gate, and the one that takes reading: a class with signatures
-    // on it has to have its name typed. Skipped when there is nothing signed --
-    // that is a class created by mistake, and making someone transcribe a name
-    // to undo a typo is theatre.
-    let typed = c.name;
-    if (sigs > 0) {
-      typed = prompt(`Type the class name to confirm:\n\n${c.name}`, '');
-      if (typed === null) return;
-    }
-    await courseAction('DELETE', { id: c.id, confirm_name: typed },
-      (o) => `${o.deleted.name} deleted.`);
-  }
+  $('dlgArchive').textContent = gone ? 'Restore' : 'Archive';
+  $('dlgArchiveNote').textContent = gone
+    ? 'Restoring puts it back on the list above. Nothing about it changed while it was away.'
+    : 'Archiving moves it to "Previous years". Its roster, its syllabus and every signed copy '
+      + 'stay exactly as they are, and you can restore it at any time.';
+
+  // Counted out in full, before anything is typed. Someone deciding this is
+  // owed the actual number of initials that stop existing rather than a generic
+  // "this cannot be undone".
+  $('dlgDestroys').textContent =
+    `Deleting ${c.name} destroys ${students} student ${students === 1 ? 'record' : 'records'} and `
+    + `${sigs} ${sigs === 1 ? 'signature' : 'signatures'}, along with the syllabus and every `
+    + 'published version of it. Signed copies for this class can no longer be produced. '
+    + 'Nothing here is recoverable.';
+  $('dlgTypedHint').textContent = c.name;
+
+  showStep('choose');
+  dlg.returnValue = '';
+  // Remembered so focus goes back to the × that opened this rather than to the
+  // top of the document. showModal() moves focus in; something has to put it back.
+  dlg._opener = opener;
+  dlg.showModal();
+}
+
+function showStep(which) {
+  $('dlgChoose').hidden = which !== 'choose';
+  $('dlgConfirm').hidden = which !== 'confirm';
+  $('dlgTyped').value = '';
+  $('dlgReally').disabled = true;
+}
+
+$('dlgArchive').addEventListener('click', async () => {
+  const c = dlgCourse;
+  const gone = !!c.archived_at;
+  dlg.close();
+  await courseAction('PATCH', { id: c.id, archived: !gone },
+    () => `${c.name} ${gone ? 'restored' : 'archived'}.`);
+});
+
+$('dlgDelete').addEventListener('click', () => {
+  showStep('confirm');
+  $('dlgTyped').focus();
+});
+
+$('dlgBack').addEventListener('click', () => showStep('choose'));
+
+// The button stays disabled until the name is typed, so the guard is visible
+// rather than only enforced on submit. Trimmed and case-insensitive, matching
+// the server: this exists to stop a stray click, not to catch someone who
+// capitalised their own class differently.
+$('dlgTyped').addEventListener('input', () => {
+  $('dlgReally').disabled =
+    $('dlgTyped').value.trim().toLowerCase() !== dlgCourse.name.trim().toLowerCase();
+});
+// Enter never reaches the form. This input sits inside <form method="dialog">,
+// so implicit submission would CLOSE the box -- meaning Enter on a half-typed
+// name looked like the dialog rejecting you rather than like nothing happening.
+// Held back whether the name matches or not; only a complete one does anything.
+$('dlgTyped').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (!$('dlgReally').disabled) $('dlgReally').click();
+});
+
+$('dlgReally').addEventListener('click', async () => {
+  const c = dlgCourse;
+  const typed = $('dlgTyped').value;
+  dlg.close();
+  await courseAction('DELETE', { id: c.id, confirm_name: typed }, (o) => `${o.deleted.name} deleted.`);
+});
+
+// Focus back where it came from. The row may be gone by now -- deleted, or
+// moved to the other table -- so this is a best effort, not an assumption.
+dlg.addEventListener('close', () => {
+  const back = dlg._opener;
+  if (back?.isConnected) back.focus();
 });
 
 // Sign-out moved to the nav, so its handler lives in /ui.js alongside it --
