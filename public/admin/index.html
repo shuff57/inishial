@@ -44,18 +44,18 @@
    * Every line is one rule and every class a whole number of them, so the
    * ruled paper survives the change. */
   @media (max-width: 44rem) {
-    #coursesTable, #coursesTable tbody, #coursesTable tr, #coursesTable td { display: block; width: auto; }
-    #coursesTable thead { display: none; }
-    #coursesTable tr { margin-bottom: var(--rule); }
-    #coursesTable td { padding: 0; }
-    #coursesTable td.name { font-weight: 600; font-size: 1rem; }
-    #coursesTable td.num { text-align: left; line-height: var(--rule); }
+    .classes, .classes tbody, .classes tr, .classes td { display: block; width: auto; }
+    .classes thead { display: none; }
+    .classes tr { margin-bottom: var(--rule); }
+    .classes td { padding: 0; }
+    .classes td.name { font-weight: 600; font-size: 1rem; }
+    .classes td.num { text-align: left; line-height: var(--rule); }
     /* A fixed inline-block for the label so the numbers line up in a column
        under each other, the way they did as a table. vertical-align:top, never
        baseline -- a smaller label aligned by ITS baseline grows the line box
        past one rule and everything below drifts. Same trap as the step numbers
        on /how/. */
-    #coursesTable td.num::before {
+    .classes td.num::before {
       content: attr(data-label);
       display: inline-block; vertical-align: top;
       width: 9.5rem; line-height: var(--rule);
@@ -77,6 +77,27 @@
        the height stayed pinned at 32px. */
     main .tabs button { height: calc(var(--rule) * 2); line-height: var(--rule); }
   }
+  /* The management actions, on their own line under the three links that go
+     somewhere. Two groups because they answer different questions -- "take me
+     to this class" and "change what this class is" -- and six words in one run
+     made the row read as a single undifferentiated list where Delete sat one
+     comma away from Syllabus.
+
+     `main` and `:not(.danger)` are specificity, not meaning: without them this
+     is (0,1,0), the tape rule in app.css is (0,2,1), and its transparent
+     border wins -- the same trap the codes page documents. */
+  .row-actions { display: block; margin-top: .15rem; }
+  main .row-actions .compact:not(.danger) {
+    background: transparent; color: var(--ink-stone);
+    border-color: var(--border-warm); font-size: .8rem;
+  }
+  main .row-actions .compact:not(.danger):hover:not([disabled]) { background: var(--sand); color: var(--ink); }
+  /* Archived rows read as past tense, without hiding anything in them. */
+  .classes tr.archived td.name { color: var(--ink-stone); font-weight: 500; }
+  .classes td.name .when { display: block; font-size: .74rem; color: var(--ink-stone); font-weight: 400; }
+  #archivedWrap { margin-top: var(--rule); }
+  #archivedWrap summary { cursor: pointer; color: var(--ink-stone); font-size: .85rem; }
+
   .tabs { display: flex; gap: .3rem; margin: var(--rule) 0 0; }
   .tabs button { min-height: 0; height: var(--rule); line-height: calc(var(--rule) - 2px); padding: 0 .7rem; background: transparent; color: var(--ink-stone); border: 1px solid transparent; border-radius: 8px 8px 0 0; font-size: .8rem; }
   .tabs button[aria-selected=true] { color: var(--ink); border-color: var(--border-warm); border-bottom-color: var(--ivory); background: var(--ivory); }
@@ -147,7 +168,7 @@
   <h1>Classes</h1>
   <div id="coursesMsg" hidden></div>
   <div class="card plain" id="coursesCard">
-    <table id="coursesTable">
+    <table id="coursesTable" class="classes">
       <thead><tr>
         <th>Course</th><th class="num">Active</th><th class="num">Dropped</th>
         <th class="num">Registered</th><th class="num">Codes issued</th><th></th>
@@ -156,6 +177,25 @@
     </table>
     <p id="coursesEmpty" class="muted small" hidden>No classes yet. Start one below.</p>
   </div>
+
+  <!-- Last year's classes, folded away rather than filtered out. Closed by
+       default because this is the answer to a question asked twice a year, and
+       open one click later because "where did June go" is a question asked at
+       the worst possible moment. Everything in here still works: the syllabus
+       still opens, and /admin/signed still prints the record exactly as it was
+       signed. Archiving hides a class; it does not retire it. -->
+  <details id="archivedWrap" hidden>
+    <summary id="archivedSummary"></summary>
+    <div class="card plain">
+      <table id="archivedTable" class="classes">
+        <thead><tr>
+          <th>Course</th><th class="num">Active</th><th class="num">Dropped</th>
+          <th class="num">Registered</th><th class="num">Codes issued</th><th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </details>
 
   <h1>Start a class</h1>
   <p class="muted small">
@@ -377,32 +417,149 @@ async function loadCourses() {
       return;
     }
     const { courses } = await res.json();
-    const body = $('coursesTable').querySelector('tbody');
-    // "Access codes" is a page, not a file. It used to be a download attribute
-    // straight onto the CSV endpoint, so the link put a spreadsheet in your
-    // downloads folder before you had seen a single code. The CSV is still on
-    // that page for a mail merge.
-    //
-    // Comments about this row live HERE and not inside the template literal
-    // below: a backtick in a comment inside a template literal ends the string,
-    // and the whole page dies with "missing ) after argument list".
-    body.innerHTML = courses.map((c) => `<tr>
-        <td class="name">${esc(c.name)}</td>
-        <td class="num" data-label="Active">${c.students ?? 0}</td>
-        <td class="num" data-label="Dropped">${c.dropped ?? 0}</td>
-        <td class="num" data-label="Registered">${c.registered ?? 0}</td>
-        <td class="num" data-label="Codes issued">${c.codes_issued ?? 0}</td>
-        <td><a href="/admin/progress/?course_id=${c.id}">Who has signed</a>
-            &nbsp;·&nbsp;
-            <a href="/admin/editor/?course_id=${c.id}">Syllabus</a>
-            &nbsp;·&nbsp;
-            <a href="/admin/codes/?course_id=${c.id}">Access codes</a></td>
-      </tr>`).join('');
-    $('coursesEmpty').hidden = courses.length > 0;
+    // Held so the action handlers can read a class's name and counts without
+    // scraping them back out of the cells they were just written into.
+    known = courses;
+    const live = courses.filter((c) => !c.archived_at);
+    const archived = courses.filter((c) => c.archived_at);
+
+    $('coursesTable').querySelector('tbody').innerHTML = live.map(row).join('');
+    $('archivedTable').querySelector('tbody').innerHTML = archived.map(row).join('');
+    $('coursesEmpty').hidden = live.length > 0;
+    $('archivedWrap').hidden = archived.length === 0;
+    $('archivedSummary').textContent = `Previous years (${archived.length})`;
   } catch {
     notice($('coursesMsg'), 'Could not load classes.', 'error');
   }
 }
+
+// The rendered classes, by the last load. Read by the action handlers.
+let known = [];
+const byId = (id) => known.find((c) => c.id === id);
+
+// A month and a year is the whole useful answer to "when did I put this away".
+// A day would imply the date mattered; it does not.
+const archivedWhen = (secs) => new Date(secs * 1000)
+  .toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+
+// "Access codes" is a page, not a file. It used to be a download attribute
+// straight onto the CSV endpoint, so the link put a spreadsheet in your
+// downloads folder before you had seen a single code. The CSV is still on that
+// page for a mail merge.
+//
+// Comments about this row live HERE and not inside the template literal below:
+// a backtick in a comment inside a template literal ends the string, and the
+// whole page dies with "missing ) after argument list".
+//
+// An archived class keeps all three links. Its syllabus, its roster and its
+// signed copies are exactly what someone comes back for in March, which is the
+// entire difference between archiving and deleting.
+function row(c) {
+  const gone = !!c.archived_at;
+  return `<tr data-id="${c.id}"${gone ? ' class="archived"' : ''}>
+      <td class="name">${esc(c.name)}${gone ? `<span class="when">archived ${esc(archivedWhen(c.archived_at))}</span>` : ''}</td>
+      <td class="num" data-label="Active">${c.students ?? 0}</td>
+      <td class="num" data-label="Dropped">${c.dropped ?? 0}</td>
+      <td class="num" data-label="Registered">${c.registered ?? 0}</td>
+      <td class="num" data-label="Codes issued">${c.codes_issued ?? 0}</td>
+      <td><a href="/admin/progress/?course_id=${c.id}">Who has signed</a>
+          &nbsp;·&nbsp;
+          <a href="/admin/editor/?course_id=${c.id}">Syllabus</a>
+          &nbsp;·&nbsp;
+          <a href="/admin/codes/?course_id=${c.id}">Access codes</a>
+        <span class="row-actions">
+          <button class="compact" data-act="rename">Rename</button>
+          <button class="compact" data-act="${gone ? 'restore' : 'archive'}">${gone ? 'Restore' : 'Archive'}</button>
+          <button class="compact danger" data-act="delete">Delete</button>
+        </span></td>
+    </tr>`;
+}
+
+/** PATCH or DELETE, then redraw. One place that talks to the endpoint. */
+async function courseAction(method, payload, okMessage) {
+  try {
+    const res = await fetch('/api/admin/courses', {
+      method,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 401) { location.href = '/admin/login/'; return false; }
+    const out = await res.json();
+    if (!res.ok) { notice($('coursesMsg'), out.error || 'That did not work.', 'error'); return false; }
+    await loadCourses();
+    notice($('coursesMsg'), okMessage(out), 'ok');
+    return true;
+  } catch {
+    notice($('coursesMsg'), 'Could not reach the server.', 'error');
+    return false;
+  }
+}
+
+// Delegated, and bound to the card rather than to a tbody, so it covers both
+// tables and survives every redraw. Re-binding per row after each load was the
+// alternative, and the one that quietly stops working the first time a render
+// path forgets to call it.
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.row-actions button');
+  if (!btn) return;
+  const c = byId(Number(btn.closest('tr').dataset.id));
+  if (!c) return;
+
+  if (btn.dataset.act === 'rename') {
+    const name = prompt('Class name', c.name);
+    if (name === null || name.trim() === c.name) return;
+    await courseAction('PATCH', { id: c.id, name }, (o) => `Renamed to ${o.course.name}.`);
+    return;
+  }
+
+  if (btn.dataset.act === 'archive') {
+    // Stated rather than asked as "are you sure": the point of the sentence is
+    // that nothing is lost, which is the fact that makes the click easy.
+    if (!confirm(`Archive ${c.name}?\n\nIt moves to "Previous years". Its roster, its `
+      + 'syllabus and every signed copy stay exactly as they are, and you can restore it '
+      + 'at any time.')) return;
+    await courseAction('PATCH', { id: c.id, archived: true }, () => `${c.name} archived.`);
+    return;
+  }
+
+  if (btn.dataset.act === 'restore') {
+    await courseAction('PATCH', { id: c.id, archived: false }, () => `${c.name} restored.`);
+    return;
+  }
+
+  if (btn.dataset.act === 'delete') {
+    const sigs = c.signatures ?? 0;
+    const students = (c.students ?? 0) + (c.dropped ?? 0);
+    // Counted out in full before anything is typed. A teacher deciding this
+    // deserves the actual number of initials that stop existing, not a generic
+    // warning that this cannot be undone.
+    const lines = [
+      `Delete ${c.name} permanently?`,
+      '',
+      `This destroys ${students} student ${students === 1 ? 'record' : 'records'} and `
+        + `${sigs} ${sigs === 1 ? 'signature' : 'signatures'}, along with the syllabus and `
+        + 'every published version of it.',
+      '',
+      'Signed copies for this class can no longer be produced. Nothing here is recoverable.',
+    ];
+    // Only offered when there is something to lose. On an empty class the
+    // sentence would be advice to archive a thing nobody has used yet.
+    if (sigs) lines.push('', 'If you only want it off this list, cancel and use Archive instead.');
+    if (!confirm(lines.join('\n'))) return;
+
+    // The second gate, and the one that takes reading: a class with signatures
+    // on it has to have its name typed. Skipped when there is nothing signed --
+    // that is a class created by mistake, and making someone transcribe a name
+    // to undo a typo is theatre.
+    let typed = c.name;
+    if (sigs > 0) {
+      typed = prompt(`Type the class name to confirm:\n\n${c.name}`, '');
+      if (typed === null) return;
+    }
+    await courseAction('DELETE', { id: c.id, confirm_name: typed },
+      (o) => `${o.deleted.name} deleted.`);
+  }
+});
 
 // Sign-out moved to the nav, so its handler lives in /ui.js alongside it --
 // every admin page has the button now, and three copies would have drifted.

@@ -219,11 +219,22 @@ export async function onRequestGet({ request, env }) {
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const { results } = await env.DB.prepare(
-    `SELECT c.id, c.name,
+    `SELECT c.id, c.name, c.archived_at,
             SUM(CASE WHEN r.status = 'active'  THEN 1 ELSE 0 END)    AS students,
             SUM(CASE WHEN r.status = 'dropped' THEN 1 ELSE 0 END)    AS dropped,
             COUNT(a.id)                                              AS registered,
-            SUM(CASE WHEN a.code_hash IS NOT NULL THEN 1 ELSE 0 END) AS codes_issued
+            SUM(CASE WHEN a.code_hash IS NOT NULL THEN 1 ELSE 0 END) AS codes_issued,
+            -- A SUBQUERY, not a fourth join. Joining signatures here would
+            -- multiply every roster row by the number of initials that student
+            -- gave, and the four counts above -- all computed off that same
+            -- fanned-out row set -- would silently inflate with it. This is the
+            -- number Delete quotes back before it destroys anything, so it has
+            -- to be the true one.
+            (SELECT COUNT(*)
+               FROM signatures s
+               JOIN accounts a2 ON a2.id = s.account_id
+               JOIN roster   r2 ON r2.id = a2.roster_id
+              WHERE r2.course_id = c.id)                             AS signatures
        FROM courses c
        LEFT JOIN roster   r ON r.course_id = c.id
        LEFT JOIN accounts a ON a.roster_id = r.id AND r.status = 'active'
@@ -233,7 +244,11 @@ export async function onRequestGet({ request, env }) {
       -- course in the school rather than the unowned ones.
       WHERE c.owner_id IS ?1
       GROUP BY c.id, c.name
-      ORDER BY c.name`,
+      -- Archived classes come back with the rest rather than being filtered
+      -- out here: the page still has to render them, in their own section, and
+      -- a second round trip to fetch last year's list would buy nothing at the
+      -- scale one teacher's classes actually reach.
+      ORDER BY c.archived_at IS NOT NULL, c.name`,
   ).bind(ownerFilter(admin)).all();
 
   return json({ courses: results ?? [] });

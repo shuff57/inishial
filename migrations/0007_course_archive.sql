@@ -1,0 +1,20 @@
+-- Archiving a class, so a new school year does not start on top of the last one.
+--
+-- The alternative was a `year` column and a year picker, which is one more
+-- thing to set correctly on every class ever created, for a question a teacher
+-- only asks twice a year. Archiving asks nothing at creation time and answers
+-- the same question: last year's classes leave the list, and everything they
+-- hold stays exactly where it was.
+--
+-- The course is the unit of a school year, so archiving one archives its
+-- students with it -- there is no separate notion of an archived student to
+-- keep in sync, and nothing about roster, accounts, codes or signatures
+-- changes. `/admin/signed` still prints last year's record, unaltered, which
+-- is the entire reason this is a flag and not a delete.
+--
+-- NULL = live. A timestamp = the moment it was put away, which is worth
+-- showing ("archived Jun 2026") and costs nothing over a boolean.
+--
+-- Deliberately NOT indexed. A teacher has tens of classes, not thousands, and
+-- the listing query already scans the table to group its counts.
+ALTER TABLE courses ADD COLUMN archived_at INTEGER;

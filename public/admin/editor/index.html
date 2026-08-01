@@ -620,6 +620,20 @@
 <main id="main" tabindex="-1">
   <div id="msg" hidden></div>
 
+  <!-- The editor reached with no class on the URL. It used to say "No class
+       chosen. Open this from the admin page." and stop there, which is a dead
+       end wearing the costume of an error: the nav links straight here, so the
+       most ordinary way to arrive was the one way that did not work. The page
+       knows how to ask which class instead. -->
+  <div id="pickClass" hidden>
+    <h2>Which class?</h2>
+    <p class="muted small">Pick the class whose syllabus you want to write.</p>
+    <div id="pickList"></div>
+    <p id="pickEmpty" class="muted small" hidden>
+      No classes yet. <a href="/admin/">Start one on the Classes page.</a>
+    </p>
+  </div>
+
   <!--
     What the model is doing, while it does it. A cold hosted model can take most
     of a minute, and a button that sits disabled that long is indistinguishable
@@ -650,7 +664,7 @@
   </details>
 
   <h1 id="title" contenteditable="true" spellcheck="false">Course Syllabus</h1>
-  <p class="muted small">You are editing <b>one page at a time</b>, the same pages a parent turns
+  <p class="muted small" id="editorHelp">You are editing <b>one page at a time</b>, the same pages a parent turns
     through. <b>Double-click</b> to type. <b>Click</b> a block to pick it up and drag it, or use ↑ / ↓.
     <b>Shift-click</b> a second line, or <b>Shift + ↓</b>, to pick up several and move them together.
     <b>Tab</b> and <b>Shift + Tab</b> turn a picked line into a subheading, a section heading, or plain
@@ -691,7 +705,7 @@
     <span class="where" id="pgWhere" role="status"></span>
   </div>
 
-  <div class="adders on-rules">
+  <div class="adders on-rules" id="adders">
     <span class="adders-label">Add to this page:</span>
     <button data-add="text">+ Paragraph</button>
     <button data-add="list">+ List</button>
@@ -2600,12 +2614,42 @@ addEventListener('beforeunload', (e) => { if (state.dirty) { e.preventDefault();
 
 // ---- load ----
 
+/**
+ * No class on the URL: ask, rather than refuse.
+ *
+ * Archived classes are listed too, under their own heading. Coming back to
+ * last year's syllabus in March is exactly the case archiving exists to
+ * protect, and a picker that hid them would be the one place in the app that
+ * treats archived as gone.
+ */
+async function pickClass() {
+  $('who').textContent = 'No class chosen';
+  $('pickClass').hidden = false;
+  // The editing surface goes away while the question is on screen. Leaving the
+  // title, the import card and an empty page rail underneath made the picker
+  // look like a banner over a document that was already open -- and every
+  // control in that toolbar acts on a class that has not been chosen yet.
+  for (const id of ['title', 'editorHelp', 'importCard', 'blocks', 'pageBar', 'adders']) $(id).hidden = true;
+  for (const id of ['importBtn', 'structureBtn', 'suggestBtn', 'saveBtn', 'publishBtn']) $(id).hidden = true;
+
+  const res = await fetch('/api/admin/roster');
+  if (res.status === 401) { location.href = '/admin/login/?next=' + encodeURIComponent(location.pathname); return; }
+  if (!res.ok) { notice('Could not load your classes.', 'error'); return; }
+
+  const { courses } = await res.json();
+  const live = courses.filter((c) => !c.archived_at);
+  const archived = courses.filter((c) => c.archived_at);
+  const link = (c) => `<a class="button" href="/admin/editor/?course_id=${c.id}">${esc(c.name)}</a>`;
+
+  $('pickList').innerHTML = live.map(link).join(' ')
+    + (archived.length
+      ? `<p class="muted small" style="margin-top:var(--rule)">Previous years</p>${archived.map(link).join(' ')}`
+      : '');
+  $('pickEmpty').hidden = courses.length > 0;
+}
+
 (async function load() {
-  if (!courseId) {
-    $('who').textContent = 'No class chosen';
-    notice('No class chosen. Open this from the admin page.', 'error');
-    return;
-  }
+  if (!courseId) { await pickClass(); return; }
   const res = await fetch(`/api/admin/syllabus?course_id=${courseId}`);
   if (res.status === 401) { location.href = '/admin/login/?next=' + encodeURIComponent(location.pathname + location.search); return; }
   const body = await res.json();

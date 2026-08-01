@@ -220,6 +220,18 @@ U+2020-2022,U+2026,U+2030,U+2039,U+203A,U+20AC,U+2122" */
 
 * { box-sizing: border-box; }
 
+/* `hidden` means hidden.
+   The browser's own rule for it is `[hidden] { display: none }` in the UA
+   sheet, which ANY author rule outranks -- and this sheet has several that do:
+   `button, .button` sets `display: inline-flex`, `.book-bar` sets `flex`. So
+   `el.hidden = true` on a button or a page rail set the attribute, passed every
+   assertion, and changed nothing on screen. The editor's page bar had been
+   failing to hide that way since it was written.
+   !important because the point is to beat those rules wherever they are; the
+   two places that deliberately un-hide something (the print sheet, below) carry
+   more specificity and still win. */
+[hidden] { display: none !important; }
+
 /* 17px rather than the browser's 16px default. This is a document a parent
    reads once, carefully, on a phone, and every rem-based measurement on the
    page scales with it. */
