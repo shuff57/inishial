@@ -103,13 +103,21 @@
   }
 
   /* One target per row for everything destructive, at the end of the line. Not
-     coloured red at rest: it opens a question, it does not answer one. */
+     coloured red at rest: it opens a question, it does not answer one.
+
+     The mark is i-cross from the sprite, not the × character -- every other
+     control on the site wears the hand-drawn set, and a typographic multiply
+     sign next to them reads as the one button nobody drew. Grid rather than
+     line-height to centre it, because an svg is not text and does not sit on
+     the baseline the way a glyph does. */
   main .row-x:not(.danger) {
-    min-height: 0; width: var(--rule); height: var(--rule); line-height: var(--rule);
+    min-height: 0; width: var(--rule); height: var(--rule);
+    display: grid; place-items: center;
     padding: 0; margin-left: .5rem; float: right;
-    font-size: 1.05rem; color: var(--ink-stone);
+    color: var(--ink-stone);
     background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
   }
+  main .row-x .icon { width: 1.05rem; height: 1.05rem; vertical-align: 0; }
   main .row-x:not(.danger):hover:not([disabled]) {
     background: var(--sand); border-color: var(--border-warm); color: var(--ink);
   }
@@ -568,7 +576,8 @@ function row(c) {
           &nbsp;·&nbsp;
           <a href="/admin/codes/?course_id=${c.id}">Access codes</a>
         <button type="button" class="row-x" data-act="manage"
-          aria-label="What to do with ${esc(c.name)}" title="Archive or delete">×</button></td>
+          aria-label="What to do with ${esc(c.name)}" title="Archive or delete"
+          ><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-cross"/></svg></button></td>
     </tr>`;
 }
 
