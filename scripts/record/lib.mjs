@@ -153,7 +153,21 @@ const SUFFIX = THEME === 'dark' ? '-dark' : '';
 function paintCursor(theme) {
   try { localStorage.setItem('inishial:theme', theme); } catch { /* ignore */ }
 
+  // The coffee invite and BMC's own chip float over the bottom corners for the
+  // first ten seconds of every page -- which is most of a clip, and squarely on
+  // top of whatever the step is pointing at. Hidden rather than dismissed: the
+  // chip is injected by BMC's script from a CDN, so there is nothing to click
+  // until it arrives and no guarantee it ever does.
+  const hide = document.createElement('style');
+  hide.textContent = '#bmc-invite,#bmc-wbtn,#bmc-iframe,#bmc-close-btn{display:none!important}';
+
   const dot = document.createElement('div');
+  // The id is load-bearing, not decoration. app.css hides every unclassed,
+  // un-id'd `position: fixed` child of body -- BMC injects its thank-you note
+  // that way and there is nothing else to select it by. The cursor was exactly
+  // that shape, so the rule swallowed it and clips recorded with no pointer at
+  // all. Anything given to a page from here needs a name of its own.
+  dot.id = 'rec-cursor';
   dot.style.cssText = [
     'position:fixed', 'left:-80px', 'top:-80px', 'width:20px', 'height:20px',
     'margin:-10px 0 0 -10px', 'border-radius:50%', 'pointer-events:none',
@@ -162,7 +176,12 @@ function paintCursor(theme) {
     'transition:transform 90ms ease-out, background 90ms ease-out',
   ].join(';');
 
-  const attach = () => document.body && !dot.isConnected && document.body.appendChild(dot);
+  // Both wait for a document: this runs before there is an <html> to append to.
+  const attach = () => {
+    if (!document.body) return;
+    if (!hide.isConnected) document.head.appendChild(hide);
+    if (!dot.isConnected) document.body.appendChild(dot);
+  };
   if (document.readyState === 'loading') addEventListener('DOMContentLoaded', attach);
   else attach();
 

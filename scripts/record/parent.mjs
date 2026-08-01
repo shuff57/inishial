@@ -55,11 +55,18 @@ async function main() {
     });
 
     // ---- what the two codes mean ----
+    // The step names two things -- an ID and a code -- so the clip fills in the
+    // first and stops at the second. An earlier version only hovered the fields
+    // and scrolled to the hint, and seven seconds of a still page with a
+    // pointer resting on it reads as a video that failed to load rather than
+    // one that is making a point. Signing in is step 3's job; this one gets far
+    // enough to show what the code field is asking for.
     files.codes = await rec.clip('codes', async (page) => {
       await page.goto(base + '/sign/');
       await beat(page, 1400);
-      await point(page, '#sid');
-      await beat(page, 900);
+      await type(page, '#sid', SID);
+      await beat(page, 700);
+      await point(page, '#code');
       await reveal(page, 'label[for="code"] .hint');
       await park(page);
       await beat(page, 2400);
