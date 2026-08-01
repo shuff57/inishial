@@ -106,8 +106,24 @@ Two things to be clear-eyed about:
 Upgrading a database that already has data:
 
 ```bash
-npm run db:upgrade      # applies migrations/0002_teachers.sql to production
+npm run db:upgrade      # applies migrations/0006 onward to production
 ```
+
+`db:upgrade` starts at 0006 because that is what a database deployed before
+those migrations is missing. If yours is older, say where to start:
+
+```bash
+node scripts/migrate.mjs --remote --from 4
+```
+
+**Every migration on disk has to reach production.** The commands above read
+the `migrations/` directory rather than a list, because the list they replaced
+went stale: 0006 and 0007 shipped while all three db: scripts still stopped at
+0005, so a deployment ran without a column the Classes page selects. The
+symptom was not obviously a schema problem — the page reported "Could not load
+classes", and every class was still in the table. After adding a migration,
+deploy it and run the upgrade; the page failing to list classes is worth
+checking here first.
 
 ### 6. Optional, for the AI authoring pass
 

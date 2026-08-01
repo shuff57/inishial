@@ -416,6 +416,17 @@ async function loadCourses() {
       location.href = '/admin/login/?next=' + encodeURIComponent(location.pathname);
       return;
     }
+    // Say what actually went wrong. This used to report "Could not load
+    // classes" for everything, which is the same sentence whether the network
+    // dropped or the database is missing a column the query selects -- and a
+    // teacher reading it after a deploy has every reason to think their classes
+    // were deleted. Nothing on this page ever deletes a course by loading it.
+    if (!res.ok) {
+      const detail = await res.text();
+      notice($('coursesMsg'), 'Could not load classes, and your classes are still there — this is the '
+        + `list failing to load, not data missing. The server said: ${detail.slice(0, 300)}`, 'error');
+      return;
+    }
     const { courses } = await res.json();
     // Held so the action handlers can read a class's name and counts without
     // scraping them back out of the cells they were just written into.
