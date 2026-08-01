@@ -22,11 +22,20 @@
 // already applied, by hand, once. Worth doing; not worth doing blind.
 
 import { spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const DIR = new URL('../migrations/', import.meta.url);
 const argv = process.argv.slice(2);
+
+// wrangler is a devDependency, so it is here after `npm install` -- the same
+// install DEPLOY.md step 1 already asks for. Resolved once, and loudly, because
+// "cannot find module" from inside a loop reads as a migration problem.
+const WRANGLER = fileURLToPath(new URL('../node_modules/wrangler/bin/wrangler.js', import.meta.url));
+if (!existsSync(WRANGLER)) {
+  console.error('\n  wrangler is not installed. Run `npm install` first.\n');
+  process.exit(1);
+}
 
 const target = argv.includes('--remote') ? '--remote' : argv.includes('--local') ? '--local' : null;
 if (!target) {
@@ -56,9 +65,17 @@ console.log(`\n  ${target.slice(2)} · applying ${files.length} migration${files
 
 for (const file of files) {
   process.stdout.write(`  ${file} ... `);
+  // node running wrangler's own entry file, rather than the `npx` wrapper.
+  //
+  // On Windows `npx` is npx.cmd, and Node has refused to spawn a .cmd directly
+  // since the CVE-2024-27980 fix -- every migration died with EINVAL before
+  // wrangler was ever reached. `shell: true` gets around that and brings its own
+  // deprecation warning about unescaped arguments, on every run, forever.
+  // Calling the .js entry with the node binary already running this script has
+  // neither problem and no platform branch.
   const res = spawnSync(
-    process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    ['wrangler', 'd1', 'execute', 'inishial', target, '--yes', `--file=migrations/${file}`],
+    process.execPath,
+    [WRANGLER, 'd1', 'execute', 'inishial', target, '--yes', `--file=migrations/${file}`],
     { cwd: fileURLToPath(new URL('..', import.meta.url)), stdio: ['ignore', 'pipe', 'pipe'] },
   );
   if (res.status !== 0) {
