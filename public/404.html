@@ -23,7 +23,6 @@
     <li><a class="to-icon" href="/sign/" title="Read & initial"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-initial"/></svg><span class="label">Read &amp; initial</span></a></li>
   </ul>
   <div class="nav-end">
-    <button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
     <a class="to-icon" href="/admin/login/" title="Teacher sign-in"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signin"/></svg><span class="label">Teacher sign-in</span></a>
   </div>
 </nav></header>
@@ -34,6 +33,13 @@
   <p class="note-hand">Check the link your teacher sent you.</p>
   <p><a href="/">Back to the start</a></p>
 </main>
+
+<!-- Light/dark toggle. Body-level rather than in the nav, and that is not a
+     style choice: header.site carries a backdrop-filter, which makes it a
+     containing block, so a position:fixed child anchors to the HEADER instead
+     of the viewport -- the corner FAB landed at the top of the page, half off
+     screen. Placement itself lives in app.css and is the same on every page. -->
+<button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
 </body>
 </html>
 <!--

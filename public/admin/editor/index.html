@@ -580,7 +580,6 @@
     <li><a class="to-icon" href="/admin/progress/" data-keep-course title="Who has signed"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signed"/></svg><span class="label">Who has signed</span></a></li>
   </ul>
   <div class="nav-end">
-    <button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
     <button type="button" class="secondary to-icon" id="navSignout" title="Sign out"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signout"/></svg><span class="label">Sign out</span></button>
     <!--
       Settings. A <details> rather than a scripted menu: open/close, Escape,
@@ -2627,5 +2626,12 @@ addEventListener('beforeunload', (e) => { if (state.dirty) { e.preventDefault();
   render();
 })();
 </script>
+
+<!-- Light/dark toggle. Body-level rather than in the nav, and that is not a
+     style choice: header.site carries a backdrop-filter, which makes it a
+     containing block, so a position:fixed child anchors to the HEADER instead
+     of the viewport -- the corner FAB landed at the top of the page, half off
+     screen. Placement itself lives in app.css and is the same on every page. -->
+<button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
 </body>
 </html>

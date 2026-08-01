@@ -59,10 +59,12 @@
 <script src="/bmc.js" defer></script>
 
 
-<!-- Light/dark toggle. On a wide screen it sits in the nav with everything else;
-     on a phone the nav is already crowded, so it floats in the bottom-right
-     corner instead. Two surfaces, one button. -->
-<button type="button" class="theme-toggle theme-fab"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
+<!-- Light/dark toggle. Body-level rather than in the nav, and that is not a
+     style choice: header.site carries a backdrop-filter, which makes it a
+     containing block, so a position:fixed child anchors to the HEADER instead
+     of the viewport -- the corner FAB landed at the top of the page, half off
+     screen. Placement itself lives in app.css and is the same on every page. -->
+<button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
 
 <div class="progress" id="progress" hidden><div>
   <span id="progressWho"></span>

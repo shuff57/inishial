@@ -306,7 +306,14 @@ header.site nav {
 }
 .nav-main::-webkit-scrollbar { display: none; }
 
-.nav-main a, .nav-end a, .nav-end button {
+/* The theme toggle is excluded by name from every rule in this group. It sits
+   inside .nav-end on the pages that keep it there for tab order, but it is no
+   longer a nav CELL -- it is the corner FAB, and `.nav-end button` at (0,1,1)
+   outranks the `.theme-toggle` placement rule at (0,1,0), so without this it
+   was dragged back into the bar as a flat rectangle with a marker band. Named
+   here rather than answered with a heavier selector on the toggle: the honest
+   statement is that this is not one of these, not that it shouts louder. */
+.nav-main a, .nav-end a, .nav-end button:not(.theme-toggle) {
   display: block; white-space: nowrap;
   /* Nav controls size themselves. Without this the admin pages' Sign out
      button inherited the two-rule height meant for buttons on the paper, which
@@ -328,7 +335,7 @@ header.site nav {
 /* Hover and current page are the SAME marker band; hover draws it, current
    keeps it drawn. So the pointer literally previews "you are here" rather than
    inventing a second visual language for the same idea. */
-.nav-main a::before, .nav-end a::before, .nav-end button::before {
+.nav-main a::before, .nav-end a::before, .nav-end button:not(.theme-toggle)::before {
   content: ''; position: absolute; z-index: -1;
   left: .18rem; right: .18rem; top: .3rem; bottom: .28rem;
   background: var(--mark);
@@ -337,7 +344,7 @@ header.site nav {
   transform-origin: left center;
   transition: transform var(--swipe);
 }
-.nav-main a:hover::before, .nav-end a:hover::before, .nav-end button:hover::before,
+.nav-main a:hover::before, .nav-end a:hover::before, .nav-end button:not(.theme-toggle):hover::before,
 .nav-main a:focus-visible::before, .nav-main a[aria-current="page"]::before {
   transform: scaleX(1);
 }
@@ -347,32 +354,38 @@ header.site nav {
    specifies the `background: transparent` above it at (0,1,1), so Sign out was
    painting an accent panel UNDER the band -- two hover languages on one
    control. Same specificity trap that once turned the flags mustard. */
-.nav-end button:hover:not([disabled]) { background: transparent; }
+.nav-end button:not(.theme-toggle):hover:not([disabled]) { background: transparent; }
 
 .nav-end { display: flex; align-items: center; gap: .2rem; flex: 0 0 auto; }
 
 /* Theme toggle. A single button that reports its own state, rather than a
    three-way control -- "follow the system" is the default nobody has to pick,
    and the two overrides are the only thing worth a click. */
+/* Floats in the bottom-right corner at every width, on every page.
+   The earlier nav-cell placement has been retired.
+
+   This is the placement rule for the WHOLE SITE, which is why it hangs off
+   `.theme-toggle` itself rather than off an opt-in `.theme-fab` beside it.
+   That opt-in was how it started, and the result was five of eleven pages
+   still wearing the toggle in the nav because nobody remembered to add a
+   second class to the button -- a page-by-page decision that no page had any
+   business making. The markup now says only WHAT the control is; where it
+   sits is settled here, once. The button can stay inside <nav> for tab order:
+   position:fixed takes it out of flow, not out of the document.
+
+   `#bmc-wbtn` is pinned top-right by the rule further down, so the coffee chip
+   and this corner never meet. */
 .theme-toggle {
-  width: 2.1rem; height: 2.1rem;
-  min-height: 0;
-  display: grid; place-items: center;
-  padding: 0 !important;
-}
-/* Floats in the corner at every width. Wide screens pick it up the same way
-   a phone would; the earlier nav-cell placement has been retired. */
-.theme-toggle.theme-fab {
   position: fixed; right: 1rem; bottom: 1rem; z-index: 30;
   width: 2.6rem; height: 2.6rem;
+  min-height: 0;
+  display: grid; place-items: center;
   padding: 0 !important; margin: 0;
   border-radius: 50%;
   background: var(--paper);
   border: 1px solid var(--ring);
   box-shadow: 0 4px 14px rgba(0,0,0,.18);
 }
-.theme-toggle.theme-fab svg { width: 1.2rem; height: 1.2rem; }
-.theme-toggle.theme-fab:hover { background: var(--paper) !important; border-color: var(--desk-ink); }
 /* The hand-drawn set in /icons.svg, pulled in with
    `<svg class="icon"><use href="/icons.svg#i-name"/></svg>`.
    Stroke colour comes from currentColor, so an icon takes the colour of
@@ -425,25 +438,9 @@ header.site nav {
   .to-icon.to-icon { padding-left: .34rem; padding-right: .34rem; }
 }
 
-.theme-toggle svg { width: 1.05rem; height: 1.05rem; }
+.theme-toggle svg { width: 1.2rem; height: 1.2rem; }
 .theme-toggle::before { display: none; }
-/* On a phone the toggle is a FAB, not a nav cell. Higher specificity than
-   the bare .theme-toggle rule and the !important background above, so it
-   wins on size, position, and colour. */
-@media (max-width: 44rem) {
-  .theme-toggle.theme-fab {
-    position: fixed; right: 1rem; bottom: 1rem; z-index: 30;
-    width: 2.6rem; height: 2.6rem;
-    padding: 0 !important; margin: 0;
-    border-radius: 50%;
-    background: var(--paper);
-    border: 1px solid var(--ring);
-    box-shadow: 0 4px 14px rgba(0,0,0,.18);
-  }
-  .theme-toggle.theme-fab svg { width: 1.2rem; height: 1.2rem; }
-  .theme-toggle.theme-fab:hover { background: var(--paper) !important; border-color: var(--desk-ink); }
-}
-.theme-toggle:hover { background: color-mix(in srgb, var(--desk-ink) 12%, transparent) !important; }
+.theme-toggle:hover { background: var(--paper) !important; border-color: var(--desk-ink); }
 .theme-toggle .sun { display: none; }
 .theme-toggle .moon { display: block; }
 @media (prefers-color-scheme: dark) {
@@ -1775,7 +1772,7 @@ main .flags button::before, main .flags button::after { content: none; }
     scroll-behavior: auto !important;
   }
   .mark::before, .tape::before, a::before,
-  .nav-main a::before, .nav-end a::before, .nav-end button::before { transition: none; }
+  .nav-main a::before, .nav-end a::before, .nav-end button:not(.theme-toggle)::before { transition: none; }
   button:active:not([disabled]) { transform: none; }
 }
 
