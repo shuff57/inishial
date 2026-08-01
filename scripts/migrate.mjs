@@ -61,7 +61,17 @@ if (!files.length) {
   process.exit(0);
 }
 
-console.log(`\n  ${target.slice(2)} · applying ${files.length} migration${files.length === 1 ? '' : 's'}\n`);
+console.log(`\n  ${target.slice(2)} · applying ${files.length} migration${files.length === 1 ? '' : 's'}`);
+
+// wrangler says this itself, on stderr, which this script captures and only
+// prints when something fails -- so on the run where it matters, nobody sees
+// it. Said here instead: a teacher running db:upgrade during a school day is
+// entitled to know the site stops answering for a moment first.
+if (target === '--remote') {
+  console.log('  the live database is unavailable while each one runs\n');
+} else {
+  console.log('');
+}
 
 for (const file of files) {
   process.stdout.write(`  ${file} ... `);

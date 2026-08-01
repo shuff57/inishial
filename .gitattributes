@@ -1,0 +1,29 @@
+# Line endings, stated once, so git stops guessing per machine.
+#
+# Without this, `core.autocrlf=true` on Windows wants CRLF in the working tree
+# while every blob in this repo is already stored with LF -- so git announced
+# "LF will be replaced by CRLF" on essentially every `git add`, and the working
+# tree drifted into a mix (README.md CRLF, everything else LF) depending on
+# which tool last wrote a file. The warning was harmless; the mix is the part
+# worth removing, because it decides whether a diff shows one changed line or
+# the whole file.
+#
+# eol=lf rather than native: every tool here is node, the site is served by
+# Cloudflare, and the recorders and scripts all write LF already. One ending
+# everywhere means a file edited on Windows and a file written by a script are
+# the same file.
+* text=auto eol=lf
+
+# Media and fonts are never text. Git usually detects this, but `* text=auto`
+# above is an invitation to try, and a single mangled byte in an mp4 is a
+# how-to video that no longer plays. The recorder rewrites all 68 of them at
+# once, so this is the line that keeps that from ever being a normalisation
+# question.
+*.mp4  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.pdf  binary
+*.docx binary
+*.woff2 binary
+*.ttf  binary
