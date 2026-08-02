@@ -761,6 +761,115 @@ function notice(text, kind, action) {
 function status(text) { $('status').textContent = text; }
 function markDirty() { state.dirty = true; status('Unsaved changes'); }
 
+// ---- undo / redo ----
+//
+// Block-level history. The contenteditable box keeps its OWN undo for the
+// words inside one block (the browser's, native, already works); this stack
+// is for everything that moves, adds, drops, retags or reorders blocks -- the
+// gestures that change WHICH words are in WHICH block, not the words
+// themselves.
+//
+// Captured on render(): every mutation in this file ends in render(), and a
+// page-turn that re-renders without changing state.blocks leaves the snapshot
+// byte-identical, so it costs no history entry. That keeps the stack about
+// real changes rather than about navigation.
+let undoStack = [];
+let redoStack = [];
+let lastSnapshot = null;
+let suppressHistory = false;
+const HISTORY_MAX = 60;
+
+function snapshot() {
+  const snap = JSON.stringify(state.blocks);
+  if (!suppressHistory && lastSnapshot !== null && snap !== lastSnapshot) {
+    undoStack.push(lastSnapshot);
+    if (undoStack.length > HISTORY_MAX) undoStack.shift();
+    redoStack = [];
+  }
+  suppressHistory = false;
+  lastSnapshot = snap;
+}
+
+function undo() {
+  if (!undoStack.length) { notice('Nothing to undo.', 'ok'); return; }
+  redoStack.push(lastSnapshot);
+  state.blocks = JSON.parse(undoStack.pop());
+  suppressHistory = true;
+  selected = null;
+  markDirty();
+  render();
+  notice('Undid.', 'ok');
+}
+
+function redo() {
+  if (!redoStack.length) { notice('Nothing to redo.', 'ok'); return; }
+  undoStack.push(lastSnapshot);
+  state.blocks = JSON.parse(redoStack.pop());
+  suppressHistory = true;
+  selected = null;
+  markDirty();
+  render();
+  notice('Redid.', 'ok');
+}
+
+// Block-level clipboard for cut/paste of whole blocks. The browser's own
+// clipboard is left untouched -- this is an internal move, not a copy to the
+// OS, so a teacher can cut a block here and still paste a URL into a chat.
+let blockClipboard = null;
+
+function cutBlocks() {
+  if (!selected) { notice('Pick a block to cut first.', 'error'); return; }
+  const [from, to] = pickedRange();
+  blockClipboard = state.blocks.slice(from, to).map((b) => ({ ...b }));
+  state.blocks = state.blocks.filter((_, i) => i < from || i >= to);
+  selected = null;
+  markDirty();
+  render();
+  notice(`Cut ${to - from} block(s). Ctrl+V to paste.`, 'ok');
+}
+
+function pasteBlocks() {
+  if (!blockClipboard?.length) { notice('Nothing to paste. Cut a block first (Ctrl+X).', 'error'); return; }
+  const at = selected ? pickedRange()[1] : state.blocks.length;
+  const ins = blockClipboard.map((b) => ({ ...b }));
+  state.blocks = [...state.blocks.slice(0, at), ...ins, ...state.blocks.slice(at)];
+  if (selected) selected = { kind: 'block', at: at, span: ins.length };
+  markDirty();
+  render();
+  notice(`Pasted ${ins.length} block(s).`, 'ok');
+}
+
+// ---- link ----
+//
+// Wraps the current selection inside a block's edit box in an <a href>. The
+// words a parent sign are still the words the teacher typed -- only the tag
+// around them changes, the same rule retag() keeps for headings. Offered as a
+// per-block button (for the mouse) and as Ctrl+K (for the keyboard), both
+// going through this one path.
+function linkSelection(editEl) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || !editEl.contains(sel.anchorNode)) {
+    notice('Put the caret in the block first, or select the words to link.', 'error');
+    return;
+  }
+  const range = sel.getRangeAt(0);
+  const selectedText = range.toString();
+  const url = prompt('Link address (URL):', 'https://');
+  if (!url) return;
+  let href = url.trim();
+  if (!href) return;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(href)) href = 'https://' + href;
+  const a = document.createElement('a');
+  a.href = href;
+  a.textContent = selectedText || href;
+  if (selectedText) range.deleteContents();
+  range.insertNode(a);
+  // The edit box's own input handler reads innerHTML back into block.html, so
+  // dispatching one keeps the model in sync without a second code path.
+  editEl.dispatchEvent(new Event('input', { bubbles: true }));
+  notice(`Linked to ${href}.`, 'ok');
+}
+
 // ---- HTML -> blocks, deterministically ----
 //
 // Mammoth already emits semantic HTML, so this is a walk over top-level
@@ -906,6 +1015,7 @@ function pages() {
 }
 
 function render() {
+  snapshot();
   const host = $('blocks');
   host.textContent = '';
   const ranges = pages();
@@ -1186,6 +1296,27 @@ function blockRow(block, index) {
       });
       tools.append(btn);
     }
+  }
+
+  // Link. The words stay the words -- only the tag around them changes, the
+  // same rule retag() keeps. The caret has to be in THIS block's edit box for
+  // the button to find a selection, so the click opens one if none is live.
+  if (block.type !== 'initial' && block.type !== 'agree') {
+    const link = document.createElement('button');
+    link.type = 'button';
+    link.className = 'link';
+    link.innerHTML = '<svg class="icon" aria-hidden="true"><use href="/icons.svg#i-link"/></svg>'
+      + '<span class="label">Link</span>';
+    link.title = 'Link the selected words (Ctrl+K) to a URL. The wording never changes.';
+    link.addEventListener('click', () => {
+      // Focus the edit box so a selection -- or at least a caret -- lives in
+      // it when linkSelection() reads window.getSelection(). Without this the
+      // button takes the focus itself, the selection collapses, and "Link"
+      // reads as broken on the first click.
+      edit.focus();
+      linkSelection(edit);
+    });
+    tools.append(link);
   }
 
   // Start a new page here. The line becomes this page's heading and everything
@@ -1494,6 +1625,50 @@ $('blocks').addEventListener('keydown', (e) => {
   // pick() re-renders, so the node that had focus is gone. Put focus back on
   // the row at the same index or the arrows have nothing to fire against.
   $('blocks').querySelector(`.blk[data-index="${target.at}"], .sec[data-index="${target.at}"]`)?.focus();
+});
+
+document.addEventListener('keydown', (e) => {
+  // Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z walk the block-level history. Native
+  // contenteditable undo still owns the words inside one block -- this stack
+  // owns moves, deletes, retags and toggles. When a caret is live inside a
+  // block, the browser's own Ctrl+Z reverts a typo, so we let it: only when
+  // nothing is being typed do the block-level shortcuts fire.
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && (e.key === 'z' || e.key === 'Z' || e.key === 'y' || e.key === 'Y')) {
+    if (caretIn && !(e.shiftKey && (e.key === 'z' || e.key === 'Z'))) return;
+    e.preventDefault();
+    const isRedo = e.key === 'y' || e.key === 'Y' || (e.shiftKey && (e.key === 'z' || e.key === 'Z'));
+    isRedo ? redo() : undo();
+    return;
+  }
+
+  // Ctrl+X / Ctrl+V move whole blocks. They only act on a PICKED block, not on
+  // text inside one -- a caret selection uses the browser's own cut/paste, so
+  // we step aside when one is live.
+  if (mod && (e.key === 'x' || e.key === 'X')) {
+    if (caretIn) return;
+    if (!selected) return;
+    e.preventDefault();
+    cutBlocks();
+    return;
+  }
+  if (mod && (e.key === 'v' || e.key === 'V')) {
+    if (caretIn) return;
+    e.preventDefault();
+    pasteBlocks();
+    return;
+  }
+
+  // Ctrl+K links the selection in the block being typed in. Lives here rather
+  // than on the edit box's own keydown so the shortcut reads the same whether
+  // the caret is live or a block is merely picked.
+  if (mod && (e.key === 'k' || e.key === 'K')) {
+    const target = caretIn || document.querySelector('.blk .edit:focus');
+    if (!target) return;
+    e.preventDefault();
+    linkSelection(target);
+    return;
+  }
 });
 
 document.addEventListener('keydown', (e) => {
