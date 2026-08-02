@@ -1319,6 +1319,41 @@ function blockRow(block, index) {
     tools.append(link);
   }
 
+  // Bold, italic, underline. The browser already does these from the
+  // keyboard (Ctrl+B/I/U) inside a contenteditable; the buttons are for the
+  // teacher who reaches for the mouse. execCommand is deprecated but every
+  // browser still ships it, and the alternative -- Range + document fragments
+  // by hand for three different wrapping tags -- is a lot of moving parts for
+  // the same outcome. The edit box's own input handler reads innerHTML back
+  // into block.html, so the model stays in sync.
+  if (block.type !== 'initial' && block.type !== 'agree') {
+    for (const [label, cmd, key, why] of [
+      ['B', 'bold', 'b', 'Bold the selected words (Ctrl+B)'],
+      ['I', 'italic', 'i', 'Italic the selected words (Ctrl+I)'],
+      ['U', 'underline', 'u', 'Underline the selected words (Ctrl+U)'],
+    ]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `fmt fmt-${label.toLowerCase()}`;
+      btn.textContent = label;
+      btn.title = why;
+      btn.addEventListener('mousedown', (e) => {
+        // Prevent the button stealing focus from the edit box, which would
+        // collapse the selection before execCommand can see it. mousedown is
+        // the only event early enough; click is too late.
+        e.preventDefault();
+      });
+      btn.addEventListener('click', () => {
+        edit.focus();
+        document.execCommand(cmd, false, null);
+        // execCommand does not fire an input event, so block.html is stale
+        // until one is dispatched. The same trick linkSelection() uses.
+        edit.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      tools.append(btn);
+    }
+  }
+
   // Start a new page here. The line becomes this page's heading and everything
   // below it on the current page comes with it -- which is what sectionRanges
   // does anyway; nothing is moved, the boundary is.
