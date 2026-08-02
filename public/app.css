@@ -1088,6 +1088,9 @@ main :is(button, .button).compact::after { content: none; }
 
 /* The inline button on the landing page. Same 2x mug, same theme-flip ink. */
 .bmc-button .icon { width: 2.3rem; height: 2.3rem; color: var(--ink); }
+/* BMC + About sit side by side at the foot of the landing view. */
+.bmc-row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.bmc-row .button .icon { width: 2.3rem; height: 2.3rem; color: var(--ink); }
 
 /* BMC injects a thank-you message div with no class/id, position:fixed, as a
    direct child of body. The overlay wrapper `l` (also no id/class, fixed) is
