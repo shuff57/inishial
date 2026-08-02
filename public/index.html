@@ -11,11 +11,10 @@
 <script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <script src="/ui.js" defer></script>
 <script src="/app.js" type="module"></script>
-<!-- Buy Me a Coffee button. Hosted widget -- not a script we own -- so the
-     third-party request is deferred to the moment the footer is on screen. The
-     `data-name="bmc-button"` tag is what BMC's loader keys on; renaming it
-     silently drops the button. -->
-<script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="shuff57" data-color="#FFDD00" data-emoji="☕" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" defer></script>
+<!-- Buy Me a Coffee button. Rendered ourselves so the icon is the hand-drawn
+     mug from /icons.svg rather than BMC's stock emoji. The link still goes to
+     the same BMC page; only the chrome is ours. The floating chip and the
+     invite panel come from the BMC widget loader below + /bmc.js. -->
 </head>
 <!--
   The whole public side lives here: the start page, registration, and signing.
@@ -94,6 +93,14 @@
         code</span>. Use those to read the syllabus and initial each section.</p>
       <p><a class="button" href="/sign/">Read and sign the syllabus</a></p>
     </div>
+
+    <!-- Buy me a coffee. Our own button + hand-drawn mug icon, linking to the
+         same BMC page the hosted widget does. Sits at the foot of the landing
+         view so it is one prompt in one place, not a second copy of the chip. -->
+    <p><a class="button bmc-button" href="https://www.buymeacoffee.com/shuff57" target="_blank" rel="noopener">
+      <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-coffee"/></svg>
+      Buy me a coffee
+    </a></p>
   </section>
 
   <!-- ---------- set up an account ---------- -->

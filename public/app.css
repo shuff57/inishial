@@ -1077,6 +1077,17 @@ main :is(button, .button).compact::after { content: none; }
    no specificity games; the !important is only there in case BMC later moves
    the colour into its own stylesheet. */
 #bmc-wbtn svg path { fill: var(--ink) !important; }
+/* The hand-drawn mug swapped in for BMC's stock emoji. Twice the usual icon
+   size so it carries the button alone, and inked to --ink so it reads black
+   on the light ground and near-white on the dark one. */
+#bmc-wbtn svg.bmc-mug {
+  width: 2.3rem; height: 2.3rem; vertical-align: middle;
+  color: var(--ink);
+}
+#bmc-wbtn svg.bmc-mug path { stroke: currentColor !important; fill: none !important; }
+
+/* The inline button on the landing page. Same 2x mug, same theme-flip ink. */
+.bmc-button .icon { width: 2.3rem; height: 2.3rem; color: var(--ink); }
 
 /* BMC injects a thank-you message div with no class/id, position:fixed, as a
    direct child of body. The overlay wrapper `l` (also no id/class, fixed) is

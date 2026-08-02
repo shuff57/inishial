@@ -84,6 +84,28 @@
   function hookChip() {
     var chip = document.getElementById('bmc-wbtn');
     if (!chip) return setTimeout(hookChip, 200);
+
+    /* Swap BMC's stock coffee emoji for the hand-drawn mug from our sprite.
+       The chip is BMC's injected DOM, so this runs after it exists and
+       replaces whatever glyph it put inside (an <img>, an <svg>, or the raw
+       emoji) with our <svg><use href="#i-coffee"/>. Re-runs if BMC re-renders
+       the chip later and the emoji comes back. */
+    function paintMug() {
+      if (!chip.querySelector('.bmc-mug')) {
+        var old = chip.querySelector('img, svg, span');
+        var mug = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        mug.setAttribute('class', 'icon bmc-mug');
+        mug.setAttribute('aria-hidden', 'true');
+        var use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+        use.setAttribute('href', '/icons.svg#i-coffee');
+        mug.appendChild(use);
+        if (old) old.replaceWith(mug); else chip.insertBefore(mug, chip.firstChild);
+      }
+    }
+    paintMug();
+    // BMC can re-render the chip (theme change, re-open); keep our mug.
+    new MutationObserver(paintMug).observe(chip, { childList: true, subtree: true });
+
     chip.addEventListener('click', function () {
       var n = 0;
       (function tick() {
