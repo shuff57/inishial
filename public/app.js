@@ -188,6 +188,63 @@ $('loginForm').addEventListener('submit', async (event) => {
   }
 });
 
+// ---- parent self-signup: request a code by email ----
+//
+// Two toggles and a submit. The link under the login form shows the request
+// form; the link under the request form hides it again. On a successful send,
+// the request form collapses, a "check your inbox" line appears, and the
+// student ID is copied into the login form so the parent only types the code.
+
+const requestCodeLink = $('requestCodeLink');
+const requestCodeBack = $('requestCodeBack');
+const requestCodeForm = $('requestCodeForm');
+const requestCodeSent = $('requestCodeSent');
+const requestCodeToggle = $('requestCodeToggle');
+
+function showRequestForm(show) {
+  requestCodeForm.hidden = !show;
+  requestCodeToggle.hidden = show;
+  requestCodeSent.hidden = true;
+  if (show) $('rc-sid')?.focus();
+}
+
+requestCodeLink?.addEventListener('click', (e) => { e.preventDefault(); showRequestForm(true); });
+requestCodeBack?.addEventListener('click', (e) => { e.preventDefault(); showRequestForm(false); });
+
+requestCodeForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const msg = $('requestCodeMsg');
+  const btn = $('requestCodeBtn');
+  msg.hidden = true;
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const res = await netFetch('/api/sign/request-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData(event.target).entries())),
+    });
+    const body = await res.json();
+    if (!res.ok) { notice(msg, body.error || 'Could not send the code.', 'error'); return; }
+
+    // Collapse the request form, show the "check your inbox" line, and copy
+    // the student ID into the login form so the parent only types the code.
+    requestCodeForm.hidden = true;
+    requestCodeToggle.hidden = true;
+    requestCodeSent.hidden = false;
+    $('requestCodeSentMsg').textContent =
+      `We sent your access code to ${body.email_preview}. Check your inbox and enter it above.`;
+    $('sid').value = $('rc-sid').value;
+    $('code')?.focus();
+  } catch {
+    notice(msg, 'Could not reach the server. Check your connection and try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send my code';
+  }
+});
+
 async function loadSyllabus() {
   const res = await netFetch('/api/sign/syllabus');
   if (res.status === 401) return;          // not signed in; stay on the form

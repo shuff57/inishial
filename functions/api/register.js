@@ -15,12 +15,17 @@
 // Gated on the student already existing in the teacher's uploaded roster, so
 // only real students in real classes can create an account.
 //
-// No access code is issued here. Codes are minted by the teacher's credential
-// export (see api/admin/credentials.js) -- students never handle one. Instead
-// registration itself issues a student-role session, so the student can go
-// straight from signing up to initialing their own copy. The parent's code is
-// untouched by this: a student session can only ever write role='student'
-// signature rows, so the two attestations stay independent on one account.
+// BOTH access codes are minted here. The student's own code is shown once on
+// the next screen; the parent's is never shown to the student -- it is sealed
+// in the vault so the parent self-signup page can mail it on demand (see
+// api/sign/request-code.js). Minting the parent code at registration rather
+// than at the teacher's credential export is what lets a parent get their code
+// without the teacher being involved at all.
+//
+// Registration still issues a student-role session, so the student can go
+// straight from signing up to initialing their own copy. A student session can
+// only ever write role='student' signature rows, so the two attestations stay
+// independent on one account.
 //
 // ponytail: student ID + last name is the whole gate on a student session,
 // which is the same gate registration already had -- claiming an account was
@@ -128,21 +133,29 @@ export async function onRequestPost({ request, env }) {
   // The student's own access code, minted here and shown once on the next
   // screen. Without it the only way back in is to register again, which works
   // but asks a fifteen-year-old to remember that re-entering a form is how you
-  // resume. It is the student's half of the pair; the parent's is minted by the
-  // teacher's export and is a different string.
+  // resume. It is the student's half of the pair.
+  //
+  // The PARENT code is minted here too, now. It is NOT shown to the student
+  // -- it is sealed in the vault (code_enc) so the parent self-signup page can
+  // mail it later, and hashed (code_hash) so /api/sign/login verifies it. The
+  // teacher's export reads the sealed copy back; it no longer mints.
   const studentCode = generateCode();
+  const parentCode = generateCode();
 
   let accountId;
   try {
     const insert = await env.DB.prepare(
       `INSERT INTO accounts (roster_id, username, parent_email, created_at,
-                             student_code_hash, student_code_issued_at, student_code_enc)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?4, ?6)`,
+                             student_code_hash, student_code_issued_at, student_code_enc,
+                             code_hash, code_issued_at, code_enc)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?4, ?6, ?7, ?4, ?8)`,
     ).bind(rosterRow.id, username, parentEmail || null, nowSec,
-      // Hash to verify against, ciphertext so the teacher can read it back to
-      // a student who shut the tab. Both, or neither is any use. sealCode
-      // returns null with no CODE_SECRET set, and the page says so.
-      await hashCode(studentCode), await sealCode(env, studentCode)).run();
+      // Hash to verify against, ciphertext so the teacher/self-signup page can
+      // read it back to a student/parent who shut the tab. Both, or neither is
+      // any use. sealCode returns null with no CODE_SECRET set, and the page
+      // says so.
+      await hashCode(studentCode), await sealCode(env, studentCode),
+      await hashCode(parentCode), await sealCode(env, parentCode)).run();
     accountId = Number(insert.meta.last_row_id);
   } catch (err) {
     // UNIQUE(username) is the only constraint a well-formed request can trip.
@@ -159,7 +172,8 @@ export async function onRequestPost({ request, env }) {
   // Still deliberately absent from this response, and readable off a shared
   // Chromebook if it were not:
   //   - the parent's email address, in any form, masked or not
-  //   - the PARENT's access code, which is minted only by the teacher's export
+  //   - the PARENT's access code, which is minted here alongside the student's
+  //     but sealed for the self-signup page to mail, never shown to the student
   //
   // The student's own code is here, and only here: it is hashed at rest like
   // every other code, so this response is the one and only time the plaintext

@@ -46,6 +46,31 @@ TEACHER_DOMAINS = ""
 # Ollama host for the authoring-time AI pass. Secret set out of band:
 #   npx wrangler pages secret put OLLAMA_API_KEY --project-name inishial
 OLLAMA_HOST = "https://ollama.com"
+# The From address for the parent access-code email, and the address replies
+# go to. Both are mailboxes on the self-hosted Stalwart server; a parent who
+# hits reply reaches a mailbox a human reads, not a black hole.
+#
+# The mail subdomain, not the apex. huffpalmer.fyi's MX belongs to Cloudflare
+# Email Routing and stays that way; Stalwart is authoritative for
+# mail.huffpalmer.fyi only. That also isolates reputation -- a spam complaint
+# about the syllabus mail cannot drag the apex domain down with it.
+MAIL_FROM = "no-reply@mail.huffpalmer.fyi"
+MAIL_REPLY_TO = "support@mail.huffpalmer.fyi"
+# The Stalwart mail server's base URL. functions/_lib/mail.js discovers the
+# JMAP API URL from <STALWART_URL>/.well-known/jmap.
+#
+# Standard 443, reached through Pangolin's Traefik (which holds the Let's
+# Encrypt cert and routes Host smtp.huffpalmer.fyi to the Stalwart container).
+# Stalwart's container port is published on the host as 8443, but do NOT point
+# this there: that path serves a self-signed cert, and Stalwart advertises its
+# own URLs without a port, so only the 443 route is self-consistent.
+STALWART_URL = "https://smtp.huffpalmer.fyi"
+# When set, functions/_lib/mail.js logs the rendered email to the console
+# instead of calling the mail server. Dev without secrets configured.
+# Leave unset in production.
+MAIL_DRY_RUN = "1"
+# The Stalwart API key, scoped to sending only. Set out of band via:
+#   npx wrangler pages secret put STALWART_API_KEY --project-name inishial
 # Which model answers Fix headings and Suggest initials when a teacher has not
 # picked one. Measured on the real prompt, five runs each: minimax-m3 averaged
 # 3.0s and got the answer right every time, against 5.2s for gpt-oss:120b,
@@ -68,3 +93,8 @@ TEACHER_DOMAINS = ""
 OLLAMA_HOST = "https://ollama.com"
 OLLAMA_MODEL = "minimax-m3"
 OLLAMA_HIDE = "kimi-k3"
+MAIL_FROM = "no-reply@mail.huffpalmer.fyi"
+MAIL_REPLY_TO = "support@mail.huffpalmer.fyi"
+STALWART_URL = "https://smtp.huffpalmer.fyi"
+# MAIL_DRY_RUN is deliberately absent here: real email goes out via Stalwart.
+# STALWART_API_KEY is set out of band as a secret.

@@ -183,6 +183,41 @@
         <div id="loginMsg" hidden></div>
         <p><button id="loginBtn" type="submit">Open the syllabus</button></p>
       </form>
+
+      <!-- Parent self-signup: the "I don't have a code" path. A parent who was
+           never mailed one enters their student's ID and an email, the app
+           mails the code, and they come back here to type it. Toggled rather
+           than a separate page so the parent never loses the URL they came
+           from. -->
+      <p class="muted small" id="requestCodeToggle">
+        <a href="#" id="requestCodeLink">Don't have a code? Get one sent to you.</a>
+      </p>
+
+      <form id="requestCodeForm" class="card plain" hidden novalidate>
+        <h2>Get your access code</h2>
+        <p class="muted">Enter your student's ID number and your email address. We'll
+          send the access code to that email.</p>
+
+        <label for="rc-sid">Student ID number
+          <span class="hint">The number on your student's school ID card.</span></label>
+        <input id="rc-sid" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+
+        <label for="rc-email">Your email address
+          <span class="hint">We'll mail the code here. This is the address your
+            school has on file unless you change it.</span></label>
+        <input id="rc-email" name="email" type="email" autocomplete="off" required>
+
+        <div id="requestCodeMsg" hidden></div>
+        <p><button id="requestCodeBtn" type="submit">Send my code</button></p>
+        <p class="muted small"><a href="#" id="requestCodeBack">I have a code, take me back.</a></p>
+      </form>
+
+      <!-- Shown after the code is sent: a single line that tells the parent
+           which inbox to check, then the login form above is reused for the
+           code entry. -->
+      <div id="requestCodeSent" class="card plain" hidden>
+        <p id="requestCodeSentMsg"></p>
+      </div>
     </div>
 
     <div id="docView" hidden>
