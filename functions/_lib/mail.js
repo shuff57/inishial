@@ -126,7 +126,17 @@ async function getSession(env) {
   return sessionInFlight;
 }
 
-function textBody(studentName, code) {
+/** Where the parent actually goes. `/sign` is a client-side route, so the
+ *  path is the same on any host. Configurable because the app will move off
+ *  pages.dev to a huffpalmer.fyi hostname, and a mail whose link points at a
+ *  different registrable domain than its From address is both worse for the
+ *  parent and a signal spam filters score against. */
+function signUrl(env) {
+  const base = String(env.APP_URL || 'https://inishial.pages.dev').replace(/\/+$/, '');
+  return `${base}/sign`;
+}
+
+function textBody(studentName, code, url) {
   return [
     `Hi ${studentName}'s parent or guardian,`,
     '',
@@ -134,8 +144,10 @@ function textBody(studentName, code) {
     '',
     `    ${code}`,
     '',
-    `Open the syllabus at the link your teacher shared, enter your student's`,
-    `ID number and this code, and initial each section.`,
+    `Open the syllabus here:`,
+    `    ${url}`,
+    '',
+    `Enter your student's ID number and this code, then initial each section.`,
     '',
     `If you did not request this code, you can ignore this email.`,
     '',
@@ -143,7 +155,7 @@ function textBody(studentName, code) {
   ].join('\r\n');
 }
 
-function htmlBody(studentName, code) {
+function htmlBody(studentName, code, url) {
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
@@ -151,8 +163,11 @@ function htmlBody(studentName, code) {
     `<p>Hi ${esc(studentName)}'s parent or guardian,</p>`,
     `<p>Here is the access code you need to read and initial the course syllabus:</p>`,
     `<p style="font-size:1.4rem;letter-spacing:.12em;font-weight:700">${esc(code)}</p>`,
-    `<p>Open the syllabus at the link your teacher shared, enter your student's`,
-    `ID number and this code, and initial each section.</p>`,
+    `<p><a href="${esc(url)}">Open the syllabus</a></p>`,
+    // The bare URL as well as the link: some clients strip anchors, and a
+    // parent who cannot see where a link goes is right not to trust it.
+    `<p style="color:#666;font-size:.9rem">Or paste this into your browser:<br>${esc(url)}</p>`,
+    `<p>Enter your student's ID number and this code, then initial each section.</p>`,
     `<p style="color:#666">If you did not request this code, you can ignore this email.</p>`,
     `<p style="color:#999;font-size:.8rem">-- iniSHial</p>`,
   ].join('\r\n');
@@ -200,8 +215,8 @@ export async function sendAccessCode(env, toEmail, studentName, code) {
             textBody: [{ partId: 't', type: 'text/plain' }],
             htmlBody: [{ partId: 'h', type: 'text/html' }],
             bodyValues: {
-              t: { value: textBody(studentName, code) },
-              h: { value: htmlBody(studentName, code) },
+              t: { value: textBody(studentName, code, signUrl(env)) },
+              h: { value: htmlBody(studentName, code, signUrl(env)) },
             },
           },
         },

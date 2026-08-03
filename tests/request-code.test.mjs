@@ -294,6 +294,25 @@ test('redirecting codes to new addresses is capped tightly per IP', async () => 
   } finally { restore(); }
 });
 
+test('the mail carries a link to the sign page, on the configured host', async () => {
+  // A message containing a credential and no destination reads like phishing to
+  // a filter, and leaves the parent holding a code with nowhere to type it.
+  const { env, sent, restore } = mailEnv({ APP_URL: 'https://syllabus.example.org/' });
+  try {
+    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await register({ request: jsonRequest('https://x/api/register', {
+      student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+    }), env });
+
+    await post(env, { student_ext_id: '904511', email: 'family@example.com' });
+    // Trailing slash on APP_URL must not produce a double slash.
+    assert.match(sent[0].body, /https:\/\/syllabus\.example\.org\/sign\b/);
+    assert.ok(!sent[0].body.includes('//sign'), 'no doubled slash from a trailing-slash APP_URL');
+    assert.ok(sent[0].body.includes('href="https://syllabus.example.org/sign"'),
+      'the HTML part links it, not just the text part');
+  } finally { restore(); }
+});
+
 test('honest failure when no mail server creds are configured and not in dry-run', async () => {
   const env = freshEnv({ MAIL_FROM: 'no-reply@mail.huffpalmer.fyi', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
