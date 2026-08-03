@@ -247,6 +247,53 @@ test('rate-limits after three attempts per student', async () => {
   } finally { restore(); }
 });
 
+test('a whole school on one IP is not rate-limited out', async () => {
+  // Ten teachers of forty share one public address on a back-to-school night,
+  // and mobile carriers put many parents behind one CGNAT address anyway. The
+  // per-IP cap must not fire for parents each requesting their OWN student's
+  // code from the same address -- that was a 429 after three under the old 3/IP
+  // limit, which reads to a parent as if they had done something wrong.
+  const { env, sent, restore } = mailEnv();
+  try {
+    for (let i = 0; i < 25; i++) {
+      const extId = `90600${String(i).padStart(2, '0')}`;
+      const { rosterId } = seedStudent(env._raw, { extId, first: `Kid${i}`, last: `Fam${i}`, parentEmail: `fam${i}@example.com` });
+      await seedAccount(env._raw, rosterId, { username: `kid${i}@chicousd.org`, code: `ABCD23${String(i).padStart(2, '0')}`, parentEmail: null });
+    }
+
+    const codes = [];
+    for (let i = 0; i < 25; i++) {
+      const res = await post(env, { student_ext_id: `90600${String(i).padStart(2, '0')}`, email: `fam${i}@example.com` });
+      codes.push(res.status);
+    }
+    assert.deepEqual([...new Set(codes)], [200], 'every parent on the shared IP gets their code');
+    assert.equal(sent.length, 25);
+  } finally { restore(); }
+});
+
+test('redirecting codes to new addresses is capped tightly per IP', async () => {
+  // The loose per-IP cap is safe only because THIS path is held tight: handing
+  // a code to an address that is not the one on file is the actual attack, and
+  // it is what someone walking a list of student IDs would have to do.
+  const { env, sent, restore } = mailEnv();
+  try {
+    for (let i = 0; i < 10; i++) {
+      const extId = `90700${String(i).padStart(2, '0')}`;
+      const { rosterId } = seedStudent(env._raw, { extId, first: `Kid${i}`, last: `Fam${i}`, parentEmail: `onfile${i}@example.com` });
+      await seedAccount(env._raw, rosterId, { username: `k${i}@chicousd.org`, code: `WXYZ23${String(i).padStart(2, '0')}`, parentEmail: null });
+    }
+
+    let refusedAt = -1;
+    for (let i = 0; i < 10; i++) {
+      // A different address every time -> every request is a redirect.
+      const res = await post(env, { student_ext_id: `90700${String(i).padStart(2, '0')}`, email: `attacker+${i}@example.com` });
+      if (res.status === 429) { refusedAt = i; break; }
+    }
+    assert.equal(refusedAt, 5, 'five redirects allowed from one IP, the sixth refused');
+    assert.equal(sent.length, 5, 'and no mail went out for the refused one');
+  } finally { restore(); }
+});
+
 test('honest failure when no mail server creds are configured and not in dry-run', async () => {
   const env = freshEnv({ MAIL_FROM: 'no-reply@mail.huffpalmer.fyi', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
   seedStudent(env._raw, { parentEmail: 'family@example.com' });

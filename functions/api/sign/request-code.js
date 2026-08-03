@@ -58,12 +58,23 @@ export async function onRequestPost({ request, env }) {
   const nowSec = Math.floor(Date.now() / 1000);
   const ip = clientIp(request);
 
-  // Tighter than login: this sends mail, so an attacker hammering it spams
-  // real inboxes. Per-IP stops one source; per-student stops one family being
-  // flooded. 3/15min per student is enough for retries with typos, not enough
-  // for harassment.
-  for (const key of [`reqcode:ip:${ip}`, `reqcode:stu:${studentExtId}`]) {
-    const limit = await hit(env.DB, key, nowSec, { max: 3 });
+  // Three limits, because one number cannot serve both cases here.
+  //
+  // Per student (3/15min) is the tight one, and it is what protects a family:
+  // enough for retries with a typo, not enough to flood one inbox.
+  //
+  // Per IP is DELIBERATELY LOOSE. Parents share public addresses far more than
+  // is obvious -- mobile carriers put many subscribers behind one CGNAT
+  // address, and a back-to-school night puts a whole school on one. At ten
+  // teachers of forty, an evening like that is ~50 requests per 15 minutes from
+  // a single IP; anything tighter than this locks out honest parents and tells
+  // them "Too many attempts", which reads as an accusation. This cap exists
+  // only to stop a runaway script, not to police normal use.
+  for (const [key, max] of [
+    [`reqcode:ip:${ip}`, 100],
+    [`reqcode:stu:${studentExtId}`, 3],
+  ]) {
+    const limit = await hit(env.DB, key, nowSec, { max });
     if (!limit.allowed) {
       return json({ error: 'Too many attempts. Try again in a few minutes.' }, 429, {
         'Retry-After': String(limit.retryAfter),
@@ -104,6 +115,21 @@ export async function onRequestPost({ request, env }) {
   // typo" path. If it matches what's on file, no write -- a no-op that keeps
   // the override column null when the roster is correct.
   if (differsFromOnFile) {
+    // The loose per-IP cap above cannot be the only guard, because THIS is the
+    // path that actually hands a code to a new address. Redirecting requires
+    // knowing a student ID, and IDs may well be guessable, so one source
+    // walking a list of them is the real attack -- not volume as such.
+    //
+    // Splitting the limit this way is what lets the general cap stay generous:
+    // a hall full of parents using their own address on file is untouched,
+    // while anyone redirecting codes to somewhere new is held to 5 per 15
+    // minutes from one address. Honest typo-fixing is one request, rarely two.
+    const redirect = await hit(env.DB, `reqcode:redirect:${ip}`, nowSec, { max: 5 });
+    if (!redirect.allowed) {
+      return json({ error: 'Too many attempts. Try again in a few minutes.' }, 429, {
+        'Retry-After': String(redirect.retryAfter),
+      });
+    }
     await env.DB.prepare('UPDATE accounts SET parent_email = ?1 WHERE id = ?2')
       .bind(email, account.id).run();
   }
