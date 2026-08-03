@@ -63,15 +63,22 @@ export async function onRequestPost({ request, env }) {
   // Per student (3/15min) is the tight one, and it is what protects a family:
   // enough for retries with a typo, not enough to flood one inbox.
   //
-  // Per IP is DELIBERATELY LOOSE. Parents share public addresses far more than
-  // is obvious -- mobile carriers put many subscribers behind one CGNAT
-  // address, and a back-to-school night puts a whole school on one. At ten
-  // teachers of forty, an evening like that is ~50 requests per 15 minutes from
-  // a single IP; anything tighter than this locks out honest parents and tells
-  // them "Too many attempts", which reads as an accusation. This cap exists
-  // only to stop a runaway script, not to police normal use.
+  // Per IP is DELIBERATELY VERY LOOSE, and it is sized for the worst honest
+  // case rather than the typical one: ten teachers of forty told to request
+  // their codes at the same moment is 400 requests in one window from a single
+  // school address. Mobile carriers stack many parents behind one CGNAT
+  // address too. 500 clears that with headroom.
+  //
+  // It can afford to be this loose because it is not the control that matters.
+  // Flooding one family is bounded by the per-student limit below; handing a
+  // code to a stranger is bounded by the redirect limit further down. What is
+  // left for this cap is a runaway script burning sending reputation, and 500
+  // in fifteen minutes is unmistakably that rather than a school event.
+  //
+  // If a bigger district ever needs more, this is one constant -- but raise it
+  // knowingly: the per-student and redirect caps are what keep it safe to.
   for (const [key, max] of [
-    [`reqcode:ip:${ip}`, 100],
+    [`reqcode:ip:${ip}`, 500],
     [`reqcode:stu:${studentExtId}`, 3],
   ]) {
     const limit = await hit(env.DB, key, nowSec, { max });

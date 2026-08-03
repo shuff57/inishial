@@ -247,7 +247,7 @@ test('rate-limits after three attempts per student', async () => {
   } finally { restore(); }
 });
 
-test('a whole school on one IP is not rate-limited out', async () => {
+test('ten teachers of forty on one IP in one window are not limited', async () => {
   // Ten teachers of forty share one public address on a back-to-school night,
   // and mobile carriers put many parents behind one CGNAT address anyway. The
   // per-IP cap must not fire for parents each requesting their OWN student's
@@ -255,19 +255,19 @@ test('a whole school on one IP is not rate-limited out', async () => {
   // limit, which reads to a parent as if they had done something wrong.
   const { env, sent, restore } = mailEnv();
   try {
-    for (let i = 0; i < 25; i++) {
-      const extId = `90600${String(i).padStart(2, '0')}`;
+    for (let i = 0; i < 120; i++) {
+      const extId = `9060${String(i).padStart(3, '0')}`;
       const { rosterId } = seedStudent(env._raw, { extId, first: `Kid${i}`, last: `Fam${i}`, parentEmail: `fam${i}@example.com` });
-      await seedAccount(env._raw, rosterId, { username: `kid${i}@chicousd.org`, code: `ABCD23${String(i).padStart(2, '0')}`, parentEmail: null });
+      await seedAccount(env._raw, rosterId, { username: `kid${i}@chicousd.org`, code: `ABCD${String(1000 + i)}`, parentEmail: null });
     }
 
     const codes = [];
-    for (let i = 0; i < 25; i++) {
-      const res = await post(env, { student_ext_id: `90600${String(i).padStart(2, '0')}`, email: `fam${i}@example.com` });
+    for (let i = 0; i < 120; i++) {
+      const res = await post(env, { student_ext_id: `9060${String(i).padStart(3, '0')}`, email: `fam${i}@example.com` });
       codes.push(res.status);
     }
     assert.deepEqual([...new Set(codes)], [200], 'every parent on the shared IP gets their code');
-    assert.equal(sent.length, 25);
+    assert.equal(sent.length, 120);
   } finally { restore(); }
 });
 
