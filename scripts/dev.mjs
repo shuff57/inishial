@@ -177,19 +177,28 @@ async function seed() {
   // /register is still exercisable -- the Biology demo class leaves three
   // students unregistered for exactly that, and the Access codes page shows
   // them as rows saying so.
+  //
+  // The course above is unowned (no owner_id), so identity school_id resolves to
+  // the placeholder -- the same fallback the production migration and seedAccount
+  // use for unowned courses. One identity per (school, student_ext_id); accounts
+  // are now pure roster-enrolment join rows pointing at them.
   const devParent = (extId) => 'PAR' + String(extId).slice(-5);
   const devStudent = (extId) => 'STU' + String(extId).slice(-5);
   for (const [i, [extId, first, last]] of students.entries()) {
     const parentCode = i === 0 ? DEMO_CODE : devParent(extId);
     const studentCode = devStudent(extId);
-    db.prepare(
-      `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
-                             student_code_hash, student_code_issued_at, code_enc, student_code_enc)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
-    ).run(rosterIds[i], `student${extId}@student.example.com`,
+    const identityId = Number(db.prepare(
+      `INSERT INTO student_identities
+         (school_id, student_ext_id, username, code_hash, code_issued_at, parent_email, created_at,
+          student_code_hash, student_code_issued_at, code_enc, student_code_enc)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+    ).run(1, extId, `student${extId}@student.example.com`,
       await hashCode(parentCode), 1000, 1000,
       await hashCode(studentCode), 1000,
-      await sealCode(env, parentCode), await sealCode(env, studentCode));
+      await sealCode(env, parentCode), await sealCode(env, studentCode)).lastInsertRowid);
+    db.prepare(
+      'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, ?)',
+    ).run(rosterIds[i], identityId, 1000);
   }
 
   const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')
@@ -223,6 +232,8 @@ async function seed() {
 
 const ROUTES = {
   '/api/register': () => import('../functions/api/register.js'),
+  '/api/schools': () => import('../functions/api/schools.js'),
+  '/api/admin/school': () => import('../functions/api/admin/school.js'),
   '/api/sign/login': () => import('../functions/api/sign/login.js'),
   // Was missing here, so /register/code/ 404'd locally while working in
   // production -- the same drift the REWRITES comment below warns about, in the

@@ -213,18 +213,23 @@ export async function seedDemo(db, { hashCode, seal = async () => null, reset = 
   const withCode = registered.slice(0, 12);        // ...and codes issued
   const accountIds = new Map();
 
+  // The demo course is unowned (owner_id NULL), so identities land on the
+  // placeholder school (id 1) -- the same fallback the production migration
+  // and seedAccount use for unowned courses. One identity per (school,
+  // student_ext_id); accounts are pure roster-enrolment join rows.
   for (const [extId, first, last] of registered) {
     const hasCode = withCode.some(([id]) => id === extId);
     // The school address, which is what registration asks for now.
     // Keyed off the ID, not the name. Names collide once they are generic --
-    // "A Student" exists in both seeded classes -- and accounts.username is
-    // UNIQUE, so a name-derived address made the second class fail to seed.
+    // "A Student" exists in both seeded classes -- and student_identities.username
+    // is UNIQUE, so a name-derived address made the second class fail to seed.
     const username = `student${extId}@student.example.com`;
-    accountIds.set(extId, Number(db.prepare(
-      `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
-                             student_code_hash, student_code_issued_at, code_enc, student_code_enc)
-       VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
-    ).run(rosterIds.get(extId), username,
+    const identityId = Number(db.prepare(
+      `INSERT INTO student_identities
+         (school_id, student_ext_id, username, code_hash, code_issued_at, parent_email, created_at,
+          student_code_hash, student_code_issued_at, code_enc, student_code_enc)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+    ).run(1, extId, username,
       hasCode ? await hashCode(demoCode(extId)) : null,
       hasCode ? now : null, now,
       // Everyone who registered has their own code -- registration is what
@@ -234,7 +239,10 @@ export async function seedDemo(db, { hashCode, seal = async () => null, reset = 
       // Sealed as well as hashed, so /admin/codes/ can show the demo class the
       // way it shows a real one.
       hasCode ? await seal(demoCode(extId)) : null,
-      await seal(demoStudentCode(extId))).lastInsertRowid));
+      await seal(demoStudentCode(extId))).lastInsertRowid);
+    accountIds.set(extId, Number(db.prepare(
+      'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, ?)',
+    ).run(rosterIds.get(extId), identityId, now).lastInsertRowid));
   }
 
   const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')
