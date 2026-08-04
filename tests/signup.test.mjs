@@ -25,8 +25,8 @@ const DOMAIN = 'pvhs.example.org';
 
 const env = (extra = {}) => freshEnv({ TEACHER_DOMAINS: DOMAIN, ADMIN_EMAILS: '', ...extra });
 
-const create = (e, email, password = PASSWORD, name) =>
-  signup({ request: jsonRequest('https://x/api/admin/signup', { email, password, name }), env: e });
+const create = (e, email, password = PASSWORD, name, school = 'Pleasant Valley High') =>
+  signup({ request: jsonRequest('https://x/api/admin/signup', { email, password, name, school }), env: e });
 
 const signIn = (e, email, password) =>
   login({ request: jsonRequest('https://x/api/admin/login', { email, password }), env: e });
@@ -317,12 +317,62 @@ test('with ADMIN_EMAILS set, only that address adopts them', async () => {
   const e = env({ ADMIN_EMAILS: 'owner@' + DOMAIN });
   const { courseId } = seedStudent(e._raw);
 
-  await create(e, 'someone.else@' + DOMAIN);
+  await create(e, 'someone.else@' + DOMAIN, PASSWORD, '', 'Pleasant Valley High');
   assert.equal(e._raw.prepare('SELECT owner_id FROM courses WHERE id = ?').get(courseId).owner_id, null,
     'a colleague signing up first must not walk off with the deployment owner\'s classes');
 
-  await create(e, 'owner@' + DOMAIN);
+  await create(e, 'owner@' + DOMAIN, PASSWORD, '', 'Pleasant Valley High');
   assert.ok(e._raw.prepare('SELECT owner_id FROM courses WHERE id = ?').get(courseId).owner_id);
+});
+
+// ---- school scoping on sign-up ----
+
+test('signing up with an existing school name joins that school (case-insensitive)', async () => {
+  const e = env();
+  // Seed the school directly, mimicking a prior teacher who already signed up.
+  const existingId = Number(e._raw.prepare('INSERT INTO schools (name) VALUES (?)').run('Northside High').lastInsertRowid);
+
+  const res = await create(e, 'alice@' + DOMAIN, PASSWORD, 'Alice', 'NORTHSIDE HIGH');
+  assert.equal(res.status, 200, await res.clone().text());
+
+  const teacher = e._raw.prepare('SELECT school_id FROM teachers WHERE email = ?').get('alice@' + DOMAIN);
+  assert.equal(teacher.school_id, existingId, 'teacher should join the existing school row');
+  assert.equal(e._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 2,
+    'placeholder + one real school, no duplicate created');
+});
+
+test('signing up with a new school name creates a new school row', async () => {
+  const e = env();
+  const res = await create(e, 'bob@' + DOMAIN, PASSWORD, 'Bob', 'Southside High');
+  assert.equal(res.status, 200, await res.clone().text());
+
+  const school = e._raw.prepare('SELECT * FROM schools WHERE name = ?').get('Southside High');
+  assert.ok(school, 'new school row was created');
+
+  const teacher = e._raw.prepare('SELECT school_id FROM teachers WHERE email = ?').get('bob@' + DOMAIN);
+  assert.equal(teacher.school_id, school.id);
+  assert.equal(e._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 2,
+    'placeholder + the newly created school only');
+});
+
+test('signing up with a different school name creates a separate school row', async () => {
+  const e = env();
+  await create(e, 'first@' + DOMAIN, PASSWORD, '', 'Chico High');
+  await create(e, 'second@' + DOMAIN, PASSWORD, '', 'Chico High School');
+
+  const rows = e._raw.prepare('SELECT name FROM schools WHERE name != ? ORDER BY id').all('(unassigned)').map((r) => r.name);
+  assert.deepEqual(rows, ['Chico High', 'Chico High School'],
+    'two different names stay two different schools');
+});
+
+test('signing up with no school name is rejected', async () => {
+  const e = env();
+  for (const school of ['', '   ']) {
+    const res = await signup({ request: jsonRequest('https://x/api/admin/signup', { email: 'missing@' + DOMAIN, password: PASSWORD, school }), env: e });
+    assert.equal(res.status, 400, `school "${school}" should be rejected`);
+    assert.match((await res.json()).error, /school/i);
+  }
+  assert.equal(e._raw.prepare('SELECT COUNT(*) AS n FROM teachers').get().n, 0, 'no teacher row created');
 });
 
 // ---- rate limiting ----

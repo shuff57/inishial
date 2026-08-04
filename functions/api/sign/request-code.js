@@ -9,11 +9,12 @@
 //
 // `email` is pre-filled from the roster on the page but is editable here: a
 // parent who spots a roster typo can correct it, and the corrected address is
-// stored as the accounts.parent_email override (the same field registration
-// uses). A stranger holding the student ID can re-point the mail to their own
-// inbox -- that is the cost of letting parents fix typos without the teacher.
-// The code itself is still rate-limited at /api/sign/login (31^8 keyspace,
-// 5/15min), so redirecting the email does not alone hand over a signature.
+// stored as the student_identities.parent_email override (the same field
+// registration uses). A stranger holding the student ID can re-point the mail
+// to their own inbox -- that is the cost of letting parents fix typos without
+// the teacher. The code itself is still rate-limited at /api/sign/login (31^8
+// keyspace, 5/15min), so redirecting the email does not alone hand over a
+// signature.
 //
 // The response carries a masked preview of the address (j***@example.com) so
 // the parent can confirm which inbox to check, without leaking the full
@@ -21,12 +22,17 @@
 //
 // No oracle: a wrong student ID returns the same message the login endpoint
 // uses, so this cannot confirm which IDs are on the roster.
+//
+// With student_identities, UNIQUE (school_id, student_ext_id) means there is
+// exactly one identity per school per id -- no more ambiguous roster row
+// concern. The lookup goes straight to the identity row.
 
 import { json, badRequest, serverMisconfigured, readJson } from '../../_lib/http.js';
 import { generateCode, hashCode } from '../../_lib/codes.js';
 import { sealCode, openCode } from '../../_lib/vault.js';
 import { hit, clientIp } from '../../_lib/ratelimit.js';
 import { sendAccessCode } from '../../_lib/mail.js';
+import { resolveSchoolScope, SCHOOL_SCOPE_JOIN } from '../../_lib/schoolScope.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -54,6 +60,9 @@ export async function onRequestPost({ request, env }) {
 
   if (!studentExtId || !email) return badRequest('Enter the student ID and your email address.');
   if (!EMAIL_RE.test(email)) return badRequest('That doesn\'t look like an email address.');
+
+  const scope = await resolveSchoolScope(env.DB, body.school_id);
+  if (!scope.ok) return badRequest(scope.error);
 
   const nowSec = Math.floor(Date.now() / 1000);
   const ip = clientIp(request);
@@ -89,31 +98,47 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // Roster first, so a no-show student fails before any account lookup. Same
-  // join shape as login.
-  const rosterRow = await env.DB.prepare(
+  // Roster first, so a no-show student fails before any identity lookup.
+  // Scoped by school. With student_identities, UNIQUE (school_id, student_ext_id)
+  // means there is exactly one identity per school per id -- no more ambiguous
+  // roster row concern. The roster check still gates on "this student exists
+  // at this school" but the identity lookup is now direct.
+  const { results: rosterRows = [] } = await env.DB.prepare(
     `SELECT r.id, r.first, r.last, r.parent_email AS roster_email
        FROM roster r
+       JOIN courses c ON c.id = r.course_id
+       ${SCHOOL_SCOPE_JOIN}
       WHERE r.student_ext_id = ?1 AND r.status = 'active'
-      LIMIT 1`,
-  ).bind(studentExtId).first();
+        AND (?2 IS NULL OR sc.id = ?2)`,
+  ).bind(studentExtId, scope.schoolIdFilter).all();
 
-  if (!rosterRow) return badRequest(NO_STUDENT);
+  if (rosterRows.length === 0) return badRequest(NO_STUDENT);
+  const rosterRow = rosterRows[0];
 
-  const account = await env.DB.prepare(
-    `SELECT id, code_hash, code_enc, student_code_enc, parent_email
-       FROM accounts WHERE roster_id = ?1 LIMIT 1`,
+  // Resolve the school_id for the identity lookup.
+  const schoolIdRow = await env.DB.prepare(
+    `SELECT COALESCE(t.school_id, 1) AS school_id
+       FROM courses c
+       LEFT JOIN teachers t ON t.id = c.owner_id
+      WHERE c.id = (SELECT course_id FROM roster WHERE id = ?1)`,
   ).bind(rosterRow.id).first();
+  const schoolId = schoolIdRow ? schoolIdRow.school_id : 1;
 
-  if (!account) {
-    // The parent code is minted at registration now. No account means the
+  const identity = await env.DB.prepare(
+    `SELECT id, code_hash, code_enc, student_code_enc, parent_email
+       FROM student_identities
+      WHERE school_id = ?1 AND student_ext_id = ?2`,
+  ).bind(schoolId, studentExtId).first();
+
+  if (!identity) {
+    // The parent code is minted at registration now. No identity means the
     // student has not registered yet, which means there is no code to mail.
     // Tell the parent plainly: the student must register first.
     return badRequest('Your student needs to set up their account before you can request your code. Ask them to do that, or check back tomorrow.');
   }
 
   // Effective email on file, before any override this request might write.
-  const effectiveOnFile = account.parent_email || rosterRow.roster_email;
+  const effectiveOnFile = identity.parent_email || rosterRow.roster_email;
   const emailLower = email.toLowerCase();
   const differsFromOnFile = !effectiveOnFile || effectiveOnFile.toLowerCase() !== emailLower;
 
@@ -137,24 +162,24 @@ export async function onRequestPost({ request, env }) {
         'Retry-After': String(redirect.retryAfter),
       });
     }
-    await env.DB.prepare('UPDATE accounts SET parent_email = ?1 WHERE id = ?2')
-      .bind(email, account.id).run();
+    await env.DB.prepare('UPDATE student_identities SET parent_email = ?1 WHERE id = ?2')
+      .bind(email, identity.id).run();
   }
 
   // Resolve the parent code: read it from the vault, or mint one if the
-  // account predates registration-minting (legacy account with no parent
+  // identity predates registration-minting (legacy account with no parent
   // code yet). Minting here is a fallback, not the normal path.
-  let code = await openCode(env, account.code_enc);
+  let code = await openCode(env, identity.code_enc);
   if (!code) {
-    if (account.code_hash) {
+    if (identity.code_hash) {
       // A code exists but the vault can't read it (sealed under a rotated
       // secret, or before the vault existed). Reissue: mint a new one, so
       // the parent gets something they can actually type.
     }
     code = generateCode();
     await env.DB.prepare(
-      `UPDATE accounts SET code_hash = ?1, code_enc = ?2, code_issued_at = ?3 WHERE id = ?4`,
-    ).bind(await hashCode(code), await sealCode(env, code), nowSec, account.id).run();
+      `UPDATE student_identities SET code_hash = ?1, code_enc = ?2, code_issued_at = ?3 WHERE id = ?4`,
+    ).bind(await hashCode(code), await sealCode(env, code), nowSec, identity.id).run();
   }
 
   // The student's code rides along. A student who loses theirs cannot be mailed
@@ -163,7 +188,7 @@ export async function onRequestPost({ request, env }) {
   // code above, a student code that cannot be opened is NOT reissued here.
   // Rotating it silently would invalidate a code the student may be holding,
   // and the teacher's export can reissue deliberately.
-  const studentCode = await openCode(env, account.student_code_enc);
+  const studentCode = await openCode(env, identity.student_code_enc);
 
   const studentName = `${rosterRow.first} ${rosterRow.last}`;
   const sent = await sendAccessCode(env, email, studentName, code, studentCode);

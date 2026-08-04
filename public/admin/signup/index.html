@@ -50,6 +50,12 @@
       <span class="hint">Shown on roster imports, so you can tell yours from a colleague's.</span></label>
     <input id="name" name="name" type="text" autocomplete="name">
 
+    <label for="school">School name
+      <span class="hint">Start typing to see schools already on this install. Type your full
+        school name exactly as it appears, or enter a new one if yours is not listed.</span></label>
+    <input id="school" name="school" list="schoolNames" type="text" maxlength="120" required autocomplete="off">
+    <datalist id="schoolNames"></datalist>
+
     <label for="password">Pick a password
       <span class="hint">At least 12 characters. Length beats punctuation: a short phrase
         you'll remember is stronger than <span class="mark">P@ssw0rd</span>.</span></label>
@@ -72,6 +78,7 @@ const form = document.getElementById('form');
 const msg = document.getElementById('msg');
 const submit = document.getElementById('submit');
 const email = document.getElementById('email');
+const school = document.getElementById('school');
 const password = document.getElementById('password');
 const confirm = document.getElementById('confirm');
 
@@ -80,6 +87,8 @@ function show(text, kind = 'error') {
   msg.className = 'notice ' + kind;
   msg.textContent = text;
 }
+
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Ask the server which domains it accepts, and say so before anyone types.
 // Failing soft here shows the form rather than hiding it: the POST re-checks
@@ -110,6 +119,14 @@ function show(text, kind = 'error') {
   } catch {
     /* leave the generic copy in place */
   }
+
+  // Best-effort type-ahead against existing schools. An empty datalist falls
+  // back to free text, which still works because the server creates on no-match.
+  try {
+    const { schools } = await (await fetch('/api/schools')).json();
+    document.getElementById('schoolNames').innerHTML = schools.map((s) => `<option value="${esc(s.name)}">`).join('');
+  } catch { /* free text still works */ }
+
   form.hidden = false;
 })();
 
@@ -134,6 +151,7 @@ form.addEventListener('submit', async (event) => {
       body: JSON.stringify({
         email: email.value,
         name: document.getElementById('name').value,
+        school: school.value,
         password: password.value,
       }),
     });

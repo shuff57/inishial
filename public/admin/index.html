@@ -211,6 +211,29 @@
 </nav></header>
 
 <main id="main" tabindex="-1">
+  <!-- Shown only for a teacher whose school_id still points at the placeholder
+       row migrations/0009 seeded. Nothing enforces school-scoping yet on this
+       ticket's own work, but a later one will, and it is a no-op for anyone
+       still sitting on the placeholder -- worth surfacing here rather than
+       leaving as a note in a file. Absent entirely for the shared password
+       and a bare Access identity: neither is a signed-up teacher with a
+       school of their own to rename. -->
+  <div id="schoolBanner" class="notice warn" hidden>
+    <span id="schoolBannerText"></span>
+    <form id="schoolForm" class="row" style="margin-top:.4rem">
+      <!-- A native datalist, filled from GET /api/schools, rather than a
+           bare text field. Free text with no matching is exactly how
+           "Chico High" and "Chico High School" end up as two different
+           schools -- see the plan's "How a school gets named". Typing an
+           exact match here joins that row; typing something new still
+           works and creates one, same as everywhere else this endpoint
+           feeds a type-ahead. -->
+      <input id="schoolNameInput" list="schoolNames" type="text" placeholder="Your school's name" maxlength="120" required autocomplete="off">
+      <datalist id="schoolNames"></datalist>
+      <button type="submit" class="secondary">Save</button>
+    </form>
+  </div>
+
   <h1>Classes</h1>
   <div id="coursesMsg" hidden></div>
   <div class="card plain" id="coursesCard">
@@ -757,7 +780,48 @@ dlg.addEventListener('close', () => {
 // Sign-out moved to the nav, so its handler lives in /ui.js alongside it --
 // every admin page has the button now, and three copies would have drifted.
 
+// ---- placeholder-school nudge ----
+
+async function loadSchool() {
+  try {
+    const res = await fetch('/api/admin/school');
+    if (!res.ok) return;                      // not worth failing the page over
+    const { school, is_placeholder } = await res.json();
+    if (!school || !is_placeholder) return;
+    $('schoolBannerText').textContent =
+      `Your school is still set to "${school.name}", the placeholder every account starts with. `
+      + 'Give it your real school’s name below before a second school joins this install, '
+      + 'so students at each cannot be mixed up.';
+    $('schoolBanner').hidden = false;
+
+    // Best effort: an empty datalist just means the field falls back to
+    // free text, same as it started.
+    try {
+      const { schools } = await (await fetch('/api/schools')).json();
+      $('schoolNames').innerHTML = schools.map((s) => `<option value="${esc(s.name)}">`).join('');
+    } catch { /* free text still works */ }
+  } catch { /* leave it hidden */ }
+}
+
+$('schoolForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = $('schoolNameInput').value.trim();
+  if (!name) return;
+  try {
+    const res = await fetch('/api/admin/school', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }),
+    });
+    const body = await res.json();
+    if (!res.ok) { notice($('coursesMsg'), body.error || 'Could not set your school.', 'error'); return; }
+    $('schoolBanner').hidden = true;
+    notice($('coursesMsg'), `Your school is now set to ${body.school.name}.`, 'ok');
+  } catch {
+    notice($('coursesMsg'), 'Could not reach the server.', 'error');
+  }
+});
+
 loadCourses();
+loadSchool();
 </script>
 
 <!-- Light/dark toggle, in the corner rather than the nav, matching the

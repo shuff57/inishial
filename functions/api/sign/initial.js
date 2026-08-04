@@ -6,6 +6,10 @@
 // derived server-side. The client supplies only which block and what initials;
 // the block text, its hash, the timestamp, the account, and the role all come
 // from the session and the database.
+//
+// claims.sub is now an identity id. The block determines the course, and
+// identity + course determines the account. A tampered/foreign block id
+// resolves to nothing, never to someone else's account.
 
 import { json, badRequest, unauthorized, serverMisconfigured, readJson } from '../../_lib/http.js';
 import { currentSession, SIGNER_ROLES } from '../../_lib/session.js';
@@ -32,16 +36,17 @@ export async function onRequestPost({ request, env }) {
   if (!INITIALS_RE.test(initials)) return badRequest('Enter your initials (letters only).');
 
   // One query establishes all of: the block exists, it belongs to a PUBLISHED
-  // version, that version's syllabus belongs to THIS account's course, and the
-  // block actually asks for initials. A block id from another class fails here.
+  // version, that version's syllabus belongs to a course this identity is
+  // enrolled in, and the block actually asks for initials. A block id from
+  // another class fails here because identity + course resolves to no account.
   const block = await env.DB.prepare(
-    `SELECT b.id, b.html, b.needs_initials, v.id AS version_id
-       FROM accounts a
-       JOIN roster   r ON r.id = a.roster_id
-       JOIN syllabi  s ON s.course_id = r.course_id
-       JOIN versions v ON v.syllabus_id = s.id AND v.published_at IS NOT NULL
-       JOIN blocks   b ON b.version_id = v.id
-      WHERE a.id = ?1 AND b.id = ?2
+    `SELECT b.id, b.html, b.needs_initials, v.id AS version_id, a.id AS account_id
+       FROM blocks b
+       JOIN versions v ON v.id = b.version_id AND v.published_at IS NOT NULL
+       JOIN syllabi  s ON s.id = v.syllabus_id
+       JOIN roster   r ON r.course_id = s.course_id
+       JOIN accounts a ON a.roster_id = r.id AND a.identity_id = ?1
+      WHERE b.id = ?2
       LIMIT 1`,
   ).bind(claims.sub, blockId).first();
 
@@ -58,7 +63,7 @@ export async function onRequestPost({ request, env }) {
   const existing = await env.DB.prepare(
     `SELECT initials, signed_at FROM signatures
       WHERE account_id = ?1 AND version_id = ?2 AND block_id = ?3 AND role = ?4`,
-  ).bind(claims.sub, block.version_id, blockId, claims.role).first();
+  ).bind(block.account_id, block.version_id, blockId, claims.role).first();
 
   // Signatures are append-only: a second submission reports the first rather
   // than overwriting it. Re-initialing happens by publishing a new version.
@@ -71,7 +76,7 @@ export async function onRequestPost({ request, env }) {
        (account_id, version_id, block_id, role, initials, block_hash, signed_at, ip, user_agent)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`,
   ).bind(
-    claims.sub,
+    block.account_id,
     block.version_id,
     blockId,
     claims.role,
@@ -87,7 +92,7 @@ export async function onRequestPost({ request, env }) {
        (SELECT COUNT(*) FROM blocks WHERE version_id = ?1 AND needs_initials = 1) AS required,
        (SELECT COUNT(*) FROM signatures
           WHERE account_id = ?2 AND version_id = ?1 AND role = ?3)                AS signed`,
-  ).bind(block.version_id, claims.sub, claims.role).first();
+  ).bind(block.version_id, block.account_id, claims.role).first();
 
   return json({
     ok: true,

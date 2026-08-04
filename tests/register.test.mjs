@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, seedAccount, seedSyllabus, cookieFrom, ADMIN_HEADERS, jsonRequest } from './helpers.mjs';
+import { freshEnv, seedStudent, seedSchoolRoster, seedAccount, seedSyllabus, cookieFrom, ADMIN_HEADERS, jsonRequest } from './helpers.mjs';
 import { onRequestPost as register } from '../functions/api/register.js';
 import { onRequestPost as uploadRoster } from '../functions/api/admin/roster.js';
 import { onRequestGet as credentials } from '../functions/api/admin/credentials.js';
@@ -26,7 +26,7 @@ test('registration succeeds without an email when the roster has one', async () 
 
   assert.equal(res.status, 201);
   assert.equal(body.has_contact, true);
-  assert.equal(env._raw.prepare('SELECT parent_email FROM accounts').get().parent_email, null,
+  assert.equal(env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().parent_email, null,
     'no override is stored when the student did not supply one');
 });
 
@@ -60,7 +60,7 @@ test('the school email must be an address, and is stored lowercased', async () =
   const ok = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'M.Alvarez@ChicoUSD.org' });
   assert.equal(ok.status, 201);
   // Case-folded, or Sam@ and sam@ are two accounts as far as UNIQUE is concerned.
-  assert.equal(env._raw.prepare('SELECT username FROM accounts').get().username, 'm.alvarez@chicousd.org');
+  assert.equal(env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().username, 'm.alvarez@chicousd.org');
 });
 
 test('the address a student supplies is not echoed back either', async () => {
@@ -78,7 +78,7 @@ test('a student-supplied address overrides the roster one', async () => {
   seedStudent(env._raw, { parentEmail: 'old@example.com' });
 
   await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org', parent_email: 'New@Example.com' });
-  assert.equal(env._raw.prepare('SELECT parent_email FROM accounts').get().parent_email, 'New@Example.com');
+  assert.equal(env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().parent_email, 'New@Example.com');
 
   const csv = await (await credentials({
     request: new Request('https://x/api/admin/credentials?course_id=1', { headers: ADMIN_HEADERS }), env,
@@ -167,10 +167,13 @@ test('student and parent initials land on the same student, counted apart', asyn
     await initial({ request: jsonRequest('https://x/api/sign/initial', { block_id: id, initials: 'MA' }, { Cookie: studentCookie }), env });
   }
 
-  // The teacher's export mints the code onto the account the student created.
+  // The teacher's export mints the code onto the identity the student created.
   const code = 'ABCD2345';
-  env._raw.prepare('UPDATE accounts SET code_hash = ?, code_issued_at = ? WHERE roster_id = ?')
-    .run(await hashCode(code), 1000, rosterId);
+  const identityId = env._raw.prepare(
+    'SELECT si.id FROM student_identities si JOIN accounts a ON a.identity_id = si.id WHERE a.roster_id = ?',
+  ).get(rosterId).id;
+  env._raw.prepare('UPDATE student_identities SET code_hash = ?, code_issued_at = ? WHERE id = ?')
+    .run(await hashCode(code), 1000, identityId);
 
   const parentCookie = cookieFrom(await login({
     request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'family@example.com', code, role: 'parent' }), env,
@@ -245,7 +248,7 @@ test('re-entry does not create a second account or change the first', async () =
   await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
   await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'someone-else' });
 
-  const rows = env._raw.prepare('SELECT username FROM accounts').all();
+  const rows = env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id').all();
   assert.deepEqual(rows.map((r) => r.username), ['malvarez@chicousd.org'],
     're-entry must not mint a second account or let the username be reassigned');
 });
@@ -324,7 +327,7 @@ test('registering mints the student their own code, and it signs them in', async
   assert.match(body.student_code, /^[2-9A-HJ-NP-Z]{8}$/, 'shown once, on the confirmation screen');
   // Hashed at rest like every other code -- the screen above is the only
   // plaintext that ever exists.
-  const stored = env._raw.prepare('SELECT student_code_hash FROM accounts').get().student_code_hash;
+  const stored = env._raw.prepare('SELECT si.student_code_hash FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().student_code_hash;
   assert.ok(stored && !stored.includes(body.student_code), 'the code was stored in the clear');
 
   const res = await login({ request: jsonRequest('https://x/api/sign/login', {
@@ -432,4 +435,76 @@ test('an ID and a last name never open an existing account', async () => {
     assert.equal(res.status, 409, `no session for ${JSON.stringify(body)}`);
     assert.equal(res.headers.get('Set-Cookie'), null, 'and no session is issued');
   }
+});
+
+// ---- school scoping: the same class of bug as request-code.js ----
+//
+// Lower risk here -- it also needs the last name -- but the same fix. See the
+// school-scoping-and-identity plan, "Why: the leak, reproduced".
+
+test('a shared student ID with a matching last name across two schools resolves only the caller\'s own school', async () => {
+  const env = freshEnv();
+  // Two unrelated students happen to share both an ID and a last name across
+  // two schools -- the coincidence that makes this endpoint's bug reachable.
+  const reyes = seedSchoolRoster(env._raw, {
+    school: 'Northside High', course: 'Algebra I', extId: '123456', first: 'Ana', last: 'Reyes',
+  });
+  const other = seedSchoolRoster(env._raw, {
+    school: 'Southside High', course: 'Geometry', extId: '123456', first: 'Amelia', last: 'Reyes',
+  });
+
+  const res = await post(env, {
+    student_ext_id: '123456', last: 'Reyes', username: 'amelia.reyes@chicousd.org', school_id: other.schoolId,
+  });
+  const body = await res.json();
+  assert.equal(res.status, 201);
+  assert.equal(body.student, 'Amelia Reyes', 'the Southside student, not the Northside one');
+
+  // Exactly one account, tied to the Southside roster row.
+  const accounts = env._raw.prepare('SELECT roster_id FROM accounts').all();
+  assert.deepEqual(accounts.map((a) => a.roster_id), [other.rosterId]);
+  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM accounts WHERE roster_id = ?').get(reyes.rosterId).n, 0,
+    "the Northside student's roster row must remain unregistered");
+});
+
+test('more than one school on the install requires a school_id', async () => {
+  const env = freshEnv();
+  seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '904511', last: 'Alvarez' });
+  seedSchoolRoster(env._raw, { school: 'Southside High', course: 'Geometry', extId: '904512', last: 'Ortiz' });
+
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  assert.equal(res.status, 400);
+  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM accounts').get().n, 0, 'no account without a resolved school');
+});
+
+test('a student enrolled in two courses at one school registers once and gets accounts for both', async () => {
+  // The multi-class fix: a student with two active roster rows at one school
+  // registers once and gets accounts for BOTH, sharing one identity_id.
+  const env = freshEnv();
+  const a = seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '555555', first: 'Sam', last: 'Kim' });
+  seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Trigonometry', extId: '555555', first: 'Sam', last: 'Kim' });
+
+  const res = await post(env, { student_ext_id: '555555', last: 'Kim', username: 'skim@chicousd.org', school_id: a.schoolId });
+  const body = await res.json();
+  assert.equal(res.status, 201);
+  assert.equal(body.student, 'Sam Kim');
+
+  // Both roster rows now have accounts sharing one identity_id.
+  const accounts = env._raw.prepare('SELECT a.id, a.identity_id, a.roster_id FROM accounts a ORDER BY a.id').all();
+  assert.equal(accounts.length, 2, 'accounts created: 2 of 2 enrolments');
+  assert.equal(accounts[0].identity_id, accounts[1].identity_id, 'both accounts share one identity');
+  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM student_identities').get().n, 1, 'exactly one identity row');
+});
+
+test('a single-school install still registers a student behind an unowned legacy course', async () => {
+  // seedStudent's course has no owner_id (migrations/0002's shape) and
+  // freshEnv seeds exactly one school (the migration placeholder). Scoping
+  // must be a complete no-op here -- every existing install is in this shape
+  // until a second school joins.
+  const env = freshEnv();
+  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 1);
+  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  assert.equal(res.status, 201);
 });

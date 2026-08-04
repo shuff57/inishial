@@ -51,18 +51,19 @@ export async function onRequestGet({ request, env }) {
   // two have not signed up". There is nothing to hand out for them yet -- the
   // codes live on the account -- and that is the thing worth seeing.
   const { results } = await env.DB.prepare(
-    `SELECT a.id, a.username, a.code_hash, a.student_code_hash,
-            a.code_enc, a.student_code_enc,
-            a.code_issued_at, a.student_code_issued_at,
-            COALESCE(a.parent_email, r.parent_email) AS email,
+    `SELECT a.id, si.username, si.code_hash, si.student_code_hash,
+            si.code_enc, si.student_code_enc,
+            si.code_issued_at, si.student_code_issued_at,
+            COALESCE(si.parent_email, r.parent_email) AS email,
             CASE
-              WHEN a.parent_email IS NOT NULL THEN 'student-supplied'
+              WHEN si.parent_email IS NOT NULL THEN 'student-supplied'
               WHEN r.parent_email IS NOT NULL THEN 'roster'
               ELSE 'missing'
             END AS email_source,
             r.first, r.last, r.period, r.student_ext_id
        FROM roster r
        LEFT JOIN accounts a ON a.roster_id = r.id
+       LEFT JOIN student_identities si ON si.id = a.identity_id
       WHERE r.course_id = ?1 AND r.status = 'active'
       ORDER BY r.period, r.last, r.first`,
   ).bind(courseId).all();
@@ -93,7 +94,7 @@ export async function onRequestGet({ request, env }) {
     if (mine && (reissue || !row[hashCol])) {
       const code = generateCode();
       await env.DB.prepare(
-        `UPDATE accounts SET ${hashCol} = ?1, ${encCol} = ?2, ${atCol} = ?3 WHERE id = ?4`,
+        `UPDATE student_identities SET ${hashCol} = ?1, ${encCol} = ?2, ${atCol} = ?3 WHERE id = ?4`,
       ).bind(await hashCode(code), await sealCode(env, code), nowSec, row.id).run();
       return { code, issued_at: nowSec, fresh: true, recoverable: true };
     }

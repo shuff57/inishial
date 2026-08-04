@@ -24,9 +24,9 @@ const BLOCKS = [
 async function setup({ published = true } = {}) {
   const env = freshEnv();
   const { courseId, rosterId, extId } = seedStudent(env._raw);
-  const { accountId, code, studentCode } = await seedAccount(env._raw, rosterId);
+  const { accountId, identityId, code, studentCode } = await seedAccount(env._raw, rosterId);
   const seeded = seedSyllabus(env._raw, courseId, BLOCKS, { published });
-  return { env, courseId, accountId, extId, code, studentCode, ...seeded };
+  return { env, courseId, accountId, identityId, extId, code, studentCode, ...seeded };
 }
 
 // Sign-in now takes an email as well: it disambiguates a student ID that is
@@ -86,7 +86,7 @@ test('a role claimed in the request body is ignored outright', async () => {
 
 test('an account with no student code yet still lets the parent in', async () => {
   const { env, extId, code } = await setup();
-  env._raw.prepare('UPDATE accounts SET student_code_hash = NULL, student_code_issued_at = NULL').run();
+  env._raw.prepare('UPDATE student_identities SET student_code_hash = NULL, student_code_issued_at = NULL').run();
 
   assert.equal((await doLogin(env, { student_ext_id: extId, code })).status, 200,
     'a roster imported before the split has no student code, and that is not a lockout');
@@ -155,8 +155,8 @@ test('a tampered session cookie is rejected', async () => {
 });
 
 test('an expired session is rejected', async () => {
-  const { env, accountId } = await setup();
-  const stale = await signSession(env, accountId, 'parent', Math.floor(Date.now() / 1000) - 60 * 60 * 24);
+  const { env, identityId } = await setup();
+  const stale = await signSession(env, identityId, 'parent', Math.floor(Date.now() / 1000) - 60 * 60 * 24);
   const res = await getSyllabus({
     request: new Request('https://x/api/sign/syllabus', { headers: withCookie(`inishial_session=${stale}`) }), env,
   });
@@ -415,17 +415,17 @@ test('the right code with the wrong email does not sign anyone in', async () => 
   assert.equal(res.status, 401, 'the code alone is no longer enough');
 });
 
-test('a student ID shared by two courses resolves by email, not by luck', async () => {
-  // student_ext_id is UNIQUE per COURSE, not globally: the same number
-  // legitimately appears on two rosters -- a student taught for two subjects,
-  // or a second school on this install. Sign-in used to take whichever row the
-  // database happened to return first.
+test('a student ID shared by two schools resolves by email, not by luck', async () => {
+  // student_ext_id is UNIQUE per (school, student_ext_id) now, so the same
+  // number legitimately appears at two different schools. Sign-in used to take
+  // whichever row the database happened to return first.
   const ctx = await setup();
-  const { rosterId: otherRoster } = seedStudent(ctx.env._raw, {
-    course: 'Geometry', extId: ctx.extId, first: 'Other', last: 'Person',
+  const { seedSchoolRoster } = await import('./helpers.mjs');
+  const other = seedSchoolRoster(ctx.env._raw, {
+    school: 'Southside High', course: 'Geometry', extId: ctx.extId, first: 'Other', last: 'Person',
     parentEmail: 'other-family@example.com',
   });
-  await seedAccount(ctx.env._raw, otherRoster, {
+  await seedAccount(ctx.env._raw, other.rosterId, {
     username: 'operson@chicousd.org', code: 'OTHR2345',
     studentCode: 'OTHRSTU9', parentEmail: 'other-family@example.com',
   });
@@ -442,9 +442,100 @@ test('a student ID shared by two courses resolves by email, not by luck', async 
   assert.equal(theirs.status, 200);
   assert.equal((await theirs.json()).student, 'Other Person', 'their email, their student');
 
-  // And a code cannot be used across the two accounts that share the ID.
+  // And a code cannot be used across the two identities that share the ID.
   const crossed = await doLogin(ctx.env, {
     student_ext_id: ctx.extId, email: 'parent@example.com', code: 'OTHR2345',
   });
   assert.equal(crossed.status, 401, "the other family's code does not open this one");
+});
+
+// ---- identity + course -> account resolution ----
+
+test('a tampered block id from another course resolves to 404, never to another account', async () => {
+  const { env, extId, code } = await setup();
+  const cookie = cookieFrom(await doLogin(env, { student_ext_id: extId, code }));
+
+  // Create a second course with its own syllabus, but no account for this identity.
+  const other = seedStudent(env._raw, { course: 'Geometry', extId: '777', last: 'Chen', first: 'Kevin' });
+  const otherSyllabus = seedSyllabus(env._raw, other.courseId, BLOCKS, { title: 'Geometry Syllabus' });
+
+  const res = await initial(env, cookie, { block_id: otherSyllabus.blockIds[2], initials: 'MRA' });
+  assert.equal(res.status, 404);
+  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM signatures').get().n, 0);
+});
+
+test('a tampered course id resolves to 404, never to another identity\'s account', async () => {
+  const { env, extId, code } = await setup();
+  const cookie = cookieFrom(await doLogin(env, { student_ext_id: extId, code }));
+
+  // Create a second course with a different student who has an account.
+  const other = seedStudent(env._raw, { course: 'Geometry', extId: '777', last: 'Chen', first: 'Kevin' });
+  await seedAccount(env._raw, other.rosterId, { username: 'kchen@chicousd.org' });
+  seedSyllabus(env._raw, other.courseId, BLOCKS, { title: 'Geometry Syllabus' });
+
+  // Request the other course's syllabus with our identity's session.
+  const res = await getSyllabus({
+    request: new Request(`https://x/api/sign/syllabus?course=${other.courseId}`, { headers: withCookie(cookie) }), env,
+  });
+  assert.equal(res.status, 404);
+});
+
+test('the class switcher appears when an identity has more than one account', async () => {
+  const env = freshEnv();
+  const { courseId: c1, rosterId: r1 } = seedStudent(env._raw, { course: 'Algebra I', parentEmail: 'family@example.com' });
+  const { courseId: c2, rosterId: r2 } = seedStudent(env._raw, { course: 'Geometry', extId: '904512', first: 'Maria', last: 'Alvarez', parentEmail: 'family@example.com' });
+  seedSyllabus(env._raw, c1, BLOCKS);
+  seedSyllabus(env._raw, c2, BLOCKS, { title: 'Geometry Syllabus' });
+
+  // Register once, creating one identity with two accounts.
+  const regRes = await (await import('../functions/api/register.js')).onRequestPost({
+    request: jsonRequest('https://x/api/register', { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' }),
+    env,
+  });
+  assert.equal(regRes.status, 201);
+
+  // Manually create the second account (register only fans out to matching roster rows by extId+last).
+  const identityId = env._raw.prepare('SELECT identity_id FROM accounts WHERE roster_id = ?').get(r1).identity_id;
+  env._raw.prepare('INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, 1000)').run(r2, identityId);
+
+  // Login and check the syllabus response includes courses.
+  const code = (await regRes.json()).student_code;
+  const loginRes = await doLogin(env, { student_ext_id: '904511', email: 'malvarez@chicousd.org', code });
+  const cookie = cookieFrom(loginRes);
+  const doc = await (await getSyllabus({
+    request: new Request('https://x/api/sign/syllabus', { headers: withCookie(cookie) }), env,
+  })).json();
+
+  assert.ok(doc.courses, 'courses list should be present when identity has more than one account');
+  assert.equal(doc.courses.length, 2);
+  assert.deepEqual(doc.courses.map((c) => c.name).sort(), ['Algebra I', 'Geometry']);
+});
+
+test('the class switcher defaults to the course with unsigned sections remaining', async () => {
+  const env = freshEnv();
+  const { courseId: c1, rosterId: r1 } = seedStudent(env._raw, { course: 'Algebra I', parentEmail: 'family@example.com' });
+  const { courseId: c2, rosterId: r2 } = seedStudent(env._raw, { course: 'Geometry', extId: '904512', first: 'Maria', last: 'Alvarez', parentEmail: 'family@example.com' });
+  const s1 = seedSyllabus(env._raw, c1, BLOCKS);
+  seedSyllabus(env._raw, c2, BLOCKS, { title: 'Geometry Syllabus' });
+
+  // Register and create both accounts.
+  const regRes = await (await import('../functions/api/register.js')).onRequestPost({
+    request: jsonRequest('https://x/api/register', { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' }),
+    env,
+  });
+  const identityId = env._raw.prepare('SELECT identity_id FROM accounts WHERE roster_id = ?').get(r1).identity_id;
+  env._raw.prepare('INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, 1000)').run(r2, identityId);
+
+  // Sign all blocks in Algebra I.
+  const code = (await regRes.json()).student_code;
+  const cookie = cookieFrom(await doLogin(env, { student_ext_id: '904511', email: 'malvarez@chicousd.org', code }));
+  for (const bid of s1.blockIds.filter((_, i) => BLOCKS[i].needs_initials)) {
+    await initial(env, cookie, { block_id: bid, initials: 'MA' });
+  }
+
+  // Now the default should be Geometry (the one with unsigned sections remaining).
+  const doc = await (await getSyllabus({
+    request: new Request('https://x/api/sign/syllabus', { headers: withCookie(cookie) }), env,
+  })).json();
+  assert.equal(doc.course, 'Geometry', 'defaults to the course with work remaining');
 });

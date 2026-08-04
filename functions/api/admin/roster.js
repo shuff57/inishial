@@ -223,7 +223,7 @@ export async function onRequestGet({ request, env }) {
             SUM(CASE WHEN r.status = 'active'  THEN 1 ELSE 0 END)    AS students,
             SUM(CASE WHEN r.status = 'dropped' THEN 1 ELSE 0 END)    AS dropped,
             COUNT(a.id)                                              AS registered,
-            SUM(CASE WHEN a.code_hash IS NOT NULL THEN 1 ELSE 0 END) AS codes_issued,
+            SUM(CASE WHEN si.code_hash IS NOT NULL THEN 1 ELSE 0 END) AS codes_issued,
             -- A SUBQUERY, not a fourth join. Joining signatures here would
             -- multiply every roster row by the number of initials that student
             -- gave, and the four counts above -- all computed off that same
@@ -238,6 +238,7 @@ export async function onRequestGet({ request, env }) {
        FROM courses c
        LEFT JOIN roster   r ON r.course_id = c.id
        LEFT JOIN accounts a ON a.roster_id = r.id AND r.status = 'active'
+       LEFT JOIN student_identities si ON si.id = a.identity_id
       -- IS, not =: one bound value covers "mine" and, for the shared
       -- password, the unowned ones. The old (?1 IS NULL OR owner_id = ?1)
       -- read as a filter and behaved as a bypass -- NULL matched every

@@ -10,6 +10,14 @@
 // The syllabus URL is public and shared, so the access code is the only thing
 // standing between a stranger and signing as someone's parent. Everything
 // defensive in this file exists for that reason.
+//
+// With student_identities, codes live on the identity row. The loop-over-
+// candidates-with-decoy-hashing pattern is retargeted at student_identities
+// instead of accounts+roster: loop over every identity matching student_ext_id
+// (there can legitimately be more than one if two schools share an id), check
+// both code hashes against each with the same decoy-timing discipline, and
+// determine role from which hash matches. Session's claims.sub becomes the
+// identity's id.
 
 import { json, badRequest, serverMisconfigured, readJson } from '../../_lib/http.js';
 import { verifyCode, normalize } from '../../_lib/codes.js';
@@ -53,22 +61,22 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // EVERY roster row with this ID, not `LIMIT 1`. student_ext_id is UNIQUE per
-  // COURSE, not globally, so the same number legitimately appears on two
-  // rosters -- a student taught for two subjects, or another school on this
-  // install. `LIMIT 1` silently picked whichever row came back first and
-  // signed the visitor into an arbitrary one of them.
+  // EVERY identity with this student_ext_id, not `LIMIT 1`. Two schools on
+  // this install can legitimately share a student ID, so the same number
+  // appears on two identity rows. The email is what disambiguates, and it
+  // decides the side as well: the school address on the identity means the
+  // student is signing, the family address means the parent is. Whichever
+  // matches, only that side's code is accepted.
   //
-  // The email is what disambiguates, and it decides the side as well: the
-  // school address on the account means the student is signing, the family
-  // address means the parent is. Whichever matches, only that side's code is
-  // accepted.
+  // Also join roster to get the student name and course info for the response.
   const { results: rows = [] } = await env.DB.prepare(
-    `SELECT a.id, a.code_hash, a.student_code_hash, a.username, a.parent_email,
+    `SELECT si.id, si.code_hash, si.student_code_hash, si.username, si.parent_email,
             r.first, r.last, r.course_id, r.parent_email AS roster_email
-       FROM accounts a
-       JOIN roster r ON r.id = a.roster_id
-      WHERE r.student_ext_id = ?1 AND r.status = 'active'`,
+       FROM student_identities si
+       JOIN accounts a ON a.identity_id = si.id
+       JOIN roster   r ON r.id = a.roster_id
+      WHERE si.student_ext_id = ?1 AND r.status = 'active'
+      GROUP BY si.id`,
   ).bind(studentExtId).all();
 
   // Both hashes are verified for EVERY candidate, and no result short-circuits

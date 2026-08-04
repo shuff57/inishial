@@ -40,16 +40,20 @@ async function hmacKey(secret) {
   return crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
 
-/** Mint a session token for `accountId` acting as `role`.
+/** Mint a session token for an identity (or teacher) id acting as `role`.
+ *
+ *  `sub` is an identity id for parent/student sessions, a teacher id for admin
+ *  sessions. The field is opaque to this function -- callers decide what it
+ *  carries.
  *
  *  `email` is carried only for a signed-up teacher, so the roster-import audit
  *  trail can record who uploaded a file. It is a convenience, never a
  *  credential: authorisation reads `sub` and `role`, both of which are covered
  *  by the signature, and nothing trusts this field to decide access. */
-export async function signSession(env, accountId, role, nowSec, email) {
+export async function signSession(env, sub, role, nowSec, email) {
   if (!env.SESSION_SECRET) throw new Error('SESSION_SECRET is not configured');
   const header = { alg: 'HS256', typ: 'JWT' };
-  const payload = { sub: accountId, role, iat: nowSec, exp: nowSec + TTL_SEC };
+  const payload = { sub, role, iat: nowSec, exp: nowSec + TTL_SEC };
   if (email) payload.email = email;
   const input = `${b64urlJson(header)}.${b64urlJson(payload)}`;
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(env.SESSION_SECRET), enc.encode(input));

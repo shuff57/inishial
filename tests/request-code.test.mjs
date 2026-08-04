@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, seedAccount, seedSyllabus, jsonRequest, cookieFrom } from './helpers.mjs';
+import { freshEnv, seedStudent, seedSchoolRoster, seedAccount, seedSyllabus, jsonRequest, cookieFrom } from './helpers.mjs';
 import { onRequestPost as requestCode } from '../functions/api/sign/request-code.js';
 import { onRequestPost as register } from '../functions/api/register.js';
 import { onRequestPost as login } from '../functions/api/sign/login.js';
@@ -105,7 +105,7 @@ test('mints both codes at registration, so the parent code is ready to mail', as
     student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
   }), env });
 
-  const row = env._raw.prepare('SELECT code_hash, code_enc, student_code_hash FROM accounts').get();
+  const row = env._raw.prepare('SELECT code_hash, code_enc, student_code_hash FROM student_identities').get();
   assert.ok(row.code_hash, 'the parent code is hashed at registration');
   assert.ok(row.code_enc, 'and sealed so the self-signup page can mail it');
   assert.ok(row.student_code_hash, 'the student code is still there');
@@ -199,7 +199,7 @@ test('a parent-supplied email that differs from the roster is stored as override
     const res = await post(env, { student_ext_id: '904511', email: 'new@example.com' });
     assert.equal(res.status, 200);
 
-    const stored = env._raw.prepare('SELECT parent_email FROM accounts').get().parent_email;
+    const stored = env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().parent_email;
     assert.equal(stored, 'new@example.com', 'the override is written so the parent can fix a roster typo');
     assert.equal(sent[0].to, 'new@example.com', 'the mail went to the parent-supplied address');
   } finally { restore(); }
@@ -212,7 +212,7 @@ test('a request whose email matches the roster does NOT write an override', asyn
     await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
     await post(env, { student_ext_id: '904511', email: 'family@example.com' });
-    const stored = env._raw.prepare('SELECT parent_email FROM accounts').get().parent_email;
+    const stored = env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().parent_email;
     assert.equal(stored, null, 'no override when the roster is already right');
   } finally { restore(); }
 });
@@ -369,5 +369,127 @@ test('the masked preview does not leak the full address to a stranger', async ()
     assert.ok(!body.email_preview.includes('jennifer'));
     assert.ok(!body.email_preview.includes('alvarez'));
     assert.match(body.email_preview, /@example\.com$/);
+  } finally { restore(); }
+});
+
+// ---- school scoping: the Reyes/Whitaker cross-school leak ----
+//
+// Two unrelated students can share a student_ext_id once a second school
+// joins the install -- SIS ids are only unique within a school. See the
+// school-scoping-and-identity plan, "Why: the leak, reproduced".
+
+test('a stranger requesting a shared student ID from the wrong school never reaches the other family', async () => {
+  const { env, sent, restore } = mailEnv();
+  try {
+    // Ana Reyes at Northside and Ben Whitaker at Southside share ID 123456.
+    const reyes = seedSchoolRoster(env._raw, {
+      school: 'Northside High', course: 'Algebra I', extId: '123456',
+      first: 'Ana', last: 'Reyes', parentEmail: 'reyes.family@example.com',
+    });
+    const whitaker = seedSchoolRoster(env._raw, {
+      school: 'Southside High', course: 'Geometry', extId: '123456',
+      first: 'Ben', last: 'Whitaker', parentEmail: 'whitaker.family@example.com',
+    });
+    await seedAccount(env._raw, reyes.rosterId, { username: 'areyes@chicousd.org', code: 'REYS2345', studentCode: 'RSTU2345', parentEmail: null });
+    await seedAccount(env._raw, whitaker.rosterId, { username: 'bwhitaker@chicousd.org', code: 'WHIT2345', studentCode: 'WSTU2345', parentEmail: null });
+
+    // The Whitaker parent requests their own code, with their own correct
+    // address, scoped to their own school.
+    const res = await post(env, {
+      student_ext_id: '123456', email: 'whitaker.family@example.com', school_id: whitaker.schoolId,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(sent.length, 1, 'exactly one mail, to the Whitaker family');
+    assert.equal(sent[0].to, 'whitaker.family@example.com');
+    assert.match(sent[0].body, /Ben Whitaker/, "the mail must name Whitaker, not Reyes");
+    assert.ok(!sent[0].body.includes('Ana Reyes'), 'the mail must never name the other family\'s student');
+
+    // The code that arrived opens a session as WHITAKER's parent.
+    const code = sent[0].body.match(/\b([2-9A-HJ-NP-Z]{8})\b/)[1];
+    const loginRes = await login({
+      request: jsonRequest('https://x/api/sign/login', { student_ext_id: '123456', email: 'whitaker.family@example.com', code }),
+      env,
+    });
+    assert.equal(loginRes.status, 200);
+    assert.equal((await loginRes.json()).role, 'parent');
+
+    // The write that corrupted Reyes's contact address in the reproduction
+    // must never fire against her account: it was never a candidate.
+    const reyesEmail = env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id WHERE a.roster_id = ?').get(reyes.rosterId).parent_email;
+    assert.equal(reyesEmail, null, "a stranger targeting Whitaker's school must never touch Reyes's account");
+  } finally { restore(); }
+});
+
+test('the same shared ID from the OTHER school reaches the other family, symmetrically', async () => {
+  const { env, sent, restore } = mailEnv();
+  try {
+    const reyes = seedSchoolRoster(env._raw, {
+      school: 'Northside High', course: 'Algebra I', extId: '123456',
+      first: 'Ana', last: 'Reyes', parentEmail: 'reyes.family@example.com',
+    });
+    const whitaker = seedSchoolRoster(env._raw, {
+      school: 'Southside High', course: 'Geometry', extId: '123456',
+      first: 'Ben', last: 'Whitaker', parentEmail: 'whitaker.family@example.com',
+    });
+    await seedAccount(env._raw, reyes.rosterId, { username: 'areyes@chicousd.org', code: 'REYS2345', studentCode: 'RSTU2345', parentEmail: null });
+    await seedAccount(env._raw, whitaker.rosterId, { username: 'bwhitaker@chicousd.org', code: 'WHIT2345', studentCode: 'WSTU2345', parentEmail: null });
+
+    const res = await post(env, {
+      student_ext_id: '123456', email: 'reyes.family@example.com', school_id: reyes.schoolId,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].body, /Ana Reyes/);
+
+    const whitakerEmail = env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id WHERE a.roster_id = ?').get(whitaker.rosterId).parent_email;
+    assert.equal(whitakerEmail, null, "the Northside request must never touch Whitaker's account");
+  } finally { restore(); }
+});
+
+test('more than one school on the install requires a school_id', async () => {
+  const { env, sent, restore } = mailEnv();
+  try {
+    seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '904511' });
+    seedSchoolRoster(env._raw, { school: 'Southside High', course: 'Geometry', extId: '904512' });
+
+    const res = await post(env, { student_ext_id: '904511', email: 'x@example.com' });
+    assert.equal(res.status, 400);
+    assert.equal(sent.length, 0);
+  } finally { restore(); }
+});
+
+test('a student enrolled in two courses at one school resolves to one identity', async () => {
+  // With student_identities, UNIQUE (school_id, student_ext_id) means there is
+  // exactly one identity per school per id -- no more ambiguous roster row
+  // concern. The old "refuse if more than one roster row" guard is gone.
+  const { env, sent, restore } = mailEnv();
+  try {
+    const a = seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '555555', first: 'Sam', last: 'Kim' });
+    seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Trigonometry', extId: '555555', first: 'Sam', last: 'Kim' });
+
+    // No identity yet -- the student hasn't registered.
+    const res = await post(env, { student_ext_id: '555555', email: 'x@example.com', school_id: a.schoolId });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.match(body.error, /student needs to set up/, 'no identity yet, so the parent is told to have the student register first');
+    assert.equal(sent.length, 0);
+  } finally { restore(); }
+});
+
+test('a single-school install still resolves a roster row behind an unowned legacy course', async () => {
+  // seedStudent's course has no owner_id -- the shape every course predating
+  // teacher accounts is in (migrations/0002) -- and freshEnv seeds exactly one
+  // school (the migration placeholder). Scoping must be a complete no-op here:
+  // nothing about this endpoint's behaviour may change for an install that
+  // has not yet grown a second school.
+  const { env, sent, restore } = mailEnv();
+  try {
+    assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 1);
+    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
+
+    const res = await post(env, { student_ext_id: '904511', email: 'family@example.com' });
+    assert.equal(res.status, 200);
+    assert.equal(sent.length, 1);
   } finally { restore(); }
 });

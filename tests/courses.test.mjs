@@ -57,7 +57,7 @@ test('one teacher\'s class is never handed to another with the same name', async
   const DOMAIN = 'pvhs.example.org';
   const env = freshEnv({ TEACHER_DOMAINS: DOMAIN, ADMIN_EMAILS: '' });
   const teacher = async (email) => cookieFrom(await signup({
-    request: jsonRequest('https://x/api/admin/signup', { email, password: 'correct-horse-battery-staple' }), env,
+    request: jsonRequest('https://x/api/admin/signup', { email, password: 'correct-horse-battery-staple', school: 'Test School' }), env,
   }));
   const alice = await teacher('alice@' + DOMAIN);
   const bob = await teacher('bob@' + DOMAIN);
@@ -221,7 +221,7 @@ test('one teacher cannot rename, archive or delete another class', async () => {
   const DOMAIN = 'pvhs.example.org';
   const env = freshEnv({ TEACHER_DOMAINS: DOMAIN, ADMIN_EMAILS: '' });
   const teacher = async (email) => cookieFrom(await signup({
-    request: jsonRequest('https://x/api/admin/signup', { email, password: 'correct-horse-battery-staple' }), env,
+    request: jsonRequest('https://x/api/admin/signup', { email, password: 'correct-horse-battery-staple', school: 'Test School' }), env,
   }));
   const alice = await teacher('alice@' + DOMAIN);
   const bob = await teacher('bob@' + DOMAIN);

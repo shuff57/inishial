@@ -142,6 +142,63 @@ function notice(el, text, kind) {
   el.textContent = text;
 }
 
+// ---- the school field on /register/ and /register/code/ ----
+//
+// Type-ahead against GET /api/schools, the same pattern as
+// admin/index.html's placeholder-school banner. Hidden entirely on the
+// common single-school install -- that is every install until a second
+// school joins, and nothing about these forms should get harder for it.
+// Both forms only ever SELECT an existing school: typing something that
+// doesn't match one resolves to no id, and the submit handler below refuses
+// to send the form rather than let the server mint one.
+const SCHOOL_FIELDS = [
+  { label: 'reg-school-label', input: 'reg-school', hidden: 'reg-school-id' },
+  { label: 'rc-school-label', input: 'rc-school', hidden: 'rc-school-id' },
+];
+
+let schools = [];
+
+function resolveSchool({ input, hidden }) {
+  const typed = $(input).value.trim().toLowerCase();
+  const match = schools.find((s) => s.name.toLowerCase() === typed);
+  $(hidden).value = match ? match.id : '';
+}
+
+/** Safe to submit: the field is still hidden (nothing to require), or it has
+ *  resolved to a real school id. */
+function schoolFieldOk({ input, hidden }) {
+  return $(input).hidden || !!$(hidden).value;
+}
+
+for (const f of SCHOOL_FIELDS) {
+  $(f.input).addEventListener('input', () => resolveSchool(f));
+}
+
+(async () => {
+  try {
+    ({ schools = [] } = await (await netFetch('/api/schools')).json());
+  } catch { schools = []; }
+  if (schools.length <= 1) return; // stays hidden -- nothing to require
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  $('publicSchoolNames').innerHTML = schools
+    .map((s) => `<option value="${esc(s.name)}">`).join('');
+  for (const f of SCHOOL_FIELDS) {
+    $(f.label).hidden = false;
+    $(f.input).hidden = false;
+  }
+})();
+
+/** Rebuild the class switcher buttons to highlight the active course. */
+function rebuildSwitcher() {
+  const switcher = $('courseSwitcher');
+  if (!state || !state.courses || state.courses.length <= 1) return;
+  for (const btn of switcher.querySelectorAll('button')) {
+    const c = state.courses.find((x) => x.name === btn.textContent);
+    btn.className = 'secondary' + (c && c.id === state.course_id ? ' active' : '');
+  }
+}
+
 // ---- registering ----
 
 $('registerForm').addEventListener('submit', async (event) => {
@@ -150,6 +207,12 @@ $('registerForm').addEventListener('submit', async (event) => {
   const msg = $('registerMsg');
   const submit = $('registerBtn');
   msg.hidden = true;
+
+  if (!schoolFieldOk(SCHOOL_FIELDS[0])) {
+    notice(msg, 'Select your school from the list.', 'error');
+    return;
+  }
+
   submit.disabled = true;
   submit.textContent = 'Checking…';
 
@@ -233,6 +296,12 @@ requestCodeForm?.addEventListener('submit', async (event) => {
   const msg = $('requestCodeMsg');
   const btn = $('requestCodeBtn');
   msg.hidden = true;
+
+  if (!schoolFieldOk(SCHOOL_FIELDS[1])) {
+    notice(msg, 'Select your school from the list.', 'error');
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Sending…';
 
@@ -296,6 +365,35 @@ async function loadSyllabus() {
     [body.course, body.period && ('Period ' + body.period), 'Version ' + body.version].filter(Boolean).join(' · ');
   $('progressWho').textContent =
     body.student + (body.role === 'parent' ? ' · parent or guardian' : ' · student');
+
+  // Class switcher: shown only when the identity has more than one course.
+  const switcher = $('courseSwitcher');
+  if (body.courses && body.courses.length > 1) {
+    switcher.hidden = false;
+    switcher.textContent = '';
+    for (const c of body.courses) {
+      const btn = document.createElement('button');
+      btn.textContent = c.name;
+      btn.className = 'secondary' + (c.id === body.course_id ? ' active' : '');
+      btn.addEventListener('click', async () => {
+        if (c.id === state.course_id) return;
+        btn.disabled = true;
+        try {
+          const res = await netFetch(`/api/sign/syllabus?course=${c.id}`);
+          if (res.status === 401) return;
+          const newBody = await res.json();
+          if (!res.ok) return;
+          state = newBody;
+          render();
+          rebuildSwitcher();
+        } catch { /* network error, stay put */ }
+        finally { btn.disabled = false; }
+      });
+      switcher.appendChild(btn);
+    }
+  } else {
+    switcher.hidden = true;
+  }
 
   // A returning family whose syllabus has been amended. Said once, at the top,
   // with a count -- so the answer to "what am I being asked to do again" is on

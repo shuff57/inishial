@@ -53,7 +53,11 @@ test('a registered student with no code issued is distinguished from one who jus
   const env = freshEnv();
   const { courseId, rosterId } = seedStudent(env._raw);
   seedSyllabus(env._raw, courseId, BLOCKS);
-  env._raw.prepare('INSERT INTO accounts (roster_id, username, created_at) VALUES (?, ?, 1)').run(rosterId, 'malvarez@chicousd.org');
+  const extId = env._raw.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(rosterId).student_ext_id;
+  const identityId = Number(env._raw.prepare(
+    'INSERT INTO student_identities (school_id, student_ext_id, username, created_at) VALUES (1, ?, ?, 1)',
+  ).run(extId, 'malvarez@chicousd.org').lastInsertRowid);
+  env._raw.prepare('INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, 1)').run(rosterId, identityId);
 
   const body = await (await get(env, `course_id=${courseId}`)).json();
   assert.equal(body.students[0].status, 'no_code',

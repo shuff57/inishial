@@ -87,10 +87,14 @@ test('a code from before the vault reports itself unreadable rather than blank',
   const env = withSecret();
   const { rosterId } = seedStudent(env._raw);
   // Hash but no ciphertext: exactly what an account issued before this looks like.
+  const extId = env._raw.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(rosterId).student_ext_id;
+  const identityId = Number(env._raw.prepare(
+    `INSERT INTO student_identities (school_id, student_ext_id, username, code_hash, code_issued_at, created_at)
+     VALUES (1, ?, 'old@chicousd.org', 'pbkdf2$1$AA==$AA==', 1000, 1000)`,
+  ).run(extId).lastInsertRowid);
   env._raw.prepare(
-    `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, created_at)
-     VALUES (?, 'old@chicousd.org', 'pbkdf2$1$AA==$AA==', 1000, 1000)`,
-  ).run(rosterId);
+    'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, 1000)',
+  ).run(rosterId, identityId);
 
   const body = await (await credentials({
     request: new Request('https://x/api/admin/credentials?course_id=1&format=json', { headers: ADMIN_HEADERS }),
@@ -108,7 +112,11 @@ test('reissuing one student leaves the rest of the class alone', async () => {
   seedStudent(env._raw, { extId: '904511', last: 'Alvarez' });
   seedStudent(env._raw, { extId: '904512', last: 'Chen', first: 'Kevin', course: 'Algebra I' });
   for (const [roster, name] of [[1, 'a@chicousd.org'], [2, 'b@chicousd.org']]) {
-    env._raw.prepare('INSERT INTO accounts (roster_id, username, created_at) VALUES (?, ?, 1000)').run(roster, name);
+    const extId = env._raw.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(roster).student_ext_id;
+    const identityId = Number(env._raw.prepare(
+      'INSERT INTO student_identities (school_id, student_ext_id, username, created_at) VALUES (1, ?, ?, 1000)',
+    ).run(extId, name).lastInsertRowid);
+    env._raw.prepare('INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, 1000)').run(roster, identityId);
   }
 
   const read = async (qs = '') => (await (await credentials({

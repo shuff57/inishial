@@ -84,9 +84,13 @@ test('a returning student is reactivated with their account intact', async () =>
 
   // Bob registers, then drops.
   const bobRosterId = env._raw.prepare("SELECT id FROM roster WHERE student_ext_id = '2'").get().id;
+  const extId = env._raw.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(bobRosterId).student_ext_id;
+  const identityId = Number(env._raw.prepare(
+    'INSERT INTO student_identities (school_id, student_ext_id, username, parent_email, created_at) VALUES (1, ?, ?, ?, ?)',
+  ).run(extId, 'bobray', 'parent@example.com', 1000).lastInsertRowid);
   env._raw.prepare(
-    'INSERT INTO accounts (roster_id, username, parent_email, created_at) VALUES (?, ?, ?, ?)',
-  ).run(bobRosterId, 'bobray', 'parent@example.com', 1000);
+    'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, ?)',
+  ).run(bobRosterId, identityId, 1000);
   await onRequestPost({ request: upload(roster(['1,Lee,Ann,3'])), env });
 
   // ...and is back on next week's roster.
@@ -96,7 +100,7 @@ test('a returning student is reactivated with their account intact', async () =>
   assert.equal(bob.status, 'active');
   assert.equal(bob.dropped_at, null);
 
-  const account = env._raw.prepare('SELECT username FROM accounts WHERE roster_id = ?').get(bobRosterId);
+  const account = env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id WHERE a.roster_id = ?').get(bobRosterId);
   assert.equal(account.username, 'bobray', 'the account survived the drop and came back with them');
 });
 

@@ -16,12 +16,12 @@
 //
 
 // `username` carries the student's SCHOOL EMAIL. It kept its name -- the column
-// is `accounts.username` and is read by the credentials export and the admin
-// tables -- because renaming it is a migration and six query sites for a word.
-// Nothing signs in with it: /api/sign/login is student ID plus access code. It
-// is an identifier the teacher can recognise on a roster, and it is UNIQUE, so
-// two students cannot claim the same address -- which is also why re-entry
-// asks for it: student IDs are unique per course, not globally.
+// is `student_identities.username` and is read by the credentials export and the
+// admin tables -- because renaming it is a migration and six query sites for a
+// word. Nothing signs in with it: /api/sign/login is student ID plus access
+// code. It is an identifier the teacher can recognise on a roster, and it is
+// UNIQUE, so two students cannot claim the same address -- which is also why
+// re-entry asks for it: student IDs are unique per course, not globally.
 //
 // Gated on the student already existing in the teacher's uploaded roster, so
 // only real students in real classes can create an account.
@@ -43,12 +43,18 @@
 // claimed yet. That window closes the moment the real student registers, after
 // which this endpoint only ever says "you already have one, sign in". Add a
 // teacher-approval step if first-claim turns out to be abused.
+//
+// Multi-class: a student enrolled in two of a teacher's classes at one school
+// now registers once and gets accounts for BOTH roster rows, sharing one
+// student_identities row. The old UNIQUE(username) on accounts blocked the
+// second enrolment; moving it to student_identities (one per human) fixes that.
 
 import { json, badRequest, serverMisconfigured, readJson } from '../_lib/http.js';
 import { hit, reset, clientIp } from '../_lib/ratelimit.js';
 import { signSession, sessionCookie } from '../_lib/session.js';
 import { generateCode, hashCode } from '../_lib/codes.js';
 import { sealCode } from '../_lib/vault.js';
+import { resolveSchoolScope, SCHOOL_SCOPE_JOIN } from '../_lib/schoolScope.js';
 
 // Deliberately permissive. Strict RFC-5322 validation rejects addresses that
 // work; the real check is whether the mail arrives.
@@ -93,55 +99,65 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
-  const rosterRow = await env.DB.prepare(
-    `SELECT r.id, r.first, r.last, r.period, r.parent_email, c.name AS course
-       FROM roster r JOIN courses c ON c.id = r.course_id
+  const scope = await resolveSchoolScope(env.DB, body.school_id);
+  if (!scope.ok) return badRequest(scope.error);
+
+  // Scoped by school. A student_ext_id is unique per course, not per install,
+  // so two schools sharing an install can genuinely reuse one. Within one
+  // school, a student enrolled in two courses has two roster rows sharing one
+  // student_ext_id -- that is the multi-class case this endpoint now handles
+  // by fanning out accounts across all matching rows.
+  const { results: rosterRows = [] } = await env.DB.prepare(
+    `SELECT r.id, r.first, r.last, r.period, r.parent_email, c.name AS course, c.id AS course_id
+       FROM roster r
+       JOIN courses c ON c.id = r.course_id
+       ${SCHOOL_SCOPE_JOIN}
       WHERE r.student_ext_id = ?1 AND lower(r.last) = lower(?2)
         AND r.status = 'active'
-      LIMIT 1`,
-  ).bind(studentExtId, last).first();
+        AND (?3 IS NULL OR sc.id = ?3)`,
+  ).bind(studentExtId, last, scope.schoolIdFilter).all();
 
   // Same message whether the ID is absent or the name doesn't match, so this
   // endpoint can't be used to confirm which student IDs exist.
-  if (!rosterRow) {
+  if (rosterRows.length === 0) {
     return badRequest("That student ID and last name don't match our class roster. Check with your teacher.");
   }
 
-  // Already registered. Point at /sign/ rather than re-authenticating here:
-  // signing in is that endpoint's job, and it wants the same school email and
-  // student code this one would have asked for.
-  //
-  // 409 rather than 400 because nothing the student typed is wrong. The client
-  // renders it as a card with a button, not as a red validation error.
-  //
-  // No new disclosure: this confirms an account exists from an ID and a last
-  // name, neither secret -- but the alternative branch below CREATES an account
-  // from exactly those two, so whether one already exists was always observable
-  // from which of the two answers came back.
-  //
-  // The rate limiter is deliberately NOT reset here. Resetting it after a real
-  // registration is safe because that can only happen once per student;
-  // resetting it here would let anyone holding one valid ID and last name clear
-  // their own counter at will and enumerate the roster behind it.
-  const existing = await env.DB.prepare(
-    'SELECT id FROM accounts WHERE roster_id = ?1',
-  ).bind(rosterRow.id).first();
-  if (existing) {
-    return json({
-      error: 'You already have an account. Sign in with your school email and your access code to read the syllabus.',
-      registered: true,
-      next: '/sign/',
-    }, 409);
-  }
+  // Find or create the student_identities row for (school_id, student_ext_id).
+  // Resolve school_id through the first roster row's course -> teacher -> school,
+  // falling back to the placeholder (id 1) for an unowned course.
+  const primaryRow = rosterRows[0];
+  const schoolId = await resolveIdentitySchool(env.DB, primaryRow.course_id);
 
-  if (!EMAIL_RE.test(username)) {
-    return badRequest('Enter your school email address.');
-  }
-  // Optional: the roster export already carries a contact address for most
-  // families. This is the escape hatch for the ones where it is missing or
-  // wrong, so it is validated when given and ignored when not.
-  if (parentEmail && !EMAIL_RE.test(parentEmail)) {
-    return badRequest("That doesn't look like an email address. Leave it blank to use the one your school has on file.");
+  let identity = await env.DB.prepare(
+    'SELECT id, username, code_hash FROM student_identities WHERE school_id = ?1 AND student_ext_id = ?2',
+  ).bind(schoolId, studentExtId).first();
+
+  if (identity) {
+    // This student already registered for a different class earlier. Do NOT
+    // ask for or overwrite username, and do NOT mint new codes -- this is
+    // just adding more enrolments to an identity that already has its login
+    // set up.
+    //
+    // Check whether EVERY matched roster row already has an account. If so,
+    // this is the "already registered" 409.
+    const existingCount = await countExistingAccounts(env.DB, rosterRows);
+    if (existingCount === rosterRows.length) {
+      return json({
+        error: 'You already have an account. Sign in with your school email and your access code to read the syllabus.',
+        registered: true,
+        next: '/sign/',
+      }, 409);
+    }
+  } else {
+    // First-time registration: validate and collect the fields that go on the
+    // identity row.
+    if (!EMAIL_RE.test(username)) {
+      return badRequest('Enter your school email address.');
+    }
+    if (parentEmail && !EMAIL_RE.test(parentEmail)) {
+      return badRequest("That doesn't look like an email address. Leave it blank to use the one your school has on file.");
+    }
   }
 
   // The student's own access code, minted here and shown once on the next
@@ -156,21 +172,21 @@ export async function onRequestPost({ request, env }) {
   const studentCode = generateCode();
   const parentCode = generateCode();
 
-  let accountId;
+  let identityId;
   try {
-    const insert = await env.DB.prepare(
-      `INSERT INTO accounts (roster_id, username, parent_email, created_at,
-                             student_code_hash, student_code_issued_at, student_code_enc,
-                             code_hash, code_issued_at, code_enc)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?4, ?6, ?7, ?4, ?8)`,
-    ).bind(rosterRow.id, username, parentEmail || null, nowSec,
-      // Hash to verify against, ciphertext so the teacher/self-signup page can
-      // read it back to a student/parent who shut the tab. Both, or neither is
-      // any use. sealCode returns null with no CODE_SECRET set, and the page
-      // says so.
-      await hashCode(studentCode), await sealCode(env, studentCode),
-      await hashCode(parentCode), await sealCode(env, parentCode)).run();
-    accountId = Number(insert.meta.last_row_id);
+    if (identity) {
+      identityId = identity.id;
+    } else {
+      const insert = await env.DB.prepare(
+        `INSERT INTO student_identities (school_id, student_ext_id, username, parent_email, created_at,
+                                         student_code_hash, student_code_issued_at, student_code_enc,
+                                         code_hash, code_issued_at, code_enc)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?5, ?7, ?8, ?5, ?9)`,
+      ).bind(schoolId, studentExtId, username, parentEmail || null, nowSec,
+        await hashCode(studentCode), await sealCode(env, studentCode),
+        await hashCode(parentCode), await sealCode(env, parentCode)).run();
+      identityId = Number(insert.meta.last_row_id);
+    }
   } catch (err) {
     // UNIQUE(username) is the only constraint a well-formed request can trip.
     if (String(err?.message || '').includes('UNIQUE')) {
@@ -179,9 +195,25 @@ export async function onRequestPost({ request, env }) {
     throw err;
   }
 
+  // For EVERY matched roster row that does not already have an accounts row,
+  // create one. A student enrolled in two courses gets two accounts sharing
+  // one identity_id.
+  let accountsCreated = 0;
+  for (const row of rosterRows) {
+    const existing = await env.DB.prepare(
+      'SELECT id FROM accounts WHERE roster_id = ?1',
+    ).bind(row.id).first();
+    if (!existing) {
+      await env.DB.prepare(
+        'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?1, ?2, ?3)',
+      ).bind(row.id, identityId, nowSec).run();
+      accountsCreated++;
+    }
+  }
+
   await reset(env.DB, `reg:${clientIp(request)}`);
 
-  const hasContact = !!(parentEmail || rosterRow.parent_email);
+  const hasContact = !!(parentEmail || primaryRow.parent_email);
 
   // Still deliberately absent from this response, and readable off a shared
   // Chromebook if it were not:
@@ -192,19 +224,48 @@ export async function onRequestPost({ request, env }) {
   // The student's own code is here, and only here: it is hashed at rest like
   // every other code, so this response is the one and only time the plaintext
   // exists. A student who loses it asks their teacher to reissue.
-  const token = await signSession(env, accountId, 'student', nowSec);
+  const token = await signSession(env, identityId, 'student', nowSec);
+
+  const extraMsg = accountsCreated > 1
+    ? ` You are enrolled in ${accountsCreated} classes; your syllabus covers all of them.`
+    : '';
 
   return json({
     ok: true,
     username,
-    student_code: studentCode,
-    student: `${rosterRow.first} ${rosterRow.last}`,
-    course: rosterRow.course,
-    period: rosterRow.period,
+    student_code: identity ? null : studentCode,
+    student: `${primaryRow.first} ${primaryRow.last}`,
+    course: primaryRow.course,
+    period: primaryRow.period,
     has_contact: hasContact,
     next: '/sign/',
-    message: hasContact
+    message: (hasContact
       ? 'You are registered. Read the syllabus and add your initials now. Your teacher will email your parent or guardian to do the same.'
-      : 'You are registered. Read the syllabus and add your initials now, and tell your teacher we have no parent email on file for you.',
+      : 'You are registered. Read the syllabus and add your initials now, and tell your teacher we have no parent email on file for you.')
+      + extraMsg,
   }, 201, { 'Set-Cookie': sessionCookie(token) });
+}
+
+/** Resolve the school_id for a course, falling back to the placeholder (id 1)
+ *  when the course is unowned -- the same policy migration 0009 established. */
+async function resolveIdentitySchool(db, courseId) {
+  const row = await db.prepare(
+    `SELECT COALESCE(t.school_id, 1) AS school_id
+       FROM courses c
+       LEFT JOIN teachers t ON t.id = c.owner_id
+      WHERE c.id = ?1`,
+  ).bind(courseId).first();
+  return row ? row.school_id : 1;
+}
+
+/** Count how many of the given roster rows already have an accounts row. */
+async function countExistingAccounts(db, rosterRows) {
+  let count = 0;
+  for (const row of rosterRows) {
+    const existing = await db.prepare(
+      'SELECT id FROM accounts WHERE roster_id = ?1',
+    ).bind(row.id).first();
+    if (existing) count++;
+  }
+  return count;
 }

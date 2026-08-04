@@ -90,14 +90,15 @@ export async function onRequestGet({ request, env }) {
 
   const { results } = await env.DB.prepare(
     `SELECT r.student_ext_id, r.first, r.last, r.period,
-            a.id AS account_id, a.username,
-            COALESCE(a.parent_email, r.parent_email) AS email,
-            CASE WHEN a.code_hash IS NOT NULL THEN 1 ELSE 0 END AS code_issued,
+            a.id AS account_id, si.username,
+            COALESCE(si.parent_email, r.parent_email) AS email,
+            CASE WHEN si.code_hash IS NOT NULL THEN 1 ELSE 0 END AS code_issued,
             (SELECT MAX(v2.num) FROM signatures s2
                JOIN versions v2 ON v2.id = s2.version_id
               WHERE s2.account_id = a.id AND s2.role = 'parent') AS last_signed_version
        FROM roster r
        LEFT JOIN accounts a ON a.roster_id = r.id
+       LEFT JOIN student_identities si ON si.id = a.identity_id
       WHERE r.course_id = ?1 AND r.status = 'active'
       ORDER BY r.period, r.last, r.first`,
   ).bind(courseId).all();

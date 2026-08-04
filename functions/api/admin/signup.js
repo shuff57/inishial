@@ -41,9 +41,11 @@ export async function onRequestPost({ request, env }) {
   const email = normalizeEmail(body?.email);
   const password = String(body?.password ?? '');
   const name = String(body?.name ?? '').trim().slice(0, 120) || null;
+  const schoolName = String(body?.school ?? '').trim();
 
   if (!email) return badRequest('Enter your school email address.');
   if (!looksLikeEmail(email)) return badRequest('That does not look like an email address.');
+  if (!schoolName) return badRequest('Enter your school’s name.');
 
   // Before the domain check and before any hashing: an unlimited signup
   // endpoint is an unlimited way to probe which addresses are already taken.
@@ -64,13 +66,29 @@ export async function onRequestPost({ request, env }) {
 
   const hash = await hashCode(password);
 
+  // Find or create the school by exact name, case-insensitive. Same logic as
+  // PATCH /api/admin/school: an existing row is joined by exact match ("Southside
+  // High" == "southside high"), and only a true no-match creates a new row. The
+  // first teacher to sign up seeds their school this way; there is no seed list.
+  const findExistingSchool = () => env.DB.prepare('SELECT id, name FROM schools WHERE name = ?1 COLLATE NOCASE').bind(schoolName).first();
+  let school = await findExistingSchool();
+  if (!school) {
+    try {
+      const ins = await env.DB.prepare('INSERT INTO schools (name) VALUES (?1)').bind(schoolName).run();
+      school = { id: ins.meta.last_row_id, name: schoolName };
+    } catch (err) {
+      if (!/UNIQUE|constraint/i.test(String(err?.message))) throw err;
+      school = await findExistingSchool();
+    }
+  }
+
   // The UNIQUE index decides, not a SELECT beforehand: two sign-ups for the
   // same address racing each other would both pass a check-then-insert.
   let teacherId;
   try {
     const row = await env.DB.prepare(
-      'INSERT INTO teachers (email, name, password_hash, created_at) VALUES (?1, ?2, ?3, ?4)',
-    ).bind(email, name, hash, nowSec).run();
+      'INSERT INTO teachers (email, name, password_hash, school_id, created_at) VALUES (?1, ?2, ?3, ?4, ?5)',
+    ).bind(email, name, hash, school.id, nowSec).run();
     teacherId = row.meta.last_row_id;
   } catch (err) {
     if (/UNIQUE|constraint/i.test(String(err?.message))) {

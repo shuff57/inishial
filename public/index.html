@@ -129,6 +129,19 @@
       email address your school gave you.</p>
 
     <form id="registerForm" class="card plain" novalidate>
+      <!-- Hidden by default, and left that way for the common single-school
+           install -- app.js shows it only once GET /api/schools comes back
+           with more than one row. A native datalist, the same pattern as
+           admin/index.html's placeholder-school banner: typing an exact
+           existing name resolves the hidden id this form actually submits,
+           and this form only ever SELECTS a school, so an unmatched value
+           blocks submission rather than minting one. -->
+      <label for="reg-school" id="reg-school-label" hidden>School
+        <span class="hint">Start typing your school's name.</span></label>
+      <input id="reg-school" class="blank-name" list="publicSchoolNames" type="text" autocomplete="off" hidden>
+      <input id="reg-school-id" name="school_id" type="hidden">
+      <datalist id="publicSchoolNames"></datalist>
+
       <label for="reg-sid">Student ID number
         <span class="hint">The number on your school ID card.</span></label>
       <input id="reg-sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
@@ -217,6 +230,13 @@
       code gets it through a parent's inbox rather than their own.</p>
 
     <form id="requestCodeForm" class="card plain" novalidate>
+      <!-- Same hide-when-single-school, resolve-to-an-id pattern as
+           #registerForm above; see the comment there. Shares its datalist. -->
+      <label for="rc-school" id="rc-school-label" hidden>School
+        <span class="hint">Start typing your school's name.</span></label>
+      <input id="rc-school" class="blank-name" list="publicSchoolNames" type="text" autocomplete="off" hidden>
+      <input id="rc-school-id" name="school_id" type="hidden">
+
       <label for="rc-sid">Student ID number
         <span class="hint">The number on the student's school ID card.</span></label>
       <input id="rc-sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
@@ -292,6 +312,10 @@
            page they just opened, not something that happened while they were
            looking at it. -->
       <p id="amendedBanner" class="amended-banner" role="status" hidden></p>
+
+      <!-- Class switcher: shown only when the identity has more than one course.
+           A row of buttons, one per course. -->
+      <nav id="courseSwitcher" class="course-switcher" hidden aria-label="Your classes"></nav>
 
       <div id="blocks"></div>
 

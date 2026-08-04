@@ -65,25 +65,89 @@ export function seedStudent(db, { course = 'Algebra I', extId = '904511', first 
   return { courseId, rosterId, extId };
 }
 
+/** Insert a school, a teacher who owns it, a course that teacher owns, and one
+ *  roster row in it -- for tests that exercise the school-scoped join
+ *  (roster -> courses -> teachers -> schools), which seedStudent's UNOWNED
+ *  course cannot reach. Reuses an existing school/course by name so two calls
+ *  can share one school or one course, the way two teachers at a real school
+ *  would. */
+export function seedSchoolRoster(db, {
+  school, course, extId = '904511', first = 'Maria', last = 'Alvarez', period = '3', parentEmail = null,
+} = {}) {
+  let schoolId = db.prepare('SELECT id FROM schools WHERE name = ?').get(school)?.id;
+  if (!schoolId) {
+    schoolId = Number(db.prepare('INSERT INTO schools (name) VALUES (?)').run(school).lastInsertRowid);
+  }
+  const teacherEmail = `${course}-${extId}@${school}`.toLowerCase().replace(/[^a-z0-9@.]+/g, '-');
+  const teacherId = Number(
+    db.prepare('INSERT INTO teachers (email, password_hash, created_at, school_id) VALUES (?, ?, ?, ?)')
+      .run(teacherEmail, 'x', 1000, schoolId).lastInsertRowid,
+  );
+  let courseId = db.prepare('SELECT id FROM courses WHERE name = ? AND owner_id IS NOT NULL').get(course)?.id;
+  if (!courseId) {
+    courseId = Number(
+      db.prepare('INSERT INTO courses (name, created_at, owner_id) VALUES (?, ?, ?)')
+        .run(course, 1000, teacherId).lastInsertRowid,
+    );
+  }
+  const rosterId = Number(
+    db.prepare(
+      "INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+    ).run(courseId, period, extId, first, last, parentEmail).lastInsertRowid,
+  );
+  return { schoolId, teacherId, courseId, rosterId, extId };
+}
+
 /** Register the student and issue both known access codes -- `code` is the
  *  parent's, `studentCode` the student's. They are different strings here for
  *  the same reason they are in production: which one is used at sign-in is what
- *  decides whose signature the session may write. */
+ *  decides whose signature the session may write.
+ *
+ *  Creates a student_identities row (resolving school_id through the roster's
+ *  course -> teacher -> school, falling back to the placeholder school id 1
+ *  for an unowned course) plus an accounts row pointing at it. Returns the
+ *  same shape as before so existing call sites are untouched. */
 export async function seedAccount(db, rosterId, {
   username = 'malvarez@chicousd.org',
   code = 'ABCD2345',
   studentCode = 'STU45678',
   parentEmail = 'parent@example.com',
 } = {}) {
+  // Resolve school_id: roster -> course -> teacher -> school, fallback to 1.
+  const schoolRow = db.prepare(
+    `SELECT COALESCE(t.school_id, 1) AS school_id
+       FROM roster r
+       JOIN courses c ON c.id = r.course_id
+       LEFT JOIN teachers t ON t.id = c.owner_id
+      WHERE r.id = ?1`,
+  ).get(rosterId);
+  const schoolId = schoolRow ? schoolRow.school_id : 1;
+
+  const extId = db.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(rosterId)?.student_ext_id;
+
+  // Find or create the student_identities row.
+  let identityId = db.prepare(
+    'SELECT id FROM student_identities WHERE school_id = ? AND student_ext_id = ?',
+  ).get(schoolId, extId)?.id;
+
+  if (!identityId) {
+    identityId = Number(
+      db.prepare(
+        `INSERT INTO student_identities (school_id, student_ext_id, username, code_hash, code_issued_at, parent_email, created_at,
+                                         student_code_hash, student_code_issued_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(schoolId, extId, username, code ? await hashCode(code) : null, code ? 1000 : null,
+        parentEmail, 1000,
+        studentCode ? await hashCode(studentCode) : null, studentCode ? 1000 : null).lastInsertRowid,
+    );
+  }
+
   const accountId = Number(
     db.prepare(
-      `INSERT INTO accounts (roster_id, username, code_hash, code_issued_at, parent_email, created_at,
-                             student_code_hash, student_code_issued_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(rosterId, username, await hashCode(code), 1000, parentEmail, 1000,
-      studentCode ? await hashCode(studentCode) : null, studentCode ? 1000 : null).lastInsertRowid,
+      'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, ?)',
+    ).run(rosterId, identityId, 1000).lastInsertRowid,
   );
-  return { accountId, code, studentCode };
+  return { accountId, identityId, code, studentCode };
 }
 
 /**

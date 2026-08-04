@@ -24,11 +24,12 @@ export async function onRequestGet({ request, env }) {
   if (!Number.isInteger(accountId) || accountId < 1) return badRequest('account_id is required.');
 
   const who = await env.DB.prepare(
-    `SELECT a.id, a.username, COALESCE(a.parent_email, r.parent_email) AS email,
+    `SELECT a.id, si.username, COALESCE(si.parent_email, r.parent_email) AS email,
             r.first, r.last, r.student_ext_id, r.period, c.name AS course, c.owner_id
        FROM accounts a
        JOIN roster r ON r.id = a.roster_id
        JOIN courses c ON c.id = r.course_id
+       LEFT JOIN student_identities si ON si.id = a.identity_id
       WHERE a.id = ?1`,
   ).bind(accountId).first();
   // This page is a named student, their parent's email, and everything they
