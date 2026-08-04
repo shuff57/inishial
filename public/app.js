@@ -86,6 +86,17 @@ function show(path, { push = true } = {}) {
   // sequence, and it is the one a parent actually works through.
   swap(target);
   focusMain();
+
+  // Arriving at /sign/ without having loaded the syllabus yet. This is a
+  // same-document change, so nothing re-runs on its own -- and the session may
+  // well have been minted since the last check.
+  //
+  // The case this exists for is the student who has just registered: they hold
+  // a session cookie, and the button on the confirmation card brought them here
+  // without a navigation. Before this they were shown the sign-in form and
+  // asked for the access code they had been told to write down thirty seconds
+  // earlier, which reads as the registration not having counted.
+  if (target.id === 'view-sign') ensureSyllabus();
 }
 
 /** Move focus to the page after a view change, the way a real navigation would.
@@ -244,6 +255,24 @@ requestCodeForm?.addEventListener('submit', async (event) => {
     btn.textContent = 'Send my code';
   }
 });
+
+/** loadSyllabus, made safe to call on every arrival at /sign/.
+ *
+ *  Two guards. `state` means it is already loaded, and re-fetching would throw
+ *  away the page the reader was on. `inFlight` means a request is out: without
+ *  it, a reader clicking between nav items faster than the network answers
+ *  would stack requests whose responses could then land out of order.
+ *
+ *  Anonymous arrivals do re-check, and that is deliberate -- a session can be
+ *  minted in another tab, and a 401 is cheap. */
+let inFlight = null;
+function ensureSyllabus() {
+  if (state || inFlight) return;
+  inFlight = loadSyllabus()
+    .catch(() => notice($('loginMsg'),
+      'Could not reach the server. Check your connection and try again.', 'error'))
+    .finally(() => { inFlight = null; });
+}
 
 async function loadSyllabus() {
   const res = await netFetch('/api/sign/syllabus');
@@ -450,10 +479,8 @@ $('nextPage').addEventListener('click', () => book?.go(book.at() + 1));
 // ---- start ----
 
 swap(viewFor(location.pathname));   // no transition on first paint
-// An existing session skips the sign-in form. Caught, because this one is not
-// awaited by anything: on a dropped connection the rejection had nowhere to go
-// and became an unhandled promise rejection, leaving the parent on a bare
-// sign-in form with no hint that the problem was the network rather than them.
-loadSyllabus().catch(() => {
-  notice($('loginMsg'), 'Could not reach the server. Check your connection and reload.', 'error');
-});
+// An existing session skips the sign-in form. Through ensureSyllabus like every
+// other arrival, so the rejection has somewhere to go: unhandled, a dropped
+// connection left the parent on a bare sign-in form with no hint that the
+// problem was the network rather than them.
+ensureSyllabus();
