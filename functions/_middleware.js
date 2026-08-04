@@ -12,6 +12,22 @@
 
 import { serveApp } from './_lib/spa.js';
 
+// The production pages.dev hostname redirects to the custom domain, so parents
+// only ever see one address and the link in their access-code email sits on the
+// same registrable domain as the address it was sent from.
+//
+// EXACTLY this hostname, never `.endsWith('.pages.dev')`: preview deployments
+// are served at <hash>.inishial.pages.dev, and bouncing those to production
+// would make it impossible to check a build before promoting it.
+const LEGACY_HOST = 'inishial.pages.dev';
+
+// 302, not 301/308. Browsers cache a permanent redirect indefinitely, and the
+// canonical hostname is a day old -- if it changes again, anyone who visited
+// the old one is stuck pointing at a name that no longer serves. Tighten to 308
+// once the hostname has settled; 308 rather than 301 because this also covers
+// POSTs to /api, and 301 would rewrite those to GET.
+const REDIRECT_STATUS = 302;
+
 const SHELL_PATHS = new Set(['/sign', '/register']);
 // HEAD as well as GET. Gating on GET alone made HEAD /sign a 404, which is the
 // request link checkers, previews and crawlers actually send -- so the URL in a
@@ -19,7 +35,22 @@ const SHELL_PATHS = new Set(['/sign', '/register']);
 const PAGE_METHODS = new Set(['GET', 'HEAD']);
 
 export async function onRequest(context) {
-  const path = new URL(context.request.url).pathname.replace(/\/+$/, '') || '/';
+  const url = new URL(context.request.url);
+
+  // Canonical host first, so nothing else answers on the old hostname. The
+  // target comes from APP_URL, the same var the mailed link is built from --
+  // one place to change, and no way for the two to drift apart.
+  if (url.hostname === LEGACY_HOST && context.env.APP_URL) {
+    const canonical = new URL(context.env.APP_URL);
+    if (canonical.hostname !== LEGACY_HOST) {
+      url.hostname = canonical.hostname;
+      url.protocol = canonical.protocol;
+      url.port = '';
+      return Response.redirect(url.toString(), REDIRECT_STATUS);
+    }
+  }
+
+  const path = url.pathname.replace(/\/+$/, '') || '/';
   if (PAGE_METHODS.has(context.request.method) && SHELL_PATHS.has(path)) return serveApp(context);
   return context.next();
 }

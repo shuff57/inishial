@@ -50,7 +50,7 @@ OLLAMA_HOST = "https://ollama.com"
 # var so moving off pages.dev to a huffpalmer.fyi hostname is one edit here --
 # a mail whose link points at a different registrable domain than its From
 # address is worse for the parent and a signal spam filters score against.
-APP_URL = "https://syllabus.huffpalmer.fyi"
+APP_URL = "https://inishial.huffpalmer.fyi"
 # The From address for the parent access-code email, and the address replies
 # go to. Both are mailboxes on the self-hosted Stalwart server; a parent who
 # hits reply reaches a mailbox a human reads, not a black hole.
@@ -98,7 +98,7 @@ TEACHER_DOMAINS = ""
 OLLAMA_HOST = "https://ollama.com"
 OLLAMA_MODEL = "minimax-m3"
 OLLAMA_HIDE = "kimi-k3"
-APP_URL = "https://syllabus.huffpalmer.fyi"
+APP_URL = "https://inishial.huffpalmer.fyi"
 MAIL_FROM = "no-reply@mail.huffpalmer.fyi"
 MAIL_REPLY_TO = "support@mail.huffpalmer.fyi"
 STALWART_URL = "https://smtp.huffpalmer.fyi"
