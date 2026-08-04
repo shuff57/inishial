@@ -230,7 +230,7 @@ test('a parent sees the published version, never the draft', async () => {
   await adminSave(env, { course_id: realCourseId, blocks: [...DRAFT, { type: 'initial', html: 'Secret draft clause.' }] });
 
   const cookie = cookieFrom(await signLogin({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code }), env,
+    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'parent@example.com', code }), env,
   }));
   const view = await (await parentView({
     request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookie } }), env,

@@ -155,7 +155,7 @@ test('the parent view receives the level, and pages on it', async () => {
   seedLevelled(env._raw, courseId);
 
   const cookie = cookieFrom(await signLogin({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code, role: 'parent' }), env,
+    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'parent@example.com', code, role: 'parent' }), env,
   }));
   const body = await (await parentView({
     request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookie } }), env,
@@ -179,7 +179,7 @@ test('each signing prompt stays in the section it attests to', async () => {
   seedLevelled(env._raw, courseId);
 
   const cookie = cookieFrom(await signLogin({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code, role: 'parent' }), env,
+    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'parent@example.com', code, role: 'parent' }), env,
   }));
   const body = await (await parentView({
     request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookie } }), env,

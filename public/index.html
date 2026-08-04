@@ -113,8 +113,8 @@
   <!-- ---------- set up an account ---------- -->
   <section class="view" id="view-register" data-path="/register/" hidden>
     <h1>Set up your account</h1>
-    <p class="muted">Already set one up? Enter your student ID and last name and leave the rest blank,
-      it takes you back to your syllabus.</p>
+    <p class="muted">Already set one up? Enter your student ID, last name, school email and
+      your access code to pick up where you left off.</p>
 
     <form id="registerForm" class="card plain" novalidate>
       <label for="reg-sid">Student ID number
@@ -124,11 +124,18 @@
       <label for="reg-last">Last name</label>
       <input id="reg-last" class="blank-name" name="last" type="text" autocomplete="family-name" required>
 
-      <label for="reg-username">School email <span class="hint">(first time only)</span>
-        <span class="hint">The address your school gave you.
-          Leave blank if you already have an account.</span></label>
+      <label for="reg-username">School email
+        <span class="hint">The address your school gave you. Needed both to set up an
+          account and to come back to one.</span></label>
       <input id="reg-username" class="blank-name" name="username" type="email"
              inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false">
+
+      <label for="reg-code">Your access code <span class="hint">(coming back only)</span>
+        <span class="hint">The code shown when you set up your account. Leave blank the
+          first time. Lost it? A parent or guardian can have it emailed to them from the
+          sign-in page.</span></label>
+      <input id="reg-code" class="blank-code" name="student_code" type="text"
+             autocomplete="off" spellcheck="false">
 
       <label for="reg-email">Parent or guardian's email <span class="hint">(optional)</span>
         <span class="hint">Your school already has a contact email for most families. Only fill this in if
@@ -169,8 +176,14 @@
           <span class="hint">The number on your student's school ID card.</span></label>
         <input id="sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
 
+        <label for="login-email">Your email address
+          <span class="hint">Parents: the address the code was emailed to.
+            Students: your school email.</span></label>
+        <input id="login-email" name="email" type="email" inputmode="email"
+               autocomplete="email" autocapitalize="none" spellcheck="false" required>
+
         <label for="code">Access code
-          <span class="hint">Eight characters. Parents: from your teacher's email.
+          <span class="hint">Eight characters. Parents: from the email you were sent.
             Students: the code shown when you set up your account.</span></label>
         <input id="code" class="blank-code" name="code" type="text" autocomplete="off" spellcheck="false" required>
 
@@ -190,21 +203,23 @@
            than a separate page so the parent never loses the URL they came
            from. -->
       <p class="muted small" id="requestCodeToggle">
-        <a href="#" id="requestCodeLink">Don't have a code? Get one sent to you.</a>
+        <a href="#" id="requestCodeLink">Don't have a code, or lost it? Get one sent to you.</a>
       </p>
 
       <form id="requestCodeForm" class="card plain" hidden novalidate>
         <h2>Get your access code</h2>
-        <p class="muted">Enter your student's ID number and your email address. We'll
-          send the access code to that email.</p>
+        <p class="muted">Enter your student's ID number and your email address. We'll send
+          the access code to that email &mdash; and your student's code too, in case they
+          have lost theirs.</p>
 
         <label for="rc-sid">Student ID number
           <span class="hint">The number on your student's school ID card.</span></label>
         <input id="rc-sid" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
 
-        <label for="rc-email">Your email address
-          <span class="hint">We'll mail the code here. This is the address your
-            school has on file unless you change it.</span></label>
+        <label for="rc-email">Your personal email address
+          <span class="hint"><strong>Use a personal address, not a school one.</strong>
+            School and district mail systems block outside senders, so a school address
+            will not receive this. Defaults to the address your school has on file.</span></label>
         <input id="rc-email" name="email" type="email" autocomplete="off" required>
 
         <div id="requestCodeMsg" hidden></div>

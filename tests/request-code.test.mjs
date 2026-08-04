@@ -159,7 +159,7 @@ test('the code that was mailed opens a parent session at sign-in', async () => {
     // Pull the code out of the captured mail body and sign in with it.
     const code = sent[0].body.match(/\b([2-9A-HJ-NP-Z]{8})\b/)[1];
     const loginRes = await login({
-      request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code }),
+      request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'family@example.com', code }),
       env,
     });
     assert.equal(loginRes.status, 200);
@@ -350,7 +350,7 @@ test('a legacy account with no parent code mints one on demand and mails it', as
     // The minted code now signs in as a parent.
     const code = sent[0].body.match(/\b([2-9A-HJ-NP-Z]{8})\b/)[1];
     const loginRes = await login({
-      request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code }),
+      request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'family@example.com', code }),
       env,
     });
     assert.equal(loginRes.status, 200);

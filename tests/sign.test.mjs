@@ -29,8 +29,12 @@ async function setup({ published = true } = {}) {
   return { env, courseId, accountId, extId, code, studentCode, ...seeded };
 }
 
+// Sign-in now takes an email as well: it disambiguates a student ID that is
+// only unique per course, and it is what selects the side. Default to the
+// family address so only the student-code cases have to say otherwise.
 const doLogin = (env, body, headers) =>
-  login({ request: jsonRequest('https://x/api/sign/login', body, headers), env });
+  login({ request: jsonRequest('https://x/api/sign/login',
+    { email: 'parent@example.com', ...body }, headers), env });
 
 const withCookie = (cookie) => ({ Cookie: cookie });
 
@@ -63,7 +67,7 @@ test('the parent code opens a parent session and nothing else', async () => {
 
 test('the student code opens a student session', async () => {
   const { env, extId, studentCode } = await setup();
-  const body = await (await doLogin(env, { student_ext_id: extId, code: studentCode })).json();
+  const body = await (await doLogin(env, { student_ext_id: extId, email: 'malvarez@chicousd.org', code: studentCode })).json();
   assert.equal(body.role, 'student');
 });
 
@@ -76,7 +80,7 @@ test('a role claimed in the request body is ignored outright', async () => {
 
   // And the reverse, so the field is dead in both directions rather than
   // merely inconvenient in one.
-  const other = await (await doLogin(env, { student_ext_id: extId, code: studentCode, role: 'parent' })).json();
+  const other = await (await doLogin(env, { student_ext_id: extId, email: 'malvarez@chicousd.org', code: studentCode, role: 'parent' })).json();
   assert.equal(other.role, 'student', 'the student code cannot buy a parent session');
 });
 
@@ -347,7 +351,7 @@ test('a second submission returns the first rather than overwriting it', async (
 test('a parent and a student sign the same section independently', async () => {
   const ctx = await setup();
   const parent = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, code: ctx.code }));
-  const student = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, code: ctx.studentCode }));
+  const student = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, email: 'malvarez@chicousd.org', code: ctx.studentCode }));
 
   await initial(ctx.env, parent, { block_id: ctx.blockIds[2], initials: 'PAR' });
   await initial(ctx.env, student, { block_id: ctx.blockIds[2], initials: 'STU' });
@@ -401,4 +405,46 @@ test('initialing without a session is refused', async () => {
   const { env, blockIds } = await setup();
   const res = await postInitial({ request: jsonRequest('https://x/api/sign/initial', { block_id: blockIds[2], initials: 'MRA' }), env });
   assert.equal(res.status, 401);
+});
+
+test('the right code with the wrong email does not sign anyone in', async () => {
+  const ctx = await setup();
+  const res = await doLogin(ctx.env, {
+    student_ext_id: ctx.extId, email: 'stranger@example.com', code: ctx.code,
+  });
+  assert.equal(res.status, 401, 'the code alone is no longer enough');
+});
+
+test('a student ID shared by two courses resolves by email, not by luck', async () => {
+  // student_ext_id is UNIQUE per COURSE, not globally: the same number
+  // legitimately appears on two rosters -- a student taught for two subjects,
+  // or a second school on this install. Sign-in used to take whichever row the
+  // database happened to return first.
+  const ctx = await setup();
+  const { rosterId: otherRoster } = seedStudent(ctx.env._raw, {
+    course: 'Geometry', extId: ctx.extId, first: 'Other', last: 'Person',
+    parentEmail: 'other-family@example.com',
+  });
+  await seedAccount(ctx.env._raw, otherRoster, {
+    username: 'operson@chicousd.org', code: 'OTHR2345',
+    studentCode: 'OTHRSTU9', parentEmail: 'other-family@example.com',
+  });
+
+  const mine = await doLogin(ctx.env, {
+    student_ext_id: ctx.extId, email: 'parent@example.com', code: ctx.code,
+  });
+  assert.equal(mine.status, 200);
+  assert.equal((await mine.json()).student, 'Maria Alvarez', 'my email, my student');
+
+  const theirs = await doLogin(ctx.env, {
+    student_ext_id: ctx.extId, email: 'other-family@example.com', code: 'OTHR2345',
+  });
+  assert.equal(theirs.status, 200);
+  assert.equal((await theirs.json()).student, 'Other Person', 'their email, their student');
+
+  // And a code cannot be used across the two accounts that share the ID.
+  const crossed = await doLogin(ctx.env, {
+    student_ext_id: ctx.extId, email: 'parent@example.com', code: 'OTHR2345',
+  });
+  assert.equal(crossed.status, 401, "the other family's code does not open this one");
 });

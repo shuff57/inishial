@@ -1,16 +1,17 @@
 // POST /api/register  -- student self-registration and re-entry (public,
 // QR-code target)
 //
-// Body: { student_ext_id, last, username, parent_email }
-//        username and parent_email are for first-time sign-up only; a returning
-//        student sends just the ID and last name.
+// Body: { student_ext_id, last, username, parent_email, student_code }
+//        parent_email is first-time sign-up only. A RETURNING student sends
+//        student_ext_id + username (school email) + student_code.
 //
 // `username` carries the student's SCHOOL EMAIL. It kept its name -- the column
 // is `accounts.username` and is read by the credentials export and the admin
 // tables -- because renaming it is a migration and six query sites for a word.
 // Nothing signs in with it: /api/sign/login is student ID plus access code. It
 // is an identifier the teacher can recognise on a roster, and it is UNIQUE, so
-// two students cannot claim the same address.
+// two students cannot claim the same address -- which is also why re-entry
+// asks for it: student IDs are unique per course, not globally.
 //
 // Gated on the student already existing in the teacher's uploaded roster, so
 // only real students in real classes can create an account.
@@ -27,15 +28,16 @@
 // only ever write role='student' signature rows, so the two attestations stay
 // independent on one account.
 //
-// ponytail: student ID + last name is the whole gate on a student session,
-// which is the same gate registration already had -- claiming an account was
-// always possible for someone holding both. Add a teacher-approval step if a
-// class turns out to have students signing for each other.
+// First-time sign-up is still gated on student ID + last name, neither of which
+// is secret -- someone holding both can claim an account that has not been
+// claimed yet. That window closes the moment the real student registers, and
+// re-entry after that needs the school email and the access code. Add a
+// teacher-approval step if first-claim turns out to be abused.
 
 import { json, badRequest, serverMisconfigured, readJson } from '../_lib/http.js';
 import { hit, reset, clientIp } from '../_lib/ratelimit.js';
 import { signSession, sessionCookie } from '../_lib/session.js';
-import { generateCode, hashCode } from '../_lib/codes.js';
+import { generateCode, hashCode, verifyCode, normalize } from '../_lib/codes.js';
 import { sealCode } from '../_lib/vault.js';
 
 // Deliberately permissive. Strict RFC-5322 validation rejects addresses that
@@ -47,6 +49,11 @@ import { sealCode } from '../_lib/vault.js';
 // address in the credentials export either way. If every student really is on
 // one domain, `domainAllowed` in _lib/teachers.js is the check to reuse.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// A well-formed hash that no code matches. Verified against when the account
+// has no student code, so "no code set" costs the same time as "wrong code"
+// and cannot be told apart from outside. Same trick as api/sign/login.js.
+const DECOY = 'pbkdf2$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
 
 export async function onRequestPost({ request, env }) {
   if (!env.DB) return serverMisconfigured('the DB binding');
@@ -103,9 +110,35 @@ export async function onRequestPost({ request, env }) {
   // a real registration is safe because that can only happen once per student;
   // resetting it here would let anyone holding one valid ID and last name clear
   // their own counter at will and enumerate the roster behind it.
-  const existing = await env.DB.prepare('SELECT id, username, parent_email FROM accounts WHERE roster_id = ?1')
-    .bind(rosterRow.id).first();
+  const existing = await env.DB.prepare(
+    'SELECT id, username, parent_email, student_code_hash FROM accounts WHERE roster_id = ?1',
+  ).bind(rosterRow.id).first();
   if (existing) {
+    // Coming back now costs the same two things signing in costs a parent: the
+    // school email on the account, and the student's own access code.
+    //
+    // It used to cost a student ID and a last name, which is not a secret --
+    // both are printed on a roster and visible on an ID card, so any classmate
+    // holding them could take a student session and initial the syllabus as
+    // that student. The code is the only thing here that is actually secret,
+    // and the school email is what makes the ID unambiguous: student IDs are
+    // unique per COURSE, not globally, so the same number can appear on two
+    // rosters while accounts.username is UNIQUE across the whole install.
+    //
+    // A student who has lost the code recovers it through the parent's email
+    // (see api/sign/request-code.js), because a district mail system will not
+    // deliver our mail to a student's school address.
+    const studentCode = normalize(String(body.student_code ?? ''));
+    const emailOk = !!username && String(existing.username || '').toLowerCase() === username;
+    // Verified even when the email is wrong, so a mismatched address and a
+    // wrong code cost the same time and neither can be told apart from outside.
+    const codeOk = await verifyCode(studentCode, existing.student_code_hash || DECOY)
+      && !!existing.student_code_hash;
+
+    if (!emailOk || !codeOk) {
+      return badRequest("That school email and access code don't match this student ID. Your code was shown when you signed up -- if you have lost it, a parent or guardian can have it emailed to them.");
+    }
+
     const token = await signSession(env, Number(existing.id), 'student', nowSec);
     return json({
       ok: true,

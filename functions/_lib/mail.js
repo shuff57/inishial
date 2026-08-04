@@ -136,51 +136,86 @@ function signUrl(env) {
   return `${base}/sign`;
 }
 
-function textBody(studentName, code, url) {
-  return [
+// Both codes go to this address on purpose. A student who loses theirs has no
+// way back in otherwise: district mail systems routinely block external senders
+// for student accounts, so their school address is not a recovery path, and a
+// parent sitting down to do this WITH their child needs both halves in reach.
+//
+// The cost is real and worth stating: whoever holds this email can sign as
+// either party, so the two attestations are no longer independent for a family
+// that shares an inbox. That was the deliberate trade -- recoverability over a
+// separation that only held as long as nobody ever lost a slip of paper.
+function textBody(studentName, parentCode, studentCode, url) {
+  const lines = [
     `Hi ${studentName}'s parent or guardian,`,
-    '',
-    `Here is the access code you need to read and initial the course syllabus:`,
-    '',
-    `    ${code}`,
     '',
     `Open the syllabus here:`,
     `    ${url}`,
     '',
-    `Enter your student's ID number and this code, then initial each section.`,
+    `YOUR access code (parent or guardian):`,
     '',
-    `If you did not request this code, you can ignore this email.`,
+    `    ${parentCode}`,
+    '',
+  ];
+  if (studentCode) {
+    lines.push(
+      `${studentName}'s access code, in case they have lost theirs:`,
+      '',
+      `    ${studentCode}`,
+      '',
+      `Keep these separate when you sign. Each of you initials your own copy,`,
+      `so use your own code -- signing both as one person defeats the point.`,
+      '',
+    );
+  }
+  lines.push(
+    `Enter your student's ID number and your code, then initial each section.`,
+    '',
+    `If you did not request this, you can ignore this email.`,
     '',
     `-- iniSHial`,
-  ].join('\r\n');
+  );
+  return lines.join('\r\n');
 }
 
-function htmlBody(studentName, code, url) {
+function htmlBody(studentName, parentCode, studentCode, url) {
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
-  return [
+  const codeStyle = 'font-size:1.4rem;letter-spacing:.12em;font-weight:700;margin:.2rem 0';
+  const out = [
     `<p>Hi ${esc(studentName)}'s parent or guardian,</p>`,
-    `<p>Here is the access code you need to read and initial the course syllabus:</p>`,
-    `<p style="font-size:1.4rem;letter-spacing:.12em;font-weight:700">${esc(code)}</p>`,
     `<p><a href="${esc(url)}">Open the syllabus</a></p>`,
     // The bare URL as well as the link: some clients strip anchors, and a
     // parent who cannot see where a link goes is right not to trust it.
     `<p style="color:#666;font-size:.9rem">Or paste this into your browser:<br>${esc(url)}</p>`,
-    `<p>Enter your student's ID number and this code, then initial each section.</p>`,
-    `<p style="color:#666">If you did not request this code, you can ignore this email.</p>`,
+    `<p style="margin-bottom:0"><strong>Your access code</strong> (parent or guardian):</p>`,
+    `<p style="${codeStyle}">${esc(parentCode)}</p>`,
+  ];
+  if (studentCode) {
+    out.push(
+      `<p style="margin-bottom:0"><strong>${esc(studentName)}'s access code</strong>, in case they have lost theirs:</p>`,
+      `<p style="${codeStyle}">${esc(studentCode)}</p>`,
+      `<p style="color:#666">Keep these separate when you sign. Each of you initials your own copy, so use your own code &mdash; signing both as one person defeats the point.</p>`,
+    );
+  }
+  out.push(
+    `<p>Enter your student's ID number and your code, then initial each section.</p>`,
+    `<p style="color:#666">If you did not request this, you can ignore this email.</p>`,
     `<p style="color:#999;font-size:.8rem">-- iniSHial</p>`,
-  ].join('\r\n');
+  );
+  return out.join('\r\n');
 }
 
 /**
- * Send the parent's access code to `toEmail`.
+ * Send the access codes to `toEmail`. `studentCode` is optional -- omitted
+ * for a legacy account that has none.
  *
  * Returns { ok: true, messageId, dryRun? } on success, or
  * { ok: false, code, message } on failure. Never throws -- the caller is a
  * public endpoint that reports honestly whether the mail went.
  */
-export async function sendAccessCode(env, toEmail, studentName, code) {
+export async function sendAccessCode(env, toEmail, studentName, code, studentCode = null) {
   // The mail subdomain, not the apex: huffpalmer.fyi's MX belongs to Cloudflare
   // Email Routing, and a transactional sender on its own subdomain keeps a spam
   // complaint here from dragging down the apex domain's reputation.
@@ -192,8 +227,8 @@ export async function sendAccessCode(env, toEmail, studentName, code) {
   // that says "check your inbox".
   if (!env.STALWART_URL || !env.STALWART_API_KEY) {
     if (env.MAIL_DRY_RUN) {
-      console.log('[mail:dry-run] to=%s from=%s student=%s code=%s',
-        toEmail, from, studentName, code);
+      console.log('[mail:dry-run] to=%s from=%s student=%s code=%s studentCode=%s',
+        toEmail, from, studentName, code, studentCode || '(none)');
       return { ok: true, dryRun: true, messageId: 'dry-run' };
     }
     return { ok: false, code: 'E_NO_CREDS', message: 'Mail server credentials are not configured on this deployment.' };
@@ -215,8 +250,8 @@ export async function sendAccessCode(env, toEmail, studentName, code) {
             textBody: [{ partId: 't', type: 'text/plain' }],
             htmlBody: [{ partId: 'h', type: 'text/html' }],
             bodyValues: {
-              t: { value: textBody(studentName, code, signUrl(env)) },
-              h: { value: htmlBody(studentName, code, signUrl(env)) },
+              t: { value: textBody(studentName, code, studentCode, signUrl(env)) },
+              h: { value: htmlBody(studentName, code, studentCode, signUrl(env)) },
             },
           },
         },

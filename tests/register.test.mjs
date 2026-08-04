@@ -173,7 +173,7 @@ test('student and parent initials land on the same student, counted apart', asyn
     .run(await hashCode(code), 1000, rosterId);
 
   const parentCookie = cookieFrom(await login({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code, role: 'parent' }), env,
+    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'family@example.com', code, role: 'parent' }), env,
   }));
   await initial({ request: jsonRequest('https://x/api/sign/initial', { block_id: blockIds[0], initials: 'JA' }, { Cookie: parentCookie }), env });
 
@@ -194,12 +194,19 @@ test('a returning student gets a session back, not a 409', async () => {
   const { courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
-  const first = cookieFrom(await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' }));
+  const firstRes = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const STUDENT_CODE = (await firstRes.clone().json()).student_code;
+  const first = cookieFrom(firstRes);
   const blockIds = env._raw.prepare('SELECT id FROM blocks WHERE needs_initials = 1 ORDER BY ord').all().map((b) => b.id);
   await initial({ request: jsonRequest('https://x/api/sign/initial', { block_id: blockIds[0], initials: 'MA' }, { Cookie: first }), env });
 
-  // The next day: no code, no username, just the ID and last name off their card.
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
+  // The next day. Re-entry costs the school email and the student's own code:
+  // an ID and a last name are printed on a roster, so on their own they let any
+  // classmate take this session and initial the syllabus as someone else.
+  const res = await post(env, {
+    student_ext_id: '904511', last: 'Alvarez',
+    username: 'malvarez@chicousd.org', student_code: STUDENT_CODE,
+  });
   const body = await res.json();
   assert.equal(res.status, 200);
   assert.equal(body.returning, true);
@@ -302,7 +309,7 @@ test('registering mints the student their own code, and it signs them in', async
   assert.ok(stored && !stored.includes(body.student_code), 'the code was stored in the clear');
 
   const res = await login({ request: jsonRequest('https://x/api/sign/login', {
-    student_ext_id: '904511', code: body.student_code,
+    student_ext_id: '904511', email: 'malvarez@chicousd.org', code: body.student_code,
   }), env });
   assert.equal(res.status, 200);
   assert.equal((await res.json()).role, 'student', 'their own code brings them back as themselves');
@@ -382,4 +389,43 @@ test('a later export that omits emails does not blank the ones on file', async (
 
   assert.equal(env._raw.prepare('SELECT parent_email FROM roster').get().parent_email, 'mom@example.com',
     'a working contact must survive an export that simply lacks the column');
+});
+
+test('re-entry with only an ID and last name is refused', async () => {
+  // The point of the change. Both of these are printed on a class roster and
+  // visible on an ID card, so on their own they let any classmate take a
+  // student session and initial the syllabus as someone else.
+  const env = freshEnv();
+  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
+  assert.equal(res.status, 400, 'the old gate no longer opens');
+  assert.equal(res.headers.get('Set-Cookie'), null, 'and no session is issued');
+});
+
+test('re-entry needs the right school email AND the right code', async () => {
+  const env = freshEnv();
+  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const reg = await (await post(env, {
+    student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+  })).json();
+
+  const wrongCode = await post(env, {
+    student_ext_id: '904511', last: 'Alvarez',
+    username: 'malvarez@chicousd.org', student_code: 'WRONG999',
+  });
+  assert.equal(wrongCode.status, 400, 'right email, wrong code');
+
+  const wrongEmail = await post(env, {
+    student_ext_id: '904511', last: 'Alvarez',
+    username: 'someone.else@chicousd.org', student_code: reg.student_code,
+  });
+  assert.equal(wrongEmail.status, 400, 'right code, wrong email');
+
+  const both = await post(env, {
+    student_ext_id: '904511', last: 'Alvarez',
+    username: 'malvarez@chicousd.org', student_code: reg.student_code,
+  });
+  assert.equal(both.status, 200, 'both together open it');
 });

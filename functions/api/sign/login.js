@@ -1,6 +1,6 @@
 // POST /api/sign/login   -- parent or student enters the access code
 //
-// Body: { student_ext_id, code }
+// Body: { student_ext_id, email, code }
 //
 // There is no `role` field. The account carries two codes -- one the parent was
 // mailed, one the student was shown when they registered -- and which of them
@@ -28,12 +28,15 @@ export async function onRequestPost({ request, env }) {
   if (!body) return badRequest('Expected a JSON body.');
 
   const studentExtId = String(body.student_ext_id ?? '').trim();
+  const email = String(body.email ?? '').trim().toLowerCase();
   const code = normalize(body.code);
   // The role is NOT taken from the request. It used to be -- `body.role` chose
   // between the two attestations and one code opened both, so a student holding
   // the family's code could sign as their own parent. There are two codes now
   // and the role is whichever one the submitted code turns out to be.
-  if (!studentExtId || !code) return badRequest('Enter the student ID and the access code.');
+  if (!studentExtId || !email || !code) {
+    return badRequest('Enter the student ID, your email address, and the access code.');
+  }
 
   const nowSec = Math.floor(Date.now() / 1000);
   const ip = clientIp(request);
@@ -50,29 +53,47 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  const row = await env.DB.prepare(
-    `SELECT a.id, a.code_hash, a.student_code_hash, r.first, r.last, r.course_id
+  // EVERY roster row with this ID, not `LIMIT 1`. student_ext_id is UNIQUE per
+  // COURSE, not globally, so the same number legitimately appears on two
+  // rosters -- a student taught for two subjects, or another school on this
+  // install. `LIMIT 1` silently picked whichever row came back first and
+  // signed the visitor into an arbitrary one of them.
+  //
+  // The email is what disambiguates, and it decides the side as well: the
+  // school address on the account means the student is signing, the family
+  // address means the parent is. Whichever matches, only that side's code is
+  // accepted.
+  const { results: rows = [] } = await env.DB.prepare(
+    `SELECT a.id, a.code_hash, a.student_code_hash, a.username, a.parent_email,
+            r.first, r.last, r.course_id, r.parent_email AS roster_email
        FROM accounts a
        JOIN roster r ON r.id = a.roster_id
-      WHERE r.student_ext_id = ?1 AND r.status = 'active'
-      LIMIT 1`,
-  ).bind(studentExtId).first();
+      WHERE r.student_ext_id = ?1 AND r.status = 'active'`,
+  ).bind(studentExtId).all();
 
-  // Both hashes are verified on EVERY attempt, and neither result short-
-  // circuits the other. Stopping at the first match would make a parent code
-  // measurably faster to check than a student code, which is a side channel
-  // telling an attacker which kind of code they just guessed at.
+  // Both hashes are verified for EVERY candidate, and no result short-circuits
+  // another. Stopping at the first match would make a parent code measurably
+  // faster to check than a student code, and would make one candidate faster
+  // than two -- both are side channels telling an attacker what they just hit.
   //
   // The decoys keep a missing student, a student with no code yet, and a wrong
-  // code all costing the same two verifications.
+  // code all costing the same work.
   const DECOY = 'pbkdf2$100000$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
-  const parentOk = await verifyCode(code, row?.code_hash || DECOY) && !!row?.code_hash;
-  const studentOk = await verifyCode(code, row?.student_code_hash || DECOY) && !!row?.student_code_hash;
-  if (!row || !(parentOk || studentOk)) return json({ error: REJECT }, 401);
+  let row = null;
+  let role = null;
+  for (const cand of rows) {
+    const parentOk = await verifyCode(code, cand.code_hash || DECOY) && !!cand.code_hash;
+    const studentOk = await verifyCode(code, cand.student_code_hash || DECOY) && !!cand.student_code_hash;
+    const isStudentEmail = !!cand.username && String(cand.username).toLowerCase() === email;
+    const onFile = cand.parent_email || cand.roster_email;
+    const isParentEmail = !!onFile && String(onFile).toLowerCase() === email;
 
-  // Derived, never claimed. If the same string somehow opened both -- it cannot,
-  // the two are generated independently -- the narrower role wins.
-  const role = studentOk ? 'student' : 'parent';
+    // Assigned rather than broken out of, so a second candidate costs the same
+    // as the first and the loop does not leak how many rows matched.
+    if (!row && isStudentEmail && studentOk) { row = cand; role = 'student'; }
+    else if (!row && isParentEmail && parentOk) { row = cand; role = 'parent'; }
+  }
+  if (!row) return json({ error: REJECT }, 401);
 
   await reset(env.DB, `login:ip:${ip}`);
   await reset(env.DB, `login:stu:${studentExtId}`);

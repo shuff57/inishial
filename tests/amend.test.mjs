@@ -39,7 +39,12 @@ async function setup() {
 }
 
 const signInAs = async (env, extId, code, role = 'parent') => cookieFrom(await login({
-  request: jsonRequest('https://x/api/sign/login', { student_ext_id: extId, code, role }), env,
+  // The email decides which side signs in: the school address is the student,
+  // the family address is the parent.
+  request: jsonRequest('https://x/api/sign/login', {
+    student_ext_id: extId, code, role,
+    email: role === 'student' ? 'malvarez@chicousd.org' : 'parent@example.com',
+  }), env,
 }));
 
 const view = async (env, cookie) => (await getSyllabus({

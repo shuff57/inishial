@@ -75,7 +75,7 @@ test('the codes page shows a code the teacher can read back later', async () => 
   const res = await login({
     request: new Request('https://x/api/sign/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ student_ext_id: '904511', code: row.student_code.code }),
+      body: JSON.stringify({ student_ext_id: '904511', email: 'm@chicousd.org', code: row.student_code.code }),
     }),
     env,
   });

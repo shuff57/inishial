@@ -101,7 +101,7 @@ export async function onRequestPost({ request, env }) {
   if (!rosterRow) return badRequest(NO_STUDENT);
 
   const account = await env.DB.prepare(
-    `SELECT id, code_hash, code_enc, parent_email
+    `SELECT id, code_hash, code_enc, student_code_enc, parent_email
        FROM accounts WHERE roster_id = ?1 LIMIT 1`,
   ).bind(rosterRow.id).first();
 
@@ -157,8 +157,16 @@ export async function onRequestPost({ request, env }) {
     ).bind(await hashCode(code), await sealCode(env, code), nowSec, account.id).run();
   }
 
+  // The student's code rides along. A student who loses theirs cannot be mailed
+  // one: district mail systems block external senders for student accounts, so
+  // the school address is not a recovery path. Read-only -- unlike the parent
+  // code above, a student code that cannot be opened is NOT reissued here.
+  // Rotating it silently would invalidate a code the student may be holding,
+  // and the teacher's export can reissue deliberately.
+  const studentCode = await openCode(env, account.student_code_enc);
+
   const studentName = `${rosterRow.first} ${rosterRow.last}`;
-  const sent = await sendAccessCode(env, email, studentName, code);
+  const sent = await sendAccessCode(env, email, studentName, code, studentCode);
 
   if (!sent.ok) {
     // Honest failure: the parent would otherwise stare at "check your inbox"
