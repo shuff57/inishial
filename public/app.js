@@ -69,10 +69,16 @@ function swap(target) {
   document.title = TITLES[pathOf(location.pathname)] || 'iniSHial';
   // The progress spine belongs to the syllabus and nothing else.
   $('progress').hidden = target.id !== 'view-sign' || !state;
+  const at = pathOf(location.pathname);
   for (const a of document.querySelectorAll('header.site .nav-main a')) {
     const here = pathOf(new URL(a.getAttribute('href'), location.origin).pathname);
-    a.toggleAttribute('aria-current', here === pathOf(location.pathname));
-    if (here === pathOf(location.pathname)) a.setAttribute('aria-current', 'page');
+    // Prefix as well as exact, so /register/code/ -- the parent tab of
+    // /register/ -- keeps "Set up my account" lit. Without it a parent on that
+    // tab sees nothing marked in the nav, which reads as being nowhere.
+    // `here !== '/'` or Start would claim every page on the site.
+    const on = here === at || (here !== '/' && at.startsWith(here + '/'));
+    a.toggleAttribute('aria-current', on);
+    if (on) a.setAttribute('aria-current', 'page');
   }
 }
 

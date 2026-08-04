@@ -1342,6 +1342,66 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
   color: var(--ink); border-left: 3px solid var(--accent);
 }
 
+/* Getting set up, split by who is doing it.
+ *
+ * Links, not buttons with a click handler. Each tab IS a URL -- /register/ and
+ * /register/code/ -- so it deep-links (a teacher can send a parent straight to
+ * theirs), survives a reload, and works with the back button. The router turns
+ * the click into a same-document swap, so it is as instant as a scripted tab
+ * would be, and without JS it is still a working navigation.
+ *
+ * Marked with aria-current="page", NOT role="tab"/aria-selected. The ARIA tab
+ * pattern promises arrow-key traversal of panels within one page; this is
+ * navigation between two, and claiming the wrong pattern is worse for a screen
+ * reader than claiming none. The selected tab is hardcoded per view rather than
+ * computed -- each view has exactly one right answer, so there is nothing to
+ * work out at runtime.
+ *
+ * No ::before/::after opt-out needed: the tape rule is
+ * `main :is(button, .button)`, and these are bare <a>. */
+.audience-tabs {
+  display: flex;
+  gap: .3rem;
+  margin: var(--rule) 0 0;
+  border-bottom: 1px solid var(--border-warm);
+  /* The strip has a fill and a drawn edge, so it is aligned to the box grid
+     while the rules are drawn --lift below it: without this the underline
+     landed just under a ruled line and read as a doubled line. Moves the paint,
+     not the box, so nothing below drifts off the grid. Same treatment as
+     .notice, and the reason --lift exists. */
+  position: relative;
+  top: calc(-1 * var(--lift));
+}
+.audience-tabs a {
+  height: var(--rule);
+  line-height: calc(var(--rule) - 2px);
+  padding: 0 .9rem;
+  /* Overlaps the strip's own bottom rule, so the selected tab can erase the
+     segment under itself and join the panel below. */
+  margin-bottom: -1px;
+  color: var(--ink-stone);
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: 8px 8px 0 0;
+  font-size: .95rem;
+  white-space: nowrap;
+}
+.audience-tabs a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--ivory);
+  border-color: var(--border-warm);
+  border-bottom-color: var(--ivory);
+}
+.audience-tabs a:hover:not([aria-current="page"]) { color: var(--ink); background: var(--sand); }
+.audience-tabs a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* Two tabs, and the longer label is three words. On a 320px phone they still
+   fit side by side at this size; wrapping them into a column would read as two
+   links rather than a choice between two. */
+@media (max-width: 26rem) {
+  .audience-tabs a { padding: 0 .6rem; font-size: .9rem; }
+}
+
 /* A field most students should skip, folded away rather than explained beside
    the ones they must answer. Native <details>: no script, keyboard-operable
    already, and it still prints open if the reader opened it. */

@@ -115,6 +115,15 @@
        of that -- same two secrets under different field names -- which is why
        half its fields were labelled "leave blank the first time". -->
   <section class="view" id="view-register" data-path="/register/" hidden>
+    <!-- The tab strip is repeated in the parent view below rather than shared.
+         Six lines of markup against a script that builds it: duplicated, it is
+         still there with JS off, which is the state the whole no-script
+         fallback depends on. -->
+    <nav class="audience-tabs" aria-label="Who is getting set up">
+      <a href="/register/" aria-current="page">Student</a>
+      <a href="/register/code/">Parent or guardian</a>
+    </nav>
+
     <h1>Set up your account</h1>
     <p class="muted">First day of class. You'll need your student ID number and the
       email address your school gave you.</p>
@@ -193,6 +202,11 @@
        address would repoint the family contact at an inbox that -- being
        school-run -- would then refuse the mail anyway. -->
   <section class="view" id="view-code" data-path="/register/code/" hidden>
+    <nav class="audience-tabs" aria-label="Who is getting set up">
+      <a href="/register/">Student</a>
+      <a href="/register/code/" aria-current="page">Parent or guardian</a>
+    </nav>
+
     <h1>Get your access code</h1>
     <p class="muted">We'll email the code to a parent or guardian &mdash; and the student's
       own code with it, in case that one has been lost too.</p>
