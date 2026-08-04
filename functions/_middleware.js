@@ -28,7 +28,9 @@ const LEGACY_HOST = 'inishial.pages.dev';
 // POSTs to /api, and 301 would rewrite those to GET.
 const REDIRECT_STATUS = 302;
 
-const SHELL_PATHS = new Set(['/sign', '/register']);
+// The path is trailing-slash-stripped before the lookup, so one entry covers
+// both /register/code and /register/code/.
+const SHELL_PATHS = new Set(['/sign', '/register', '/register/code']);
 // HEAD as well as GET. Gating on GET alone made HEAD /sign a 404, which is the
 // request link checkers, previews and crawlers actually send -- so the URL in a
 // teacher's email would have looked broken to everything except a browser.

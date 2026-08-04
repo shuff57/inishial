@@ -5,21 +5,21 @@
   "steps": [
     {
       "title": "Start on the home page",
-      "body": "Open the link your school gave you. Under \"I'm a parent or guardian,\" tap \"Read and sign the syllabus.\"",
+      "body": "Open the link your school gave you. Under \"I'm a parent or guardian,\" tap \"Read and initial the syllabus.\" The link in the access-code email takes you straight there, so you can skip the home page entirely.",
       "clip": "parent-home.mp4",
       "n": 1,
       "clipDark": "parent-home-dark.mp4"
     },
     {
       "title": "Know your access code",
-      "body": "You need two things: your student's ID number, and an access code -- eight characters, from the email your teacher sent you. That code is what tells the app you're the parent and not the student, so use the one from your own email, not one your child gives you.",
+      "body": "You need three things: your student's ID number, the email address the code was sent to, and the access code itself -- eight characters, from the email your teacher sent you. That code is what tells the app you're the parent and not the student, so use the one from your own email, not one your child gives you. Never got a code? Follow \"Don't have a code, or lost it?\" under the form and we'll email you one, as long as your student has set up their account already.",
       "clip": "parent-codes.mp4",
       "n": 2,
       "clipDark": "parent-codes-dark.mp4"
     },
     {
       "title": "Open the syllabus",
-      "body": "Type the student ID and your access code exactly as they appear, then tap \"Open the syllabus.\" If it doesn't work after a couple of tries, wait a few minutes before trying again, or ask your teacher to resend the code.",
+      "body": "Type the student ID, the email address the code was sent to, and the access code exactly as it appears, then tap \"Open the syllabus.\" The email matters: it is what tells the app which family and which of the two codes this is. If it doesn't work after a couple of tries, wait a few minutes before trying again, or ask your teacher to resend the code.",
       "clip": "parent-sign-in.mp4",
       "n": 3,
       "clipDark": "parent-sign-in-dark.mp4"
@@ -61,7 +61,7 @@
     },
     {
       "title": "Coming back later",
-      "body": "Didn't finish, or want to check what you signed? Go back to the same link and sign in again with the same student ID and access code. The syllabus opens back up already showing everything you've initialed -- nothing is lost between visits.",
+      "body": "Didn't finish, or want to check what you signed? Go back to the same link and sign in again with the same three things -- student ID, your email, and your access code. The syllabus opens back up already showing everything you've initialed, so nothing is lost between visits.",
       "clip": "parent-come-back.mp4",
       "n": 9,
       "clipDark": "parent-come-back-dark.mp4"

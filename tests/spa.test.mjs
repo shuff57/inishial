@@ -41,7 +41,8 @@ async function run(url, method = 'GET') {
 // Both slash forms: /sign/ is what a teacher's email contains, /sign is what a
 // browser or a link shortener may normalise it to. A route file answered one
 // and 404'd the other, which is why this is middleware.
-for (const path of ['/sign', '/sign/', '/register', '/register/']) {
+for (const path of ['/sign', '/sign/', '/register', '/register/',
+                    '/register/code', '/register/code/']) {
   test(`${path} serves the single-page app`, async () => {
     const { res, seen } = await run('https://x' + path);
     assert.equal(res.status, 200);

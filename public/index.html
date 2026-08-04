@@ -91,7 +91,7 @@
       <h2>I'm a parent or guardian</h2>
       <p class="muted">Your teacher emailed you a student ID and an <span class="mark">access
         code</span>. Use those to read the syllabus and initial each section.</p>
-      <p><a class="button" href="/sign/">Read and sign the syllabus</a></p>
+      <p><a class="button" href="/sign/">Read and initial the syllabus</a></p>
     </div>
 
     <!-- Buy me a coffee. Our own button + hand-drawn mug icon, linking to the
@@ -110,11 +110,14 @@
     </p>
   </section>
 
-  <!-- ---------- set up an account ---------- -->
+  <!-- ---------- set up an account: students, first time only ----------
+       Coming back is /sign/'s job. This form used to carry a second, worse copy
+       of that -- same two secrets under different field names -- which is why
+       half its fields were labelled "leave blank the first time". -->
   <section class="view" id="view-register" data-path="/register/" hidden>
     <h1>Set up your account</h1>
-    <p class="muted">Already set one up? Enter your student ID, last name, school email and
-      your access code to pick up where you left off.</p>
+    <p class="muted">First day of class. You'll need your student ID number and the
+      email address your school gave you.</p>
 
     <form id="registerForm" class="card plain" novalidate>
       <label for="reg-sid">Student ID number
@@ -125,50 +128,112 @@
       <input id="reg-last" class="blank-name" name="last" type="text" autocomplete="family-name" required>
 
       <label for="reg-username">School email
-        <span class="hint">The address your school gave you. Needed both to set up an
-          account and to come back to one.</span></label>
+        <span class="hint">The address your school gave you.</span></label>
       <input id="reg-username" class="blank-name" name="username" type="email"
-             inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false">
+             inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" required>
 
-      <label for="reg-code">Your access code <span class="hint">(coming back only)</span>
-        <span class="hint">The code shown when you set up your account. Leave blank the
-          first time. Lost it? A parent or guardian can have it emailed to them from the
-          sign-in page.</span></label>
-      <input id="reg-code" class="blank-code" name="student_code" type="text"
-             autocomplete="off" spellcheck="false">
-
-      <label for="reg-email">Parent or guardian's email <span class="hint">(optional)</span>
-        <span class="hint">Your school already has a contact email for most families. Only fill this in if
-          your parent or guardian should get the syllabus at a different address.</span></label>
-      <input id="reg-email" name="parent_email" type="email" autocomplete="off">
+      <!-- Folded away, not removed: the school already has a contact address for
+           nearly every family, so this is the exception rather than a fifth
+           question. A <details> says "only if" without a paragraph explaining
+           it, and the page cannot show which address is on file to help decide
+           -- /api/register withholds it on purpose, since this form is often
+           filled in on a shared Chromebook. -->
+      <details class="aside">
+        <summary>My parent or guardian uses a different email</summary>
+        <label for="reg-email">Parent or guardian's email
+          <span class="hint">Only fill this in if the syllabus should go somewhere other
+            than the address your school already has on file.</span></label>
+        <input id="reg-email" name="parent_email" type="email" autocomplete="off">
+      </details>
 
       <div id="registerMsg" hidden></div>
       <p><button id="registerBtn" type="submit">Continue</button></p>
     </form>
 
+    <!-- The 409. Not a validation error -- nothing they typed is wrong, they
+         just already have what this page makes -- so it reads as a signpost
+         rather than a red bar under a field. -->
+    <div id="registerExists" class="card plain" hidden>
+      <h2>You already have an account</h2>
+      <p id="registerExistsMsg" class="muted"></p>
+      <p><a class="button" href="/sign/">Sign in and read the syllabus</a></p>
+      <p class="muted"><a href="/register/code/">Lost your access code?</a></p>
+    </div>
+
     <div id="registerDone" class="card plain" hidden>
-      <h2 id="doneTitle">You're registered</h2>
+      <h2>You're registered</h2>
       <p id="doneWho" class="muted"></p>
       <p id="doneMsg"></p>
 
       <!-- Shown once, and nowhere else ever again: the code is hashed the
            moment it is made, so this screen is the only place the plaintext
            exists. Said plainly rather than in fine print, because the cost of
-           missing it is asking a teacher to reissue. -->
-      <div id="doneCode" hidden>
+           missing it is asking a teacher to reissue. Unconditional now -- only
+           a first registration reaches this card, and a first registration
+           always mints a code. -->
+      <div id="doneCode">
         <p class="small muted">Your access code. Write it down. You need it to come back
           and finish later, and this is the only time it is shown.</p>
         <p class="code-out"><b id="doneCodeValue"></b></p>
       </div>
 
-      <p><a id="doneNext" class="button" href="/sign/">Read and initial the syllabus</a></p>
+      <p><a class="button" href="/sign/">Read and initial the syllabus</a></p>
     </div>
+  </section>
+
+  <!-- ---------- get an access code by email ----------
+       Its own view rather than a panel hidden inside /sign/, because it is a
+       real destination: a teacher can link a parent straight here, and it is
+       also where a student who lost their own code recovers it. /api/sign/
+       request-code mails BOTH codes, which is what makes one page serve both.
+
+       The address, though, is always a FAMILY address whoever is typing. Any
+       address that differs from the one on file is written back as the
+       accounts.parent_email override, so a student entering their school
+       address would repoint the family contact at an inbox that -- being
+       school-run -- would then refuse the mail anyway. -->
+  <section class="view" id="view-code" data-path="/register/code/" hidden>
+    <h1>Get your access code</h1>
+    <p class="muted">We'll email the code to a parent or guardian &mdash; and the student's
+      own code with it, in case that one has been lost too.</p>
+
+    <p class="notice warn">Use a parent or guardian's <strong>personal</strong> email
+      address, not a school one. School and district mail systems block outside senders,
+      so a school address will not receive this. That is why a student who has lost their
+      code gets it through a parent's inbox rather than their own.</p>
+
+    <form id="requestCodeForm" class="card plain" novalidate>
+      <label for="rc-sid">Student ID number
+        <span class="hint">The number on the student's school ID card.</span></label>
+      <input id="rc-sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+
+      <label for="rc-email">Parent or guardian's personal email
+        <span class="hint">Defaults to the address your school has on file. Change it here
+          if that one is wrong.</span></label>
+      <input id="rc-email" class="blank-name" name="email" type="email" inputmode="email"
+             autocomplete="email" autocapitalize="none" spellcheck="false" required>
+
+      <div id="requestCodeMsg" hidden></div>
+      <p><button id="requestCodeBtn" type="submit">Send the code</button></p>
+    </form>
+
+    <!-- Stays on this page with a button out, the same shape as the registration
+         confirmation, rather than throwing the reader at /sign/ and hoping the
+         "check your inbox" line survives the trip. -->
+    <div id="requestCodeSent" class="card plain" hidden>
+      <h2>Check your inbox</h2>
+      <p id="requestCodeSentMsg"></p>
+      <p><a class="button" href="/sign/">Go to the syllabus</a></p>
+    </div>
+
+    <p class="muted" id="requestCodeNote">The student has to set up their account before
+      there is a code to send. If they have not done that yet, ask them to.</p>
   </section>
 
   <!-- ---------- read and initial ---------- -->
   <section class="view" id="view-sign" data-path="/sign/" hidden>
     <div id="loginView">
-      <h1>Read and sign the syllabus</h1>
+      <h1>Read and initial the syllabus</h1>
       <p class="muted">Use the student ID and access code from your teacher's email.</p>
 
       <form id="loginForm" class="card plain" novalidate>
@@ -197,42 +262,11 @@
         <p><button id="loginBtn" type="submit">Open the syllabus</button></p>
       </form>
 
-      <!-- Parent self-signup: the "I don't have a code" path. A parent who was
-           never mailed one enters their student's ID and an email, the app
-           mails the code, and they come back here to type it. Toggled rather
-           than a separate page so the parent never loses the URL they came
-           from. -->
-      <p class="muted small" id="requestCodeToggle">
-        <a href="#" id="requestCodeLink">Don't have a code, or lost it? Get one sent to you.</a>
-      </p>
-
-      <form id="requestCodeForm" class="card plain" hidden novalidate>
-        <h2>Get your access code</h2>
-        <p class="muted">Enter your student's ID number and your email address. We'll send
-          the access code to that email &mdash; and your student's code too, in case they
-          have lost theirs.</p>
-
-        <label for="rc-sid">Student ID number
-          <span class="hint">The number on your student's school ID card.</span></label>
-        <input id="rc-sid" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
-
-        <label for="rc-email">Your personal email address
-          <span class="hint"><strong>Use a personal address, not a school one.</strong>
-            School and district mail systems block outside senders, so a school address
-            will not receive this. Defaults to the address your school has on file.</span></label>
-        <input id="rc-email" name="email" type="email" autocomplete="off" required>
-
-        <div id="requestCodeMsg" hidden></div>
-        <p><button id="requestCodeBtn" type="submit">Send my code</button></p>
-        <p class="muted small"><a href="#" id="requestCodeBack">I have a code, take me back.</a></p>
-      </form>
-
-      <!-- Shown after the code is sent: a single line that tells the parent
-           which inbox to check, then the login form above is reused for the
-           code entry. -->
-      <div id="requestCodeSent" class="card plain" hidden>
-        <p id="requestCodeSentMsg"></p>
-      </div>
+      <!-- The "I don't have a code" path, which for a parent who was never
+           mailed one is their entire first visit. Full weight, not the muted
+           fine print it used to be: it is the only way that parent gets in. -->
+      <p class="muted"><a href="/register/code/">Don't have a code, or lost it? Get one
+        emailed to you.</a></p>
     </div>
 
     <div id="docView" hidden>

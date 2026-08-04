@@ -188,32 +188,51 @@ test('student and parent initials land on the same student, counted apart', asyn
 });
 
 // ---- coming back the next day ----
+//
+// Re-entry is /api/sign/login's job and always was: it takes the student's
+// school email plus their own access code and hands back a student session.
+// This endpoint used to accept the same two secrets under different field names
+// and land the student on a "welcome back" card instead of the syllabus. It now
+// says "you already have one" and points at /sign/.
 
-test('a returning student gets a session back, not a 409', async () => {
+test('a student who already registered is sent to /sign/, not signed in', async () => {
+  const env = freshEnv();
+  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const body = await res.json();
+
+  assert.equal(res.status, 409);
+  assert.equal(body.registered, true, 'the client tells this apart from a validation error');
+  assert.equal(body.next, '/sign/');
+  assert.equal(res.headers.get('Set-Cookie'), null, 'no session is minted on this path');
+});
+
+test('deleting the re-entry path strands nobody: the work is still reachable', async () => {
   const env = freshEnv();
   const { courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
   const firstRes = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
   const STUDENT_CODE = (await firstRes.clone().json()).student_code;
-  const first = cookieFrom(firstRes);
   const blockIds = env._raw.prepare('SELECT id FROM blocks WHERE needs_initials = 1 ORDER BY ord').all().map((b) => b.id);
-  await initial({ request: jsonRequest('https://x/api/sign/initial', { block_id: blockIds[0], initials: 'MA' }, { Cookie: first }), env });
-
-  // The next day. Re-entry costs the school email and the student's own code:
-  // an ID and a last name are printed on a roster, so on their own they let any
-  // classmate take this session and initial the syllabus as someone else.
-  const res = await post(env, {
-    student_ext_id: '904511', last: 'Alvarez',
-    username: 'malvarez@chicousd.org', student_code: STUDENT_CODE,
+  await initial({
+    request: jsonRequest('https://x/api/sign/initial', { block_id: blockIds[0], initials: 'MA' },
+      { Cookie: cookieFrom(firstRes) }), env,
   });
-  const body = await res.json();
-  assert.equal(res.status, 200);
-  assert.equal(body.returning, true);
-  assert.equal(body.username, 'malvarez@chicousd.org', 'the username they picked is theirs to keep');
+
+  // The next day, through the front door this time. Same two secrets the old
+  // re-entry branch wanted, minus the last name it also asked for.
+  const back = await login({
+    request: jsonRequest('https://x/api/sign/login', {
+      student_ext_id: '904511', email: 'malvarez@chicousd.org', code: STUDENT_CODE,
+    }), env,
+  });
+  assert.equal(back.status, 200);
 
   const doc = await (await syllabus({
-    request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookieFrom(res) } }), env,
+    request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookieFrom(back) } }), env,
   })).json();
   assert.equal(doc.role, 'student');
   assert.equal(doc.progress.signed, 1, 'work already done is still there');
@@ -391,41 +410,26 @@ test('a later export that omits emails does not blank the ones on file', async (
     'a working contact must survive an export that simply lacks the column');
 });
 
-test('re-entry with only an ID and last name is refused', async () => {
-  // The point of the change. Both of these are printed on a class roster and
-  // visible on an ID card, so on their own they let any classmate take a
-  // student session and initial the syllabus as someone else.
-  const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
-  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
-
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
-  assert.equal(res.status, 400, 'the old gate no longer opens');
-  assert.equal(res.headers.get('Set-Cookie'), null, 'and no session is issued');
-});
-
-test('re-entry needs the right school email AND the right code', async () => {
+test('an ID and a last name never open an existing account', async () => {
+  // The point of the change. Both are printed on a class roster and visible on
+  // an ID card, so on their own they must not let any classmate take a student
+  // session and initial the syllabus as someone else. There is no combination
+  // of fields that opens one here any more -- signing in only happens at
+  // /api/sign/login, which wants the access code.
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
   const reg = await (await post(env, {
     student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
   })).json();
 
-  const wrongCode = await post(env, {
-    student_ext_id: '904511', last: 'Alvarez',
-    username: 'malvarez@chicousd.org', student_code: 'WRONG999',
-  });
-  assert.equal(wrongCode.status, 400, 'right email, wrong code');
-
-  const wrongEmail = await post(env, {
-    student_ext_id: '904511', last: 'Alvarez',
-    username: 'someone.else@chicousd.org', student_code: reg.student_code,
-  });
-  assert.equal(wrongEmail.status, 400, 'right code, wrong email');
-
-  const both = await post(env, {
-    student_ext_id: '904511', last: 'Alvarez',
-    username: 'malvarez@chicousd.org', student_code: reg.student_code,
-  });
-  assert.equal(both.status, 200, 'both together open it');
+  for (const body of [
+    { student_ext_id: '904511', last: 'Alvarez' },
+    { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' },
+    // Even holding the real access code. This endpoint does not sign anyone in.
+    { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org', student_code: reg.student_code },
+  ]) {
+    const res = await post(env, body);
+    assert.equal(res.status, 409, `no session for ${JSON.stringify(body)}`);
+    assert.equal(res.headers.get('Set-Cookie'), null, 'and no session is issued');
+  }
 });

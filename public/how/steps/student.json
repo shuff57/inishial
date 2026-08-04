@@ -12,10 +12,8 @@
     },
     {
       "title": "Fill in your information",
-      "body": "Enter your student ID number and last name exactly as they appear on your school ID, then your school email. The parent or guardian email is optional. Only fill it in if the syllabus should go to an address different from the one your school already has on file.",
-      "clip": "student-register-fill.mp4",
-      "n": 2,
-      "clipDark": "student-register-fill-dark.mp4"
+      "body": "Three things: your student ID number and last name exactly as they appear on your school ID, then your school email. That is the whole form. If the syllabus should go to an address other than the one your school already has for your family, open \"My parent or guardian uses a different email\" underneath and put it there.",
+      "n": 2
     },
     {
       "title": "Write down your access code",
@@ -26,10 +24,13 @@
     },
     {
       "title": "Coming back later",
-      "body": "Already set up your account? Go back to the same form and enter just your student ID and last name, leaving the rest blank. That takes you straight to your syllabus instead of asking you to register again.",
-      "clip": "student-register-returning.mp4",
-      "n": 4,
-      "clipDark": "student-register-returning-dark.mp4"
+      "body": "Don't go back to the sign-up form -- it will only tell you that you already have an account. Use \"Read & initial\" instead and sign in with three things: your student ID, your school email, and the access code you wrote down. Everything you already initialed is still there.",
+      "n": 4
+    },
+    {
+      "title": "If you lost your access code",
+      "body": "It cannot be emailed to you. School and district mail systems block outside senders, so nothing we send would reach your school address. Follow \"Don't have a code, or lost it?\" on the sign-in page instead and enter a parent or guardian's personal email -- both codes go to that inbox, and they can read yours back to you.",
+      "n": 5
     }
   ]
 }

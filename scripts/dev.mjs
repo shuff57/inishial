@@ -107,6 +107,10 @@ const env = {
   // a `wrangler secret put CODE_SECRET`, and changing it makes every existing
   // code unreadable (still valid for sign-in, just no longer displayable).
   CODE_SECRET: process.env.CODE_SECRET || 'local-dev-code-vault-do-not-use-in-production',
+  // No mail server locally. Dry-run logs the address and codes to the console
+  // and reports success, so /register/code/ can be walked end to end; unset it
+  // and the endpoint honestly 502s rather than pretending the mail went.
+  MAIL_DRY_RUN: process.env.MAIL_DRY_RUN ?? '1',
   ADMIN_EMAILS: DEV_ADMIN,
   // Self-service teacher sign-up. The real domain is read out of wrangler.toml
   // rather than repeated here, so testing sign-up locally exercises the same
@@ -220,6 +224,10 @@ async function seed() {
 const ROUTES = {
   '/api/register': () => import('../functions/api/register.js'),
   '/api/sign/login': () => import('../functions/api/sign/login.js'),
+  // Was missing here, so /register/code/ 404'd locally while working in
+  // production -- the same drift the REWRITES comment below warns about, in the
+  // other table. Set MAIL_DRY_RUN to exercise it without a mail server.
+  '/api/sign/request-code': () => import('../functions/api/sign/request-code.js'),
   '/api/sign/syllabus': () => import('../functions/api/sign/syllabus.js'),
   '/api/sign/initial': () => import('../functions/api/sign/initial.js'),
   '/api/admin/roster': () => import('../functions/api/admin/roster.js'),
@@ -306,6 +314,7 @@ async function send(res, response) {
 // as far as a deploy before anyone noticed it did not work.
 const REWRITES = new Map([
   ['/register', '/index.html'], ['/register/', '/index.html'],
+  ['/register/code', '/index.html'], ['/register/code/', '/index.html'],
   ['/sign', '/index.html'], ['/sign/', '/index.html'],
 ]);
 

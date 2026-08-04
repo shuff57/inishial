@@ -1,4 +1,4 @@
-// The public side is one document with three views.
+// The public side is one document with four views.
 //
 // Why one document: switching views is then a same-document change, which means
 // the transition is fully under our control -- no waiting on a new page to
@@ -6,12 +6,16 @@
 // cross-document version had to photograph the old page and hope the new one
 // rendered in time; this one just moves elements it already owns.
 //
-// The URLs are real and unchanged. /register/ and /sign/ are what a teacher
-// mails out, so the server hands back this same file for those paths (see
-// public/_redirects and scripts/dev.mjs) and the router picks the view from
-// location.pathname. Links in the nav stay ordinary hrefs: with JS they are
-// intercepted, without it they are a full navigation to a document that still
-// knows which view it is.
+// The URLs are real. /sign/ is what a teacher mails out and /register/ is what
+// a printed QR code points at, so the server hands back this same file for
+// those paths (functions/_middleware.js, scripts/dev.mjs) and the router picks
+// the view from location.pathname. Links in the nav stay ordinary hrefs: with
+// JS they are intercepted, without it they are a full navigation to a document
+// that still knows which view it is.
+//
+// A path added here must be added to SHELL_PATHS in functions/_middleware.js
+// AND to REWRITES in scripts/dev.mjs, or it serves in one environment and 404s
+// in the other.
 
 import { createBook, sections, sectionTitle } from './book.js';
 import { keepSnapped } from './snap.js';
@@ -45,6 +49,7 @@ const netFetch = (url, opts = {}) =>
 const TITLES = {
   '/': 'iniSHial',
   '/register': 'Set up your account · iniSHial',
+  '/register/code': 'Get your access code · iniSHial',
   '/sign': 'Course syllabus · iniSHial',
 };
 
@@ -149,19 +154,23 @@ $('registerForm').addEventListener('submit', async (event) => {
       body: JSON.stringify(Object.fromEntries(new FormData(form).entries())),
     });
     const body = await res.json();
+
+    // 409: this student already has an account, so signing in is /sign/'s job.
+    // Shown as a card with a way forward rather than a red bar under a field --
+    // nothing they typed is wrong, they simply already have what this page
+    // makes, and the useful response is a door rather than a correction.
+    if (res.status === 409 && body.registered) {
+      $('registerExistsMsg').textContent = body.error;
+      form.hidden = true;
+      $('registerExists').hidden = false;
+      return;
+    }
     if (!res.ok) { notice(msg, body.error || 'Something went wrong. Try again.', 'error'); return; }
 
     $('doneWho').textContent =
       [body.student, body.course, body.period && ('Period ' + body.period)].filter(Boolean).join(' · ');
-    $('doneTitle').textContent = body.returning ? 'Welcome back' : "You're registered";
     $('doneMsg').textContent = body.message;
-    // Only a first registration mints one. A returning student is already
-    // holding theirs, and re-showing it would mean storing it in the clear.
-    $('doneCode').hidden = !body.student_code;
-    if (body.student_code) $('doneCodeValue').textContent = body.student_code;
-    const next = $('doneNext');
-    next.textContent = body.returning ? 'Back to the syllabus' : 'Read and initial the syllabus';
-    next.href = '/sign/';
+    $('doneCodeValue').textContent = body.student_code;
     form.hidden = true;
     $('registerDone').hidden = false;
   } catch {
@@ -199,28 +208,19 @@ $('loginForm').addEventListener('submit', async (event) => {
   }
 });
 
-// ---- parent self-signup: request a code by email ----
+// ---- /register/code/ : have the access codes emailed ----
 //
-// Two toggles and a submit. The link under the login form shows the request
-// form; the link under the request form hides it again. On a successful send,
-// the request form collapses, a "check your inbox" line appears, and the
-// student ID is copied into the login form so the parent only types the code.
+// Its own view now rather than a panel folded into the sign-in form. One
+// submit, no toggles. On success the form is replaced by a "check your inbox"
+// card with a button to /sign/, and the student ID is copied into the sign-in
+// form so that when they get there only the code is left to type.
+//
+// The endpoint mails BOTH codes, so this is the student's recovery path too --
+// but the address is always a family one, whoever is typing. See the comment on
+// the view in index.html.
 
-const requestCodeLink = $('requestCodeLink');
-const requestCodeBack = $('requestCodeBack');
 const requestCodeForm = $('requestCodeForm');
 const requestCodeSent = $('requestCodeSent');
-const requestCodeToggle = $('requestCodeToggle');
-
-function showRequestForm(show) {
-  requestCodeForm.hidden = !show;
-  requestCodeToggle.hidden = show;
-  requestCodeSent.hidden = true;
-  if (show) $('rc-sid')?.focus();
-}
-
-requestCodeLink?.addEventListener('click', (e) => { e.preventDefault(); showRequestForm(true); });
-requestCodeBack?.addEventListener('click', (e) => { e.preventDefault(); showRequestForm(false); });
 
 requestCodeForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -239,20 +239,20 @@ requestCodeForm?.addEventListener('submit', async (event) => {
     const body = await res.json();
     if (!res.ok) { notice(msg, body.error || 'Could not send the code.', 'error'); return; }
 
-    // Collapse the request form, show the "check your inbox" line, and copy
-    // the student ID into the login form so the parent only types the code.
+    // Replace the form with the confirmation, and carry the student ID over to
+    // the sign-in form -- still the same document, so it survives the trip.
     requestCodeForm.hidden = true;
-    requestCodeToggle.hidden = true;
+    $('requestCodeNote').hidden = true;
     requestCodeSent.hidden = false;
     $('requestCodeSentMsg').textContent =
-      `We sent your access code to ${body.email_preview}. Check your inbox and enter it above.`;
+      `We sent the access code to ${body.email_preview}, along with the student's own code. `
+      + 'Open it, then go to the syllabus and sign in with the code.';
     $('sid').value = $('rc-sid').value;
-    $('code')?.focus();
   } catch {
     notice(msg, 'Could not reach the server. Check your connection and try again.', 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Send my code';
+    btn.textContent = 'Send the code';
   }
 });
 

@@ -1334,6 +1334,22 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
   background: color-mix(in srgb, var(--tab-1) 30%, var(--paper));
   color: var(--ink); border-left: 3px solid var(--tab-1);
 }
+/* A caution the reader has to act on, not a failure that already happened.
+   Amber rather than --danger: "use a personal address" is an instruction, and
+   red would say something has gone wrong when nothing has yet. */
+.notice.warn {
+  background: color-mix(in srgb, var(--accent-soft) 22%, var(--paper));
+  color: var(--ink); border-left: 3px solid var(--accent);
+}
+
+/* A field most students should skip, folded away rather than explained beside
+   the ones they must answer. Native <details>: no script, keyboard-operable
+   already, and it still prints open if the reader opened it. */
+details.aside { margin: var(--rule) 0 0; }
+details.aside > summary {
+  cursor: pointer; color: var(--accent-deep);
+  font-size: .95rem; line-height: var(--rule);
+}
 
 /* ---- progress spine ---- */
 
