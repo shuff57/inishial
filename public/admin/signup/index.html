@@ -51,10 +51,15 @@
     <input id="name" name="name" type="text" autocomplete="name">
 
     <label for="school">School name
-      <span class="hint">Start typing to see schools already on this install. Type your full
-        school name exactly as it appears, or enter a new one if yours is not listed.</span></label>
-    <input id="school" name="school" list="schoolNames" type="text" maxlength="120" required autocomplete="off">
-    <datalist id="schoolNames"></datalist>
+      <span class="hint">Start typing to see schools already on this install. If yours is
+        not listed, search the area and pick the real one — creating a school by typing
+        a made-up spelling means a second row for a school that already exists.</span></label>
+    <input id="school" name="school" data-school-picker data-school-panel="schoolSearch" type="text" maxlength="120" required autocomplete="off">
+    <div id="schoolSearch" hidden>
+      <p class="muted small" data-role="note"></p>
+      <div data-role="list"></div>
+      <p class="small muted" data-role="attribution"></p>
+    </div>
 
     <label for="password">Pick a password
       <span class="hint">At least 12 characters. Length beats punctuation: a short phrase
@@ -120,13 +125,10 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
     /* leave the generic copy in place */
   }
 
-  // Best-effort type-ahead against existing schools. An empty datalist falls
-  // back to free text, which still works because the server creates on no-match.
-  try {
-    const { schools } = await (await fetch('/api/schools')).json();
-    document.getElementById('schoolNames').innerHTML = schools.map((s) => `<option value="${esc(s.name)}">`).join('');
-  } catch { /* free text still works */ }
-
+  // School picker: the dropdown (seeded schools + Nominatim search) is wired
+  // by /ui.js -- initSchoolPicker() -- once the seeded list has loaded. The
+  // field still submits as plain text, so an empty dropdown just means free
+  // text, which the server accepts and creates on no-match.
   form.hidden = false;
 })();
 

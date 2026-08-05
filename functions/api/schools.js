@@ -5,12 +5,19 @@
 // School names are not secret, so revealing which schools are on an install
 // is an accepted trade for a form that can disambiguate them.
 //
-// `q` missing or blank returns every school -- there is no seed list, so on
-// a small install this is a handful of rows, and the type-ahead needs a full
-// list to show before anyone has typed anything. Substring match, and
-// case-insensitive for free: SQLite's LIKE only folds case on ASCII, which is
-// exactly the alphabet school names are typed in.
+// `q` missing or blank returns every school -- migrations/0011 seeds a Chico-
+// area reference list, so this can be dozens of rows even before any teacher
+// has signed up. Substring match, and case-insensitive for free: SQLite's
+// LIKE only folds case on ASCII, which is exactly the alphabet school names
+// are typed in.
+//
+// `required` tells the public register/request-code forms whether to show
+// the field at all -- it mirrors schoolScope.js's own "schools in use"
+// threshold (teachers actually assigned), not the size of the reference
+// list, so a solo-teacher install stays a no-op even with 50 seeded rows
+// nobody has picked yet.
 import { json, serverMisconfigured } from '../_lib/http.js';
+import { schoolsInUseCount } from '../_lib/schoolScope.js';
 
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return serverMisconfigured('the DB binding');
@@ -21,5 +28,6 @@ export async function onRequestGet({ request, env }) {
         .bind(`%${q}%`).all()
     : await env.DB.prepare('SELECT id, name FROM schools ORDER BY name').all();
 
-  return json({ schools: results ?? [] });
+  const required = (await schoolsInUseCount(env.DB)) > 1;
+  return json({ schools: results ?? [], required });
 }

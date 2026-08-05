@@ -59,6 +59,126 @@ function labelToggle(button) {
   button.setAttribute('title', label);
 }
 
+// ---- school picker ----
+//
+// Custom dropdown for the teacher-facing school fields (admin signup, the
+// placeholder-rename banner). Replaces the native <datalist>, whose popup a
+// page cannot reposition or scroll, with a list drawn UNDER the field:
+// seeded schools filter instantly as you type (no network -- that is what
+// makes it feel fast), and when the typed name matches nothing on the
+// install a Nominatim-backed search of the region joins below. Picking a
+// row fills the field; typing something new and submitting still works and
+// creates the school, same as the server always allowed.
+//
+// Markup contract:
+//   <input data-school-picker data-school-panel="schoolSearch">
+//   <div id="schoolSearch" hidden>
+//     <p class="muted small" data-role="note"></p>
+//     <div data-role="list"></div>
+//     <p class="small muted" data-role="attribution"></p>
+//   </div>
+
+// Shared with inline page scripts, which already declare their own `esc` --
+// so this one is named distinctly to avoid a global redeclaration error.
+const escHtml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function initSchoolPicker() {
+  const input = document.querySelector('input[data-school-picker]');
+  if (!input) return;
+  const panel = document.getElementById(input.dataset.schoolPanel);
+  if (!panel) return;
+  const note = panel.querySelector('[data-role="note"]');
+  const list = panel.querySelector('[data-role="list"]');
+  const attribution = panel.querySelector('[data-role="attribution"]');
+  if (!note || !list || !attribution) return;
+
+  let seeded = [];
+  try {
+    const { schools } = await (await fetch('/api/schools')).json();
+    seeded = (schools || []).map((s) => s.name);
+  } catch { /* free text still works */ }
+
+  const renderRows = (rows) => {
+    list.innerHTML = rows.map((s, i) =>
+      `<button type="button" class="school-result" data-idx="${i}">` +
+        `<span class="sr-name">${escHtml(s.name)}</span>` +
+        (s.place ? `<span class="sr-place">${escHtml(s.place)}</span>` : '') +
+        (s.existing_id ? `<span class="sr-already">On this install</span>` : '') +
+      `</button>`).join('');
+    for (const btn of list.querySelectorAll('.school-result')) {
+      btn.addEventListener('click', () => {
+        const row = rows[Number(btn.dataset.idx)];
+        input.value = row.name;
+        panel.hidden = true;
+      });
+    }
+  };
+
+  // A click on a result must not blur the input first (blur hides the panel
+  // before the click registers). preventDefault on pointerdown keeps focus.
+  panel.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.school-result')) e.preventDefault();
+  });
+
+  const cap = 8;
+  let searchTimer = null;
+  let searchSeq = 0;
+
+  const showSeeded = (q) => {
+    const matches = q ? seeded.filter((n) => n.toLowerCase().includes(q)) : seeded;
+    attribution.textContent = '';
+    if (!matches.length) { note.textContent = q.length < 3 ? 'Keep typing, or search the area.' : ''; list.innerHTML = ''; return matches; }
+    note.textContent = 'Schools on this install';
+    renderRows(matches.slice(0, cap).map((name) => ({ name })));
+    if (matches.length > cap) note.textContent += ` — ${matches.length - cap} more, keep typing to narrow.`;
+    return matches;
+  };
+
+  input.addEventListener('focus', () => {
+    if (input.value.trim()) return;
+    panel.hidden = false;
+    showSeeded('');
+  });
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    const lq = q.toLowerCase();
+    // Typing an exact seed name is a done deal -- nothing to suggest.
+    if (seeded.some((n) => n.toLowerCase() === lq)) { panel.hidden = true; return; }
+    panel.hidden = false;
+    attribution.textContent = '';
+    const matches = showSeeded(lq);
+
+    // Only when a school name has actually been typed and nothing on the
+    // install matches it, go out to OpenStreetMap for the region.
+    if (q.length < 3 || matches.length) return;
+    note.textContent = `No "${q}" on this install. Searching the area…`;
+    clearTimeout(searchTimer);
+    const seq = ++searchSeq;
+    searchTimer = setTimeout(async () => {
+      if (seq !== searchSeq) return;
+      try {
+        const res = await fetch('/api/admin/schools/search?q=' + encodeURIComponent(q));
+        const body = await res.json();
+        if (seq !== searchSeq) return;
+        if (!res.ok) { note.textContent = body.error || 'Search unavailable — type the school name and it will be created.'; return; }
+        if (!body.schools.length) { note.textContent = `No "${q}" found nearby. You can still type the school name and it will be created.`; return; }
+        note.textContent = 'Not listed? A nearby school?';
+        renderRows(body.schools);
+        attribution.textContent = body.attribution;
+      } catch {
+        if (seq === searchSeq) note.textContent = 'Search unavailable — type the school name and it will be created.';
+      }
+    }, 300);
+  });
+
+  input.addEventListener('blur', () => {
+    clearTimeout(searchTimer);
+    searchSeq++;
+    panel.hidden = true;
+  });
+}
+
 // ---- the rest ----
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -68,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wireSignOut();
   trackNavHeight();
   swipeMarks();
+  initSchoolPicker();
 });
 
 /** Publish the nav's height as --nav-h so the OTHER sticky bars (the editor

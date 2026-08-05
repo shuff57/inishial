@@ -144,8 +144,7 @@ const env = {
 async function seed() {
   if (db.prepare('SELECT COUNT(*) AS n FROM courses').get().n) return;
 
-  const courseId = Number(db.prepare('INSERT INTO courses (name, created_at) VALUES (?, ?)')
-    .run('Algebra I', Math.floor(Date.now() / 1000)).lastInsertRowid);
+  const now = Math.floor(Date.now() / 1000);
 
   // Deliberately not people.
   //
@@ -156,36 +155,66 @@ async function seed() {
   // publish than an obviously fake one -- so every field here is visibly
   // synthetic. example.com is reserved for exactly this by RFC 2606.
   //
+  // The fixture is shaped to exercise every flow:
+  //   - A (123456) is enrolled in BOTH courses -- the multi-class case the
+  //     class switcher exists for. Register once, sign both syllabi.
+  //   - B, C are plain single-course registered students.
+  //   - C has no parent email on file, so /register's fallback path is
+  //     exercisable.
+  //   - D (123459) is on the roster but deliberately NOT registered, so the
+  //     student /register flow can be walked end to end.
+  //
   // Parent emails come from the roster export, as they would in reality.
-  // Student C has none on file, so /register's fallback path is exercisable.
-  const students = [
+  const ALGEBRA = [
     ['123456', 'A', 'Student', '3', 'parent.a@example.com'],
     ['123457', 'B', 'Student', '3', 'parent.b@example.com'],
     ['123458', 'C', 'Student', '4', null],
+    ['123459', 'D', 'Student', '5', 'parent.d@example.com'],
   ];
-  const rosterIds = students.map(([extId, first, last, period, parentEmail]) =>
-    Number(db.prepare(
-      "INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
-    ).run(courseId, period, extId, first, last, parentEmail).lastInsertRowid));
+  const GEOMETRY = [
+    ['123456', 'A', 'Student', '6', 'parent.a@example.com'],
+  ];
 
-  // All three registered, with both codes, so /admin/codes/ has a full small
-  // class to look at the moment you sign in. Student A keeps the fixed DEMO2345
-  // the banner prints; the other two get codes derived from their student ID the
-  // same way the demo class does, so every one of them is typeable from here
-  // without looking anything up.
-  //
-  // /register is still exercisable -- the Biology demo class leaves three
-  // students unregistered for exactly that, and the Access codes page shows
-  // them as rows saying so.
-  //
-  // The course above is unowned (no owner_id), so identity school_id resolves to
-  // the placeholder -- the same fallback the production migration and seedAccount
-  // use for unowned courses. One identity per (school, student_ext_id); accounts
-  // are now pure roster-enrolment join rows pointing at them.
+  // Each course gets its own published syllabus, so the class switcher has two
+  // real syllabi to flip between, and both can be signed. Unowned (no
+  // owner_id), so identity school_id resolves to the placeholder -- the same
+  // fallback the production migration and seedAccount use for unowned courses.
+  // One identity per (school, student_ext_id); accounts are pure
+  // roster-enrolment join rows pointing at them.
+  const makeCourse = (name, roster) => {
+    const courseId = Number(db.prepare('INSERT INTO courses (name, created_at) VALUES (?, ?)')
+      .run(name, now).lastInsertRowid);
+    const rosterIds = new Map();
+    for (const [extId, first, last, period, parentEmail] of roster) {
+      rosterIds.set(extId, Number(db.prepare(
+        "INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+      ).run(courseId, period, extId, first, last, parentEmail).lastInsertRowid));
+    }
+
+    const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')
+      .run(courseId, `${name} — Course Syllabus`, name.toLowerCase().replace(/\s+/g, '-')).lastInsertRowid);
+    const versionId = Number(db.prepare('INSERT INTO versions (syllabus_id, num, published_at) VALUES (?, 1, ?)')
+      .run(syllabusId, now).lastInsertRowid);
+
+    const blocks = name === 'Algebra I' ? ALGEBRA_BLOCKS : GEOMETRY_BLOCKS;
+    blocks.forEach(([type, html, needs], i) => {
+      db.prepare('INSERT INTO blocks (version_id, ord, type, html, needs_initials) VALUES (?, ?, ?, ?, ?)')
+        .run(versionId, i, type, html, needs);
+    });
+    return { courseId, rosterIds };
+  };
+
+  const algebra = makeCourse('Algebra I', ALGEBRA);
+  const geometry = makeCourse('Geometry', GEOMETRY);
+
+  // Register A (both courses, one identity), B and C (single course each).
+  // Student A keeps the fixed DEMO2345 the banner prints; the others get codes
+  // derived from their student ID the same way the demo class does, so every
+  // one of them is typeable from here without looking anything up.
   const devParent = (extId) => 'PAR' + String(extId).slice(-5);
   const devStudent = (extId) => 'STU' + String(extId).slice(-5);
-  for (const [i, [extId, first, last]] of students.entries()) {
-    const parentCode = i === 0 ? DEMO_CODE : devParent(extId);
+  const register = async (extId, rosterIdList) => {
+    const parentCode = extId === '123456' ? DEMO_CODE : devParent(extId);
     const studentCode = devStudent(extId);
     const identityId = Number(db.prepare(
       `INSERT INTO student_identities
@@ -196,37 +225,49 @@ async function seed() {
       await hashCode(parentCode), 1000, 1000,
       await hashCode(studentCode), 1000,
       await sealCode(env, parentCode), await sealCode(env, studentCode)).lastInsertRowid);
-    db.prepare(
-      'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, ?)',
-    ).run(rosterIds[i], identityId, 1000);
-  }
+    for (const rosterId of rosterIdList) {
+      db.prepare(
+        'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, ?)',
+      ).run(rosterId, identityId, 1000);
+    }
+    return identityId;
+  };
 
-  const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')
-    .run(courseId, 'Algebra I — Course Syllabus', 'algebra-i').lastInsertRowid);
-  const versionId = Number(db.prepare('INSERT INTO versions (syllabus_id, num, published_at) VALUES (?, 1, ?)')
-    .run(syllabusId, Math.floor(Date.now() / 1000)).lastInsertRowid);
-
-  const blocks = [
-    ['heading', '<h2>Welcome to Algebra I</h2>', 0],
-    ['text', '<p>This course covers linear equations, systems, quadratics, and an introduction to functions. We meet daily and most work is completed in class.</p>', 0],
-    ['heading', '<h2>Late work</h2>', 0],
-    ['text', '<p>Assignments turned in after the due date lose 10% per school day, to a floor of 50%. Work more than two weeks late is not accepted without a documented absence.</p>', 0],
-    ['initial', 'I have read and understand the late work policy.', 1],
-    ['heading', '<h2>Attendance</h2>', 0],
-    ['text', '<p>Attendance is taken daily. Three unexcused tardies equal one absence. Students are responsible for work missed during any absence.</p>', 0],
-    ['initial', 'I have read and understand the attendance policy.', 1],
-    ['heading', '<h2>Academic honesty</h2>', 0],
-    ['text', '<p>Work submitted must be your own. Copying, sharing answers, and unattributed AI use are all handled as academic dishonesty and reported to administration.</p>', 0],
-    ['initial', 'I have read and understand the academic honesty policy.', 1],
-    ['heading', '<h2>Materials</h2>', 0],
-    ['text', '<ul><li>A charged Chromebook, daily</li><li>Pencil and lined paper</li><li>A scientific calculator (borrowing one from the classroom set is fine)</li></ul>', 0],
-    ['agree', 'I have read this syllabus in full and agree to its terms.', 1],
-  ];
-  blocks.forEach(([type, html, needs], i) => {
-    db.prepare('INSERT INTO blocks (version_id, ord, type, html, needs_initials) VALUES (?, ?, ?, ?, ?)')
-      .run(versionId, i, type, html, needs);
-  });
+  await register('123456', [algebra.rosterIds.get('123456'), geometry.rosterIds.get('123456')]);
+  await register('123457', [algebra.rosterIds.get('123457')]);
+  await register('123458', [algebra.rosterIds.get('123458')]);
+  // 123459 deliberately not registered -- /register flow.
 }
+
+// The published syllabi the fixture seeds. Two distinct courses so the class
+// switcher has a real difference to show.
+const ALGEBRA_BLOCKS = [
+  ['heading', '<h2>Welcome to Algebra I</h2>', 0],
+  ['text', '<p>This course covers linear equations, systems, quadratics, and an introduction to functions. We meet daily and most work is completed in class.</p>', 0],
+  ['heading', '<h2>Late work</h2>', 0],
+  ['text', '<p>Assignments turned in after the due date lose 10% per school day, to a floor of 50%. Work more than two weeks late is not accepted without a documented absence.</p>', 0],
+  ['initial', 'I have read and understand the late work policy.', 1],
+  ['heading', '<h2>Attendance</h2>', 0],
+  ['text', '<p>Attendance is taken daily. Three unexcused tardies equal one absence. Students are responsible for work missed during any absence.</p>', 0],
+  ['initial', 'I have read and understand the attendance policy.', 1],
+  ['heading', '<h2>Academic honesty</h2>', 0],
+  ['text', '<p>Work submitted must be your own. Copying, sharing answers, and unattributed AI use are all handled as academic dishonesty and reported to administration.</p>', 0],
+  ['initial', 'I have read and understand the academic honesty policy.', 1],
+  ['heading', '<h2>Materials</h2>', 0],
+  ['text', '<ul><li>A charged Chromebook, daily</li><li>Pencil and lined paper</li><li>A scientific calculator (borrowing one from the classroom set is fine)</li></ul>', 0],
+  ['agree', 'I have read this syllabus in full and agree to its terms.', 1],
+];
+
+const GEOMETRY_BLOCKS = [
+  ['heading', '<h2>Welcome to Geometry</h2>', 0],
+  ['text', '<p>This course covers Euclidean geometry, proofs, triangles, circles, and an introduction to trigonometry. Homework is assigned daily and collected at the start of class.</p>', 0],
+  ['heading', '<h2>Homework</h2>', 0],
+  ['text', '<p>Homework is checked for completion each morning. Late homework is accepted until the unit test, at half credit. A missing problem is better than a blank page.</p>', 0],
+  ['initial', 'I have read and understand the homework policy.', 1],
+  ['heading', '<h2>Calculators</h2>', 0],
+  ['text', '<p>A scientific calculator is expected for in-class work and tests. Phones are never calculators here; if you do not have one, borrow from the classroom set before the bell.</p>', 0],
+  ['agree', 'I have read this syllabus in full and agree to its terms.', 1],
+];
 
 // ---- routes ----
 
@@ -234,6 +275,7 @@ const ROUTES = {
   '/api/register': () => import('../functions/api/register.js'),
   '/api/schools': () => import('../functions/api/schools.js'),
   '/api/admin/school': () => import('../functions/api/admin/school.js'),
+  '/api/admin/schools/search': () => import('../functions/api/admin/schools-search.js'),
   '/api/sign/login': () => import('../functions/api/sign/login.js'),
   // Was missing here, so /register/code/ 404'd locally while working in
   // production -- the same drift the REWRITES comment below warns about, in the
@@ -404,10 +446,18 @@ createServer(async (req, res) => {
   iniSHial — No backpack required.
 
   http://localhost:${PORT}/              landing
-  http://localhost:${PORT}/register/     student sign-up   (Biology has three unregistered: 100016, 100017, 100018)
-  http://localhost:${PORT}/sign/         parent or student (ID 123456 -- ${DEMO_CODE} = parent, STU23456 = student)
+  http://localhost:${PORT}/register/     student sign-up   (D: ID 123459, last Student)
+  http://localhost:${PORT}/sign/         parent or student (A: ID 123456 -- ${DEMO_CODE} = parent, STU23456 = student)
   http://localhost:${PORT}/admin/login/  teacher sign-in   (password ${DEV_PASSWORD})
   http://localhost:${PORT}/admin/signup/ teacher sign-up   (any @school.edu address)
+
+  Test students (school placeholder, all at /sign/ with ID + one code):
+    A  123456  Algebra I + Geometry  parent ${DEMO_CODE}  student STU23456  -- class switcher, sign both syllabi
+    B  123457  Algebra I             parent PAR23457       student STU23457
+    C  123458  Algebra I             parent PAR23458       student STU23458
+    D  123459  Algebra I             NOT REGISTERED -- /register/ to create the account
+
+  Parent code flow: /register/code/ with A's ID 123456 and parent.a@example.com
 
   Demo class: ${demo.course}
 ${demoLines}

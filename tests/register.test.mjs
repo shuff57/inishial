@@ -498,11 +498,12 @@ test('a student enrolled in two courses at one school registers once and gets ac
 
 test('a single-school install still registers a student behind an unowned legacy course', async () => {
   // seedStudent's course has no owner_id (migrations/0002's shape) and
-  // freshEnv seeds exactly one school (the migration placeholder). Scoping
-  // must be a complete no-op here -- every existing install is in this shape
-  // until a second school joins.
+  // freshEnv has no teacher assigned to any school yet -- migrations/0011's
+  // seeded reference list doesn't count (schoolScope.js counts schools in
+  // use, not every row in the table). Scoping must be a complete no-op here
+  // -- every existing install is in this shape until a second school joins.
   const env = freshEnv();
-  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 1);
+  assert.equal(env._raw.prepare('SELECT COUNT(DISTINCT school_id) AS n FROM teachers').get().n, 0);
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });

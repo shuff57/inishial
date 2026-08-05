@@ -34,17 +34,22 @@ const schoolReq = (method, env, cookie, body) => (method === 'GET' ? getSchool :
 // ---- GET /api/schools ----
 
 test('with no q, every school comes back', async () => {
+  // migrations/0011 seeds a Chico-area reference list alongside the
+  // placeholder, so this isn't a single-row install any more -- the
+  // behaviour under test is "unfiltered", not "small".
   const env = freshEnv();
+  const raw = env._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n;
   const body = await (await lookupReq(env, undefined)).json();
-  assert.deepEqual(body.schools, [{ id: 1, name: '(unassigned)' }],
+  assert.equal(body.schools.length, raw, 'no q returns the whole table, not a filtered subset');
+  assert.ok(body.schools.some((s) => s.id === 1 && s.name === '(unassigned)'),
     'the placeholder the migration seeds is a real school row');
 });
 
 test('matches case-insensitively, by substring', async () => {
   const env = freshEnv();
-  env._raw.prepare('INSERT INTO schools (name) VALUES (?)').run('Chico High School');
-  const body = await (await lookupReq(env, 'chico')).json();
-  assert.deepEqual(body.schools.map((s) => s.name), ['Chico High School']);
+  env._raw.prepare('INSERT INTO schools (name) VALUES (?)').run('Southside High');
+  const body = await (await lookupReq(env, 'southside')).json();
+  assert.deepEqual(body.schools.map((s) => s.name), ['Southside High']);
 });
 
 test('no match returns an empty list, not an error', async () => {
@@ -118,14 +123,15 @@ test('naming an existing school joins that row rather than erroring', async () =
 test('a different-case match still joins the existing row, not a case-variant duplicate', async () => {
   const env = freshEnv();
   const southsideId = env._raw.prepare('INSERT INTO schools (name) VALUES (?)').run('Southside High').lastInsertRowid;
+  const before = env._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n;
   const cookie = await teacher(env, 't@school.org', '(unassigned)');
   const res = await schoolReq('PATCH', env, cookie, { name: 'southside high' });
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.school.id, Number(southsideId), 'the existing row, not a duplicate');
   assert.equal(body.school.name, 'Southside High', 'the row keeps its original casing');
-  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 2,
-    'the placeholder plus Southside High -- no case-variant third row');
+  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, before,
+    'no case-variant third row was created');
 });
 
 test("renaming your own school does not relabel a colleague still on the placeholder", async () => {

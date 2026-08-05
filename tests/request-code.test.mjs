@@ -478,13 +478,15 @@ test('a student enrolled in two courses at one school resolves to one identity',
 
 test('a single-school install still resolves a roster row behind an unowned legacy course', async () => {
   // seedStudent's course has no owner_id -- the shape every course predating
-  // teacher accounts is in (migrations/0002) -- and freshEnv seeds exactly one
-  // school (the migration placeholder). Scoping must be a complete no-op here:
-  // nothing about this endpoint's behaviour may change for an install that
-  // has not yet grown a second school.
+  // teacher accounts is in (migrations/0002) -- and freshEnv has no teacher
+  // assigned to any school yet (migrations/0011's seeded reference list
+  // doesn't count -- schoolScope.js counts schools in use, not table rows).
+  // Scoping must be a complete no-op here: nothing about this endpoint's
+  // behaviour may change for an install that has not yet grown a second
+  // school.
   const { env, sent, restore } = mailEnv();
   try {
-    assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 1);
+    assert.equal(env._raw.prepare('SELECT COUNT(DISTINCT school_id) AS n FROM teachers').get().n, 0);
     seedStudent(env._raw, { parentEmail: 'family@example.com' });
     await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 

@@ -228,10 +228,14 @@
            exact match here joins that row; typing something new still
            works and creates one, same as everywhere else this endpoint
            feeds a type-ahead. -->
-      <input id="schoolNameInput" list="schoolNames" type="text" placeholder="Your school's name" maxlength="120" required autocomplete="off">
-      <datalist id="schoolNames"></datalist>
+      <input id="schoolNameInput" data-school-picker data-school-panel="schoolSearch" type="text" placeholder="Your school's name" maxlength="120" required autocomplete="off">
       <button type="submit" class="secondary">Save</button>
     </form>
+    <div id="schoolSearch" hidden>
+      <p class="muted small" data-role="note"></p>
+      <div data-role="list"></div>
+      <p class="small muted" data-role="attribution"></p>
+    </div>
   </div>
 
   <h1>Classes</h1>
@@ -793,13 +797,6 @@ async function loadSchool() {
       + 'Give it your real school’s name below before a second school joins this install, '
       + 'so students at each cannot be mixed up.';
     $('schoolBanner').hidden = false;
-
-    // Best effort: an empty datalist just means the field falls back to
-    // free text, same as it started.
-    try {
-      const { schools } = await (await fetch('/api/schools')).json();
-      $('schoolNames').innerHTML = schools.map((s) => `<option value="${esc(s.name)}">`).join('');
-    } catch { /* free text still works */ }
   } catch { /* leave it hidden */ }
 }
 

@@ -331,18 +331,20 @@ test('signing up with an existing school name joins that school (case-insensitiv
   const e = env();
   // Seed the school directly, mimicking a prior teacher who already signed up.
   const existingId = Number(e._raw.prepare('INSERT INTO schools (name) VALUES (?)').run('Northside High').lastInsertRowid);
+  const before = e._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n;
 
   const res = await create(e, 'alice@' + DOMAIN, PASSWORD, 'Alice', 'NORTHSIDE HIGH');
   assert.equal(res.status, 200, await res.clone().text());
 
   const teacher = e._raw.prepare('SELECT school_id FROM teachers WHERE email = ?').get('alice@' + DOMAIN);
   assert.equal(teacher.school_id, existingId, 'teacher should join the existing school row');
-  assert.equal(e._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 2,
-    'placeholder + one real school, no duplicate created');
+  assert.equal(e._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, before,
+    'no duplicate created');
 });
 
 test('signing up with a new school name creates a new school row', async () => {
   const e = env();
+  const before = e._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n;
   const res = await create(e, 'bob@' + DOMAIN, PASSWORD, 'Bob', 'Southside High');
   assert.equal(res.status, 200, await res.clone().text());
 
@@ -351,8 +353,8 @@ test('signing up with a new school name creates a new school row', async () => {
 
   const teacher = e._raw.prepare('SELECT school_id FROM teachers WHERE email = ?').get('bob@' + DOMAIN);
   assert.equal(teacher.school_id, school.id);
-  assert.equal(e._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, 2,
-    'placeholder + the newly created school only');
+  assert.equal(e._raw.prepare('SELECT COUNT(*) AS n FROM schools').get().n, before + 1,
+    'exactly one new row created');
 });
 
 test('signing up with a different school name creates a separate school row', async () => {
@@ -360,9 +362,10 @@ test('signing up with a different school name creates a separate school row', as
   await create(e, 'first@' + DOMAIN, PASSWORD, '', 'Chico High');
   await create(e, 'second@' + DOMAIN, PASSWORD, '', 'Chico High School');
 
-  const rows = e._raw.prepare('SELECT name FROM schools WHERE name != ? ORDER BY id').all('(unassigned)').map((r) => r.name);
+  const rows = e._raw.prepare('SELECT name FROM schools WHERE name IN (?, ?) ORDER BY name')
+    .all('Chico High', 'Chico High School').map((r) => r.name);
   assert.deepEqual(rows, ['Chico High', 'Chico High School'],
-    'two different names stay two different schools');
+    'two different names stay two different schools, and neither collapses into the other');
 });
 
 test('signing up with no school name is rejected', async () => {
