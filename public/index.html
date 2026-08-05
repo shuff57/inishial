@@ -89,9 +89,10 @@
 
     <div class="card plain">
       <h2>I'm a parent or guardian</h2>
-      <p class="muted">Your teacher emailed you a student ID and an <span class="mark">access
-        code</span>. Use those to read the syllabus and initial each section.</p>
-      <p><a class="button" href="/sign/">Read and initial the syllabus</a></p>
+      <p class="muted">Enter your email and we'll send you an <span class="mark">access
+        code</span> to read the syllabus and initial each section. Already have a code from
+        your teacher's email? <a href="/sign/">Go straight to the syllabus</a>.</p>
+      <p><a class="button" href="/register/code/">Get my access code</a></p>
     </div>
 
     <!-- Buy me a coffee. Our own button + hand-drawn mug icon, linking to the
@@ -154,19 +155,14 @@
       <input id="reg-username" class="blank-name" name="username" type="email"
              inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" required>
 
-      <!-- Folded away, not removed: the school already has a contact address for
+      <!-- Optional, and marked so: the school already has a contact address for
            nearly every family, so this is the exception rather than a fifth
-           question. A <details> says "only if" without a paragraph explaining
-           it, and the page cannot show which address is on file to help decide
+           question. The page cannot show which address is on file to help decide
            -- /api/register withholds it on purpose, since this form is often
            filled in on a shared Chromebook. -->
-      <details class="aside">
-        <summary>My parent or guardian uses a different email</summary>
-        <label for="reg-email">Parent or guardian's email
-          <span class="hint">Only fill this in if the syllabus should go somewhere other
-            than the address your school already has on file.</span></label>
-        <input id="reg-email" name="parent_email" type="email" autocomplete="off">
-      </details>
+      <label for="reg-email">Parent or guardian's email <span class="hint">(optional)</span>
+        <span class="hint">Enter your parent or guardian's email address.</span></label>
+      <input id="reg-email" name="parent_email" type="email" autocomplete="off">
 
       <div id="registerMsg" hidden></div>
       <p><button id="registerBtn" type="submit">Continue</button></p>
@@ -242,8 +238,7 @@
       <input id="rc-sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
 
       <label for="rc-email">Parent or guardian's personal email
-        <span class="hint">Defaults to the address your school has on file. Change it here
-          if that one is wrong.</span></label>
+        <span class="hint">The email you want the access code sent to.</span></label>
       <input id="rc-email" class="blank-name" name="email" type="email" inputmode="email"
              autocomplete="email" autocapitalize="none" spellcheck="false" required>
 
@@ -276,8 +271,7 @@
         <input id="sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
 
         <label for="login-email">Your email address
-          <span class="hint">Parents: the address the code was emailed to.
-            Students: your school email.</span></label>
+          <span class="hint">The email that belongs with your access code.</span></label>
         <input id="login-email" name="email" type="email" inputmode="email"
                autocomplete="email" autocapitalize="none" spellcheck="false" required>
 

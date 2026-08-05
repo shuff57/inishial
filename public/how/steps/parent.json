@@ -5,7 +5,7 @@
   "steps": [
     {
       "title": "Start on the home page",
-      "body": "Open the link your school gave you. Under \"I'm a parent or guardian,\" tap \"Read and initial the syllabus.\" The link in the access-code email takes you straight there, so you can skip the home page entirely.",
+      "body": "Open the link your school gave you. Under \"I'm a parent or guardian,\" tap \"Get my access code\" and enter your email. If your teacher already emailed you a code, use \"Go straight to the syllabus\" instead -- the link in that email takes you straight there.",
       "clip": "parent-home.mp4",
       "n": 1,
       "clipDark": "parent-home-dark.mp4"
