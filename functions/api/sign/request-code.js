@@ -124,7 +124,7 @@ export async function onRequestPost({ request, env }) {
   const schoolId = schoolIdRow ? schoolIdRow.school_id : 1;
 
   const identity = await env.DB.prepare(
-    `SELECT id, code_hash, code_enc, student_code_enc, parent_email
+    `SELECT id, code_hash, code_enc, student_code_enc, parent_email, parent_username
        FROM student_identities
       WHERE school_id = ?1 AND student_ext_id = ?2`,
   ).bind(schoolId, studentExtId).first();
@@ -173,7 +173,7 @@ export async function onRequestPost({ request, env }) {
   const studentCode = await openCode(env, identity.student_code_enc);
 
   const studentName = `${rosterRow.first} ${rosterRow.last}`;
-  const sent = await sendAccessCode(env, email, studentName, code, studentCode);
+  const sent = await sendAccessCode(env, email, studentName, code, studentCode, identity.parent_username);
 
   if (!sent.ok) {
     // Honest failure: the parent would otherwise stare at "check your inbox"

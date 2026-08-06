@@ -149,9 +149,9 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // Auto-generate a username from the student ID. The student sees this on the
-  // confirmation screen and enters it at sign-in alongside their access code.
+  // Auto-generate usernames from the student ID.
   const username = `${studentExtId}@s`;
+  const parentUsername = `p${studentExtId}@${schoolId}`;
 
   // The student's own access code, minted here and shown once on the next
   // screen. Without it the only way back in is to register again, which works
@@ -171,11 +171,11 @@ export async function onRequestPost({ request, env }) {
       identityId = identity.id;
     } else {
       const insert = await env.DB.prepare(
-        `INSERT INTO student_identities (school_id, student_ext_id, username, parent_email, created_at,
+        `INSERT INTO student_identities (school_id, student_ext_id, username, parent_username, parent_email, created_at,
                                          student_code_hash, student_code_issued_at, student_code_enc,
                                          code_hash, code_issued_at, code_enc)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?5, ?7, ?8, ?5, ?9)`,
-      ).bind(schoolId, studentExtId, username, parentEmail || null, nowSec,
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?6, ?8, ?9, ?6, ?10)`,
+      ).bind(schoolId, studentExtId, username, parentUsername, parentEmail || null, nowSec,
         await hashCode(studentCode), await sealCode(env, studentCode),
         await hashCode(parentCode), await sealCode(env, parentCode)).run();
       identityId = Number(insert.meta.last_row_id);

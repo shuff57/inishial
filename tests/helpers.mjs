@@ -133,10 +133,10 @@ export async function seedAccount(db, rosterId, {
   if (!identityId) {
     identityId = Number(
       db.prepare(
-        `INSERT INTO student_identities (school_id, student_ext_id, username, code_hash, code_issued_at, parent_email, created_at,
+        `INSERT INTO student_identities (school_id, student_ext_id, username, parent_username, code_hash, code_issued_at, parent_email, created_at,
                                          student_code_hash, student_code_issued_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(schoolId, extId, username, code ? await hashCode(code) : null, code ? 1000 : null,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(schoolId, extId, username, `p${extId}@${schoolId}`, code ? await hashCode(code) : null, code ? 1000 : null,
         parentEmail, 1000,
         studentCode ? await hashCode(studentCode) : null, studentCode ? 1000 : null).lastInsertRowid,
     );

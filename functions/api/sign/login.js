@@ -74,7 +74,7 @@ export async function onRequestPost({ request, env }) {
   //
   // Also join roster to get the student name and course info for the response.
   const { results: rows = [] } = await env.DB.prepare(
-    `SELECT si.id, si.code_hash, si.student_code_hash, si.username, si.parent_email,
+    `SELECT si.id, si.code_hash, si.student_code_hash, si.username, si.parent_username, si.parent_email,
             r.first, r.last, r.course_id, r.parent_email AS roster_email
        FROM student_identities si
        JOIN accounts a ON a.identity_id = si.id
@@ -101,13 +101,12 @@ export async function onRequestPost({ request, env }) {
     const parentOk = await verifyCode(code, cand.code_hash || DECOY) && !!cand.code_hash;
     const studentOk = await verifyCode(code, cand.student_code_hash || DECOY) && !!cand.student_code_hash;
     const isStudentEmail = !!cand.username && String(cand.username).toLowerCase() === email;
+    const isParentUsername = !!cand.parent_username && String(cand.parent_username).toLowerCase() === email;
     const onFile = cand.parent_email || cand.roster_email;
     const isParentEmail = !!onFile && String(onFile).toLowerCase() === email;
 
-    // Assigned rather than broken out of, so a second candidate costs the same
-    // as the first and the loop does not leak how many rows matched.
     if (!row && isStudentEmail && studentOk) { row = cand; role = 'student'; }
-    else if (!row && isParentEmail && parentOk) { row = cand; role = 'parent'; }
+    else if (!row && (isParentUsername || isParentEmail) && parentOk) { row = cand; role = 'parent'; }
   }
   if (!row) return json({ error: REJECT }, 401);
 

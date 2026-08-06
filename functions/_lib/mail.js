@@ -145,13 +145,14 @@ function signUrl(env) {
 // either party, so the two attestations are no longer independent for a family
 // that shares an inbox. That was the deliberate trade -- recoverability over a
 // separation that only held as long as nobody ever lost a slip of paper.
-function textBody(studentName, parentCode, studentCode, url) {
+function textBody(studentName, parentCode, studentCode, parentUsername, url) {
   const lines = [
     `Hi ${studentName}'s parent or guardian,`,
     '',
     `Open the syllabus here:`,
     `    ${url}`,
     '',
+    `YOUR username: ${parentUsername}`,
     `YOUR access code (parent or guardian):`,
     '',
     `    ${parentCode}`,
@@ -178,7 +179,7 @@ function textBody(studentName, parentCode, studentCode, url) {
   return lines.join('\r\n');
 }
 
-function htmlBody(studentName, parentCode, studentCode, url) {
+function htmlBody(studentName, parentCode, studentCode, parentUsername, url) {
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
@@ -186,9 +187,8 @@ function htmlBody(studentName, parentCode, studentCode, url) {
   const out = [
     `<p>Hi ${esc(studentName)}'s parent or guardian,</p>`,
     `<p><a href="${esc(url)}">Open the syllabus</a></p>`,
-    // The bare URL as well as the link: some clients strip anchors, and a
-    // parent who cannot see where a link goes is right not to trust it.
     `<p style="color:#666;font-size:.9rem">Or paste this into your browser:<br>${esc(url)}</p>`,
+    `<p style="margin-bottom:0"><strong>Your username:</strong> ${esc(parentUsername)}</p>`,
     `<p style="margin-bottom:0"><strong>Your access code</strong> (parent or guardian):</p>`,
     `<p style="${codeStyle}">${esc(parentCode)}</p>`,
   ];
@@ -215,7 +215,7 @@ function htmlBody(studentName, parentCode, studentCode, url) {
  * { ok: false, code, message } on failure. Never throws -- the caller is a
  * public endpoint that reports honestly whether the mail went.
  */
-export async function sendAccessCode(env, toEmail, studentName, code, studentCode = null) {
+export async function sendAccessCode(env, toEmail, studentName, code, studentCode = null, parentUsername = null) {
   // The mail subdomain, not the apex: huffpalmer.fyi's MX belongs to Cloudflare
   // Email Routing, and a transactional sender on its own subdomain keeps a spam
   // complaint here from dragging down the apex domain's reputation.
@@ -250,8 +250,8 @@ export async function sendAccessCode(env, toEmail, studentName, code, studentCod
             textBody: [{ partId: 't', type: 'text/plain' }],
             htmlBody: [{ partId: 'h', type: 'text/html' }],
             bodyValues: {
-              t: { value: textBody(studentName, code, studentCode, signUrl(env)) },
-              h: { value: htmlBody(studentName, code, studentCode, signUrl(env)) },
+              t: { value: textBody(studentName, code, studentCode, parentUsername, signUrl(env)) },
+              h: { value: htmlBody(studentName, code, studentCode, parentUsername, signUrl(env)) },
             },
           },
         },
