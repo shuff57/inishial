@@ -172,7 +172,6 @@ for (const f of SCHOOL_FIELDS) {
 }
 
 (async () => {
-  let schools = [];
   try {
     ({ schools = [] } = await (await netFetch('/api/schools')).json());
   } catch { schools = []; }
