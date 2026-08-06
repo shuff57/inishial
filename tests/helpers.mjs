@@ -108,7 +108,7 @@ export function seedSchoolRoster(db, {
  *  for an unowned course) plus an accounts row pointing at it. Returns the
  *  same shape as before so existing call sites are untouched. */
 export async function seedAccount(db, rosterId, {
-  username = 'malvarez@chicousd.org',
+  username = '904511@s',
   code = 'ABCD2345',
   studentCode = 'STU45678',
   parentEmail = 'parent@example.com',

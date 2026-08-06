@@ -102,7 +102,7 @@ const del = (env, body, headers = ADMIN) =>
 /** A class with a student, an account, a published syllabus, and one signature. */
 async function classWithSignature(env, course = 'Algebra I') {
   const { courseId, rosterId } = seedStudent(env._raw, { course });
-  const { accountId } = await seedAccount(env._raw, rosterId, { username: course + '@x' });
+  const { accountId } = await seedAccount(env._raw, rosterId, { username: '904511@s' });
   const { versionId, blockIds } = seedSyllabus(env._raw, courseId,
     [{ type: 'agree', html: 'I agree.', needs_initials: 1 }], { title: course + ' Syllabus' });
   env._raw.prepare(

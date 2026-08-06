@@ -126,8 +126,7 @@
     </nav>
 
     <h1>Set up your account</h1>
-    <p class="muted">First day of class. You'll need your student ID number and the
-      email address your school gave you.</p>
+    <p class="muted">First day of class. You'll need your student ID number.</p>
 
     <form id="registerForm" class="card plain" novalidate>
       <!-- Hidden by default, and left that way for the common single-school
@@ -149,11 +148,6 @@
 
       <label for="reg-last">Last name</label>
       <input id="reg-last" class="blank-name" name="last" type="text" autocomplete="family-name" required>
-
-      <label for="reg-username">School email
-        <span class="hint">The address your school gave you.</span></label>
-      <input id="reg-username" class="blank-name" name="username" type="email"
-             inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" required>
 
       <!-- Optional, and marked so: the school already has a contact address for
            nearly every family, so this is the exception rather than a fifth
@@ -193,6 +187,8 @@
         <p class="small muted">Your access code. Write it down. You need it to come back
           and finish later, and this is the only time it is shown.</p>
         <p class="code-out"><b id="doneCodeValue"></b></p>
+        <p class="small muted">Your sign-in name. Use this with your access code to sign in.</p>
+        <p class="code-out"><b id="doneUsername"></b></p>
       </div>
 
       <p><a class="button" href="/sign/">Read and initial the syllabus</a></p>

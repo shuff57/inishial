@@ -102,7 +102,7 @@ test('mints both codes at registration, so the parent code is ready to mail', as
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
 
   await register({ request: jsonRequest('https://x/api/register', {
-    student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+    student_ext_id: '904511', last: 'Alvarez',
   }), env });
 
   const row = env._raw.prepare('SELECT code_hash, code_enc, student_code_hash FROM student_identities').get();
@@ -118,7 +118,7 @@ test('a valid request emails the parent code and returns a masked preview', asyn
     // Registration mints BOTH codes and seals the parent code in the vault, so
     // the self-signup page can read it back here. This is the normal path.
     await register({ request: jsonRequest('https://x/api/register', {
-      student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+      student_ext_id: '904511', last: 'Alvarez',
     }), env });
 
     const res = await post(env, { student_ext_id: '904511', email: 'family@example.com' });
@@ -150,7 +150,7 @@ test('the code that was mailed opens a parent session at sign-in', async () => {
   try {
     seedStudent(env._raw, { parentEmail: 'family@example.com' });
     await register({ request: jsonRequest('https://x/api/register', {
-      student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+      student_ext_id: '904511', last: 'Alvarez',
     }), env });
 
     const res = await post(env, { student_ext_id: '904511', email: 'family@example.com' });
@@ -301,7 +301,7 @@ test('the mail carries a link to the sign page, on the configured host', async (
   try {
     seedStudent(env._raw, { parentEmail: 'family@example.com' });
     await register({ request: jsonRequest('https://x/api/register', {
-      student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+      student_ext_id: '904511', last: 'Alvarez',
     }), env });
 
     await post(env, { student_ext_id: '904511', email: 'family@example.com' });

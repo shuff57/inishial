@@ -77,16 +77,9 @@ export async function onRequestPost({ request, env }) {
 
   const studentExtId = String(body.student_ext_id ?? '').trim();
   const last = String(body.last ?? '').trim();
-  // Lowercased: an address is case-insensitive, and without this Sam@ and sam@
-  // are two accounts as far as UNIQUE is concerned.
-  const username = String(body.username ?? '').trim().toLowerCase();
   const parentEmail = String(body.parent_email ?? '').trim();
 
   if (!studentExtId || !last) return badRequest('Enter your student ID and last name.');
-
-  // Username and email are validated further down, after the roster lookup and
-  // the already-registered check: neither is worth checking for a student who
-  // is not on the roster or who is being sent to /sign/ anyway.
 
   const nowSec = Math.floor(Date.now() / 1000);
 
@@ -150,15 +143,15 @@ export async function onRequestPost({ request, env }) {
       }, 409);
     }
   } else {
-    // First-time registration: validate and collect the fields that go on the
-    // identity row.
-    if (!EMAIL_RE.test(username)) {
-      return badRequest('Enter your school email address.');
-    }
+    // First-time registration: validate the parent email if supplied.
     if (parentEmail && !EMAIL_RE.test(parentEmail)) {
       return badRequest("That doesn't look like an email address. Leave it blank to use the one your school has on file.");
     }
   }
+
+  // Auto-generate a username from the student ID. The student sees this on the
+  // confirmation screen and enters it at sign-in alongside their access code.
+  const username = `${studentExtId}@s`;
 
   // The student's own access code, minted here and shown once on the next
   // screen. Without it the only way back in is to register again, which works

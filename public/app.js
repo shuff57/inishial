@@ -241,6 +241,7 @@ $('registerForm').addEventListener('submit', async (event) => {
       [body.student, body.course, body.period && ('Period ' + body.period)].filter(Boolean).join(' · ');
     $('doneMsg').textContent = body.message;
     $('doneCodeValue').textContent = body.student_code;
+    $('doneUsername').textContent = body.username;
     form.hidden = true;
     $('registerDone').hidden = false;
   } catch {

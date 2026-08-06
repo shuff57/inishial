@@ -67,7 +67,7 @@ test('the parent code opens a parent session and nothing else', async () => {
 
 test('the student code opens a student session', async () => {
   const { env, extId, studentCode } = await setup();
-  const body = await (await doLogin(env, { student_ext_id: extId, email: 'malvarez@chicousd.org', code: studentCode })).json();
+  const body = await (await doLogin(env, { student_ext_id: extId, email: '904511@s', code: studentCode })).json();
   assert.equal(body.role, 'student');
 });
 
@@ -80,7 +80,7 @@ test('a role claimed in the request body is ignored outright', async () => {
 
   // And the reverse, so the field is dead in both directions rather than
   // merely inconvenient in one.
-  const other = await (await doLogin(env, { student_ext_id: extId, email: 'malvarez@chicousd.org', code: studentCode, role: 'parent' })).json();
+  const other = await (await doLogin(env, { student_ext_id: extId, email: '904511@s', code: studentCode, role: 'parent' })).json();
   assert.equal(other.role, 'student', 'the student code cannot buy a parent session');
 });
 
@@ -351,7 +351,7 @@ test('a second submission returns the first rather than overwriting it', async (
 test('a parent and a student sign the same section independently', async () => {
   const ctx = await setup();
   const parent = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, code: ctx.code }));
-  const student = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, email: 'malvarez@chicousd.org', code: ctx.studentCode }));
+  const student = cookieFrom(await doLogin(ctx.env, { student_ext_id: ctx.extId, email: '904511@s', code: ctx.studentCode }));
 
   await initial(ctx.env, parent, { block_id: ctx.blockIds[2], initials: 'PAR' });
   await initial(ctx.env, student, { block_id: ctx.blockIds[2], initials: 'STU' });
@@ -489,7 +489,7 @@ test('the class switcher appears when an identity has more than one account', as
 
   // Register once, creating one identity with two accounts.
   const regRes = await (await import('../functions/api/register.js')).onRequestPost({
-    request: jsonRequest('https://x/api/register', { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' }),
+    request: jsonRequest('https://x/api/register', { student_ext_id: '904511', last: 'Alvarez' }),
     env,
   });
   assert.equal(regRes.status, 201);
@@ -500,7 +500,7 @@ test('the class switcher appears when an identity has more than one account', as
 
   // Login and check the syllabus response includes courses.
   const code = (await regRes.json()).student_code;
-  const loginRes = await doLogin(env, { student_ext_id: '904511', email: 'malvarez@chicousd.org', code });
+  const loginRes = await doLogin(env, { student_ext_id: '904511', email: '904511@s', code });
   const cookie = cookieFrom(loginRes);
   const doc = await (await getSyllabus({
     request: new Request('https://x/api/sign/syllabus', { headers: withCookie(cookie) }), env,
@@ -520,7 +520,7 @@ test('the class switcher defaults to the course with unsigned sections remaining
 
   // Register and create both accounts.
   const regRes = await (await import('../functions/api/register.js')).onRequestPost({
-    request: jsonRequest('https://x/api/register', { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' }),
+    request: jsonRequest('https://x/api/register', { student_ext_id: '904511', last: 'Alvarez' }),
     env,
   });
   const identityId = env._raw.prepare('SELECT identity_id FROM accounts WHERE roster_id = ?').get(r1).identity_id;
@@ -528,7 +528,7 @@ test('the class switcher defaults to the course with unsigned sections remaining
 
   // Sign all blocks in Algebra I.
   const code = (await regRes.json()).student_code;
-  const cookie = cookieFrom(await doLogin(env, { student_ext_id: '904511', email: 'malvarez@chicousd.org', code }));
+  const cookie = cookieFrom(await doLogin(env, { student_ext_id: '904511', email: '904511@s', code }));
   for (const bid of s1.blockIds.filter((_, i) => BLOCKS[i].needs_initials)) {
     await initial(env, cookie, { block_id: bid, initials: 'MA' });
   }

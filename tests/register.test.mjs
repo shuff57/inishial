@@ -21,7 +21,7 @@ test('registration succeeds without an email when the roster has one', async () 
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
 
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   const body = await res.json();
 
   assert.equal(res.status, 201);
@@ -34,7 +34,7 @@ test('a student never sees a parent email address, in any form', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'jennifer.alvarez@example.com' });
 
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   const text = await res.text();
 
   assert.ok(!text.includes('jennifer.alvarez@example.com'), 'the full address leaked');
@@ -43,24 +43,19 @@ test('a student never sees a parent email address, in any form', async () => {
   // This used to be "no @ anywhere". The student's own school email now comes
   // back -- they typed it two seconds ago -- so the check names the one address
   // allowed instead of banning the character. Any OTHER address is still a leak.
-  assert.deepEqual(text.match(/[^\s"@]+@[^\s",}]+/g) ?? [], ['malvarez@chicousd.org'],
+  assert.deepEqual(text.match(/[^\s"@]+@[^\s",}]+/g) ?? [], ['904511@s'],
     'no address but the student\'s own belongs in a student-facing response');
   assert.ok(!text.includes('•'), 'nor a masked one');
   assert.equal(JSON.parse(text).has_contact, true, 'a plain boolean is all the student needs');
 });
 
-test('the school email must be an address, and is stored lowercased', async () => {
+test('the username is auto-generated from the student ID', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: null });
 
-  const bad = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez' });
-  assert.equal(bad.status, 400, 'a bare username is not a school email');
-  assert.equal(env._raw.prepare('SELECT COUNT(*) n FROM accounts').get().n, 0, 'and no account was made');
-
-  const ok = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'M.Alvarez@ChicoUSD.org' });
+  const ok = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   assert.equal(ok.status, 201);
-  // Case-folded, or Sam@ and sam@ are two accounts as far as UNIQUE is concerned.
-  assert.equal(env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().username, 'm.alvarez@chicousd.org');
+  assert.equal(env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().username, '904511@s');
 });
 
 test('the address a student supplies is not echoed back either', async () => {
@@ -68,7 +63,7 @@ test('the address a student supplies is not echoed back either', async () => {
   seedStudent(env._raw, { parentEmail: null });
 
   const res = await post(env, {
-    student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org', parent_email: 'mom@example.com',
+    student_ext_id: '904511', last: 'Alvarez', parent_email: 'mom@example.com',
   });
   assert.ok(!(await res.text()).includes('mom@example.com'));
 });
@@ -77,7 +72,7 @@ test('a student-supplied address overrides the roster one', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'old@example.com' });
 
-  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org', parent_email: 'New@Example.com' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez', parent_email: 'New@Example.com' });
   assert.equal(env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().parent_email, 'New@Example.com');
 
   const csv = await (await credentials({
@@ -89,7 +84,7 @@ test('a student-supplied address overrides the roster one', async () => {
 test('the roster address is used and labelled when the student adds nothing', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
-  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   const csv = await (await credentials({
     request: new Request('https://x/api/admin/credentials?course_id=1', { headers: ADMIN_HEADERS }), env,
@@ -101,7 +96,7 @@ test('a student with no contact anywhere is flagged, not blocked', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: null });
 
-  const body = await (await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' })).json();
+  const body = await (await post(env, { student_ext_id: '904511', last: 'Alvarez' })).json();
   assert.equal(body.has_contact, false);
   assert.match(body.message, /no parent email on file/);
 
@@ -114,7 +109,7 @@ test('a student with no contact anywhere is flagged, not blocked', async () => {
 test('a malformed address is refused rather than silently dropped', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org', parent_email: 'not-an-email' });
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', parent_email: 'not-an-email' });
   assert.equal(res.status, 400);
 });
 
@@ -131,7 +126,7 @@ test('registering issues a student session, so the syllabus is reachable at once
   const { courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   const cookie = cookieFrom(res);
   assert.ok(cookie.startsWith('inishial_session='), 'registration should hand back a session');
   assert.equal((await res.json()).next, '/sign/');
@@ -146,7 +141,7 @@ test('a registration session cannot sign as the parent', async () => {
   const { courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
-  const cookie = cookieFrom(await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' }));
+  const cookie = cookieFrom(await post(env, { student_ext_id: '904511', last: 'Alvarez' }));
   const blockId = env._raw.prepare('SELECT id FROM blocks WHERE needs_initials = 1 ORDER BY ord').get().id;
 
   await initial({ request: jsonRequest('https://x/api/sign/initial', { block_id: blockId, initials: 'MA' }, { Cookie: cookie }), env });
@@ -161,7 +156,7 @@ test('student and parent initials land on the same student, counted apart', asyn
   seedSyllabus(env._raw, courseId, BLOCKS);
 
   // The student registers and initials both sections themselves.
-  const studentCookie = cookieFrom(await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' }));
+  const studentCookie = cookieFrom(await post(env, { student_ext_id: '904511', last: 'Alvarez' }));
   const blockIds = env._raw.prepare('SELECT id FROM blocks WHERE needs_initials = 1 ORDER BY ord').all().map((b) => b.id);
   for (const id of blockIds) {
     await initial({ request: jsonRequest('https://x/api/sign/initial', { block_id: id, initials: 'MA' }, { Cookie: studentCookie }), env });
@@ -201,9 +196,9 @@ test('student and parent initials land on the same student, counted apart', asyn
 test('a student who already registered is sent to /sign/, not signed in', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
-  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   const body = await res.json();
 
   assert.equal(res.status, 409);
@@ -217,7 +212,7 @@ test('deleting the re-entry path strands nobody: the work is still reachable', a
   const { courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
-  const firstRes = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const firstRes = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   const STUDENT_CODE = (await firstRes.clone().json()).student_code;
   const blockIds = env._raw.prepare('SELECT id FROM blocks WHERE needs_initials = 1 ORDER BY ord').all().map((b) => b.id);
   await initial({
@@ -229,7 +224,7 @@ test('deleting the re-entry path strands nobody: the work is still reachable', a
   // re-entry branch wanted, minus the last name it also asked for.
   const back = await login({
     request: jsonRequest('https://x/api/sign/login', {
-      student_ext_id: '904511', email: 'malvarez@chicousd.org', code: STUDENT_CODE,
+      student_ext_id: '904511', email: '904511@s', code: STUDENT_CODE,
     }), env,
   });
   assert.equal(back.status, 200);
@@ -245,18 +240,18 @@ test('re-entry does not create a second account or change the first', async () =
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
 
-  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
-  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'someone-else' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   const rows = env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id').all();
-  assert.deepEqual(rows.map((r) => r.username), ['malvarez@chicousd.org'],
+  assert.deepEqual(rows.map((r) => r.username), ['904511@s'],
     're-entry must not mint a second account or let the username be reassigned');
 });
 
 test('a wrong last name is refused even once the account exists', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
-  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Wrong' });
   assert.equal(res.status, 400);
@@ -266,7 +261,7 @@ test('a wrong last name is refused even once the account exists', async () => {
 test('re-entry does not reset the rate limiter', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
-  await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   // Holding one valid ID and last name must not buy an attacker a fresh budget
   // of roster guesses between every successful re-entry.
@@ -286,7 +281,7 @@ test('no student-reachable endpoint ever returns an access code', async () => {
   const { code } = await seedAccount(env._raw, rosterId, { code: 'ZZZZ9999' });
 
   const responses = [
-    await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'someone-else' }),
+    await post(env, { student_ext_id: '904511', last: 'Alvarez' }),
     await login({ request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code }), env }),
   ];
 
@@ -321,7 +316,7 @@ test('registering mints the student their own code, and it signs them in', async
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
 
   const body = await (await post(env, {
-    student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+    student_ext_id: '904511', last: 'Alvarez',
   })).json();
 
   assert.match(body.student_code, /^[2-9A-HJ-NP-Z]{8}$/, 'shown once, on the confirmation screen');
@@ -331,7 +326,7 @@ test('registering mints the student their own code, and it signs them in', async
   assert.ok(stored && !stored.includes(body.student_code), 'the code was stored in the clear');
 
   const res = await login({ request: jsonRequest('https://x/api/sign/login', {
-    student_ext_id: '904511', email: 'malvarez@chicousd.org', code: body.student_code,
+    student_ext_id: '904511', email: '904511@s', code: body.student_code,
   }), env });
   assert.equal(res.status, 200);
   assert.equal((await res.json()).role, 'student', 'their own code brings them back as themselves');
@@ -422,14 +417,14 @@ test('an ID and a last name never open an existing account', async () => {
   const env = freshEnv();
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
   const reg = await (await post(env, {
-    student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org',
+    student_ext_id: '904511', last: 'Alvarez',
   })).json();
 
   for (const body of [
     { student_ext_id: '904511', last: 'Alvarez' },
-    { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' },
+    { student_ext_id: '904511', last: 'Alvarez' },
     // Even holding the real access code. This endpoint does not sign anyone in.
-    { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org', student_code: reg.student_code },
+    { student_ext_id: '904511', last: 'Alvarez', student_code: reg.student_code },
   ]) {
     const res = await post(env, body);
     assert.equal(res.status, 409, `no session for ${JSON.stringify(body)}`);
@@ -454,7 +449,7 @@ test('a shared student ID with a matching last name across two schools resolves 
   });
 
   const res = await post(env, {
-    student_ext_id: '123456', last: 'Reyes', username: 'amelia.reyes@chicousd.org', school_id: other.schoolId,
+    student_ext_id: '123456', last: 'Reyes', school_id: other.schoolId,
   });
   const body = await res.json();
   assert.equal(res.status, 201);
@@ -472,7 +467,7 @@ test('more than one school on the install requires a school_id', async () => {
   seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '904511', last: 'Alvarez' });
   seedSchoolRoster(env._raw, { school: 'Southside High', course: 'Geometry', extId: '904512', last: 'Ortiz' });
 
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   assert.equal(res.status, 400);
   assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM accounts').get().n, 0, 'no account without a resolved school');
 });
@@ -484,7 +479,7 @@ test('a student enrolled in two courses at one school registers once and gets ac
   const a = seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '555555', first: 'Sam', last: 'Kim' });
   seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Trigonometry', extId: '555555', first: 'Sam', last: 'Kim' });
 
-  const res = await post(env, { student_ext_id: '555555', last: 'Kim', username: 'skim@chicousd.org', school_id: a.schoolId });
+  const res = await post(env, { student_ext_id: '555555', last: 'Kim', school_id: a.schoolId });
   const body = await res.json();
   assert.equal(res.status, 201);
   assert.equal(body.student, 'Sam Kim');
@@ -506,6 +501,6 @@ test('a single-school install still registers a student behind an unowned legacy
   assert.equal(env._raw.prepare('SELECT COUNT(DISTINCT school_id) AS n FROM teachers').get().n, 0);
   seedStudent(env._raw, { parentEmail: 'family@example.com' });
 
-  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', username: 'malvarez@chicousd.org' });
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   assert.equal(res.status, 201);
 });
