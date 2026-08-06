@@ -117,10 +117,10 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Find or create the student_identities row for (school_id, student_ext_id).
-  // Resolve school_id through the first roster row's course -> teacher -> school,
-  // falling back to the placeholder (id 1) for an unowned course.
+  // Use the school the student selected from the form, falling back to the
+  // course -> teacher -> school chain (placeholder id 1 for unowned courses).
   const primaryRow = rosterRows[0];
-  const schoolId = await resolveIdentitySchool(env.DB, primaryRow.course_id);
+  const schoolId = body.school_id ? Number(body.school_id) : await resolveIdentitySchool(env.DB, primaryRow.course_id);
 
   let identity = await env.DB.prepare(
     'SELECT id, username, code_hash FROM student_identities WHERE school_id = ?1 AND student_ext_id = ?2',
