@@ -144,15 +144,11 @@ function notice(el, text, kind) {
 
 // ---- the school field on /register/ and /register/code/ ----
 //
-// Type-ahead against GET /api/schools, the same pattern as
-// admin/index.html's placeholder-school banner. Hidden entirely on the
-// common single-school install -- that is every install until a second
-// school joins, and nothing about these forms should get harder for it.
-// Both forms only ever SELECT an existing school: typing something that
-// doesn't match one resolves to no id, and the submit handler below refuses
-// to send the form rather than let the server mint one.
+// The student form uses a <select> (populated from /api/schools), the parent
+// form uses a text input with datalist. Both only ever SELECT an existing
+// school.
 const SCHOOL_FIELDS = [
-  { label: 'reg-school-label', input: 'reg-school', hidden: 'reg-school-id' },
+  { label: 'reg-school-label', select: 'reg-school' },
   { label: 'rc-school-label', input: 'rc-school', hidden: 'rc-school-id' },
 ];
 
@@ -166,12 +162,13 @@ function resolveSchool({ input, hidden }) {
 
 /** Safe to submit: the field is still hidden (nothing to require), or it has
  *  resolved to a real school id. */
-function schoolFieldOk({ input, hidden }) {
-  return $(input).hidden || !!$(hidden).value;
+function schoolFieldOk(f) {
+  if (f.select) return $(f.select).hidden || !!$(f.select).value;
+  return $(f.input).hidden || !!$(f.hidden).value;
 }
 
 for (const f of SCHOOL_FIELDS) {
-  $(f.input).addEventListener('input', () => resolveSchool(f));
+  if (f.input) $(f.input).addEventListener('input', () => resolveSchool(f));
 }
 
 (async () => {
@@ -186,7 +183,12 @@ for (const f of SCHOOL_FIELDS) {
     .map((s) => `<option value="${esc(s.name)}">`).join('');
   for (const f of SCHOOL_FIELDS) {
     $(f.label).hidden = false;
-    $(f.input).hidden = false;
+    const el = $(f.select || f.input);
+    el.hidden = false;
+    if (f.select) {
+      el.innerHTML = '<option value="">Select your school</option>'
+        + schools.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    }
   }
 })();
 

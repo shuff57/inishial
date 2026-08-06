@@ -136,11 +136,10 @@
            existing name resolves the hidden id this form actually submits,
            and this form only ever SELECTS a school, so an unmatched value
            blocks submission rather than minting one. -->
-      <label for="reg-school" id="reg-school-label" hidden>School
-        <span class="hint">Start typing your school's name.</span></label>
-      <input id="reg-school" class="blank-name" list="publicSchoolNames" type="text" autocomplete="off" hidden>
-      <input id="reg-school-id" name="school_id" type="hidden">
-      <datalist id="publicSchoolNames"></datalist>
+      <label for="reg-school" id="reg-school-label" hidden>School</label>
+      <select id="reg-school" name="school_id" hidden>
+        <option value="">Select your school</option>
+      </select>
 
       <label for="reg-sid">Student ID number
         <span class="hint">The number on your school ID card.</span></label>
