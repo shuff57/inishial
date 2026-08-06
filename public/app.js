@@ -175,7 +175,6 @@ for (const f of SCHOOL_FIELDS) {
   try {
     ({ schools = [] } = await (await netFetch('/api/schools')).json());
   } catch { schools = []; }
-  if (schools.length <= 1) return; // stays hidden -- nothing to pick
 
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   $('publicSchoolNames').innerHTML = schools
