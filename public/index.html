@@ -217,16 +217,17 @@
       own code with it, in case that one has been lost too.</p>
 
     <form id="requestCodeForm" class="card plain" novalidate>
-      <!-- Same hide-when-single-school, resolve-to-an-id pattern as
-           #registerForm above; see the comment there. Shares its datalist. -->
-      <label for="rc-school" id="rc-school-label" hidden>School
-        <span class="hint">Start typing your school's name.</span></label>
-      <input id="rc-school" class="blank-name" list="publicSchoolNames" type="text" autocomplete="off" hidden>
-      <input id="rc-school-id" name="school_id" type="hidden">
+      <label for="rc-school" id="rc-school-label" hidden>School</label>
+      <select id="rc-school" name="school_id" hidden>
+        <option value="">Select your school</option>
+      </select>
 
       <label for="rc-sid">Student ID number
         <span class="hint">The number on the student's school ID card.</span></label>
       <input id="rc-sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
+
+      <label for="rc-last">Student's last name</label>
+      <input id="rc-last" class="blank-name" name="last" type="text" autocomplete="family-name" required>
 
       <label for="rc-email">Parent or guardian's personal email
         <span class="hint">The email you want the access code sent to.</span></label>

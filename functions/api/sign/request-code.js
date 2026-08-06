@@ -56,9 +56,11 @@ export async function onRequestPost({ request, env }) {
   if (!body) return badRequest('Expected a JSON body.');
 
   const studentExtId = String(body.student_ext_id ?? '').trim();
+  const last = String(body.last ?? '').trim();
   const email = String(body.email ?? '').trim();
 
-  if (!studentExtId || !email) return badRequest('Enter the student ID and your email address.');
+  if (!studentExtId || !last) return badRequest('Enter the student ID and last name.');
+  if (!email) return badRequest('Enter your email address.');
   if (!EMAIL_RE.test(email)) return badRequest('That doesn\'t look like an email address.');
 
   const scope = await resolveSchoolScope(env.DB, body.school_id);
@@ -98,19 +100,16 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // Roster first, so a no-show student fails before any identity lookup.
-  // Scoped by school. With student_identities, UNIQUE (school_id, student_ext_id)
-  // means there is exactly one identity per school per id -- no more ambiguous
-  // roster row concern. The roster check still gates on "this student exists
-  // at this school" but the identity lookup is now direct.
+  // Roster lookup, scoped by school and matched by last name.
   const { results: rosterRows = [] } = await env.DB.prepare(
     `SELECT r.id, r.first, r.last, r.parent_email AS roster_email
        FROM roster r
        JOIN courses c ON c.id = r.course_id
        ${SCHOOL_SCOPE_JOIN}
-      WHERE r.student_ext_id = ?1 AND r.status = 'active'
-        AND (?2 IS NULL OR sc.id = ?2)`,
-  ).bind(studentExtId, scope.schoolIdFilter).all();
+      WHERE r.student_ext_id = ?1 AND lower(r.last) = lower(?2)
+        AND r.status = 'active'
+        AND (?3 IS NULL OR sc.id = ?3)`,
+  ).bind(studentExtId, last, scope.schoolIdFilter).all();
 
   if (rosterRows.length === 0) return badRequest(NO_STUDENT);
   const rosterRow = rosterRows[0];
@@ -131,39 +130,22 @@ export async function onRequestPost({ request, env }) {
   ).bind(schoolId, studentExtId).first();
 
   if (!identity) {
-    // The parent code is minted at registration now. No identity means the
-    // student has not registered yet, which means there is no code to mail.
-    // Tell the parent plainly: the student must register first.
     return badRequest('Your student needs to set up their account before you can request your code. Ask them to do that, or check back tomorrow.');
   }
 
-  // Effective email on file, before any override this request might write.
+  // The parent email locks once set. If the identity has a parent_email
+  // override, only that address can request codes. If only the roster has one,
+  // the first request sets the lock.
   const effectiveOnFile = identity.parent_email || rosterRow.roster_email;
   const emailLower = email.toLowerCase();
-  const differsFromOnFile = !effectiveOnFile || effectiveOnFile.toLowerCase() !== emailLower;
 
-  // If the supplied email differs from BOTH the roster and any existing
-  // override, write it as the override. This is the "parent fixes a roster
-  // typo" path. If it matches what's on file, no write -- a no-op that keeps
-  // the override column null when the roster is correct.
-  if (differsFromOnFile) {
-    // The loose per-IP cap above cannot be the only guard, because THIS is the
-    // path that actually hands a code to a new address. Redirecting requires
-    // knowing a student ID, and IDs may well be guessable, so one source
-    // walking a list of them is the real attack -- not volume as such.
-    //
-    // Splitting the limit this way is what lets the general cap stay generous:
-    // a hall full of parents using their own address on file is untouched,
-    // while anyone redirecting codes to somewhere new is held to 5 per 15
-    // minutes from one address. Honest typo-fixing is one request, rarely two.
-    const redirect = await hit(env.DB, `reqcode:redirect:${ip}`, nowSec, { max: 5 });
-    if (!redirect.allowed) {
-      return json({ error: 'Too many attempts. Try again in a few minutes.' }, 429, {
-        'Retry-After': String(redirect.retryAfter),
-      });
-    }
+  if (!effectiveOnFile) {
+    // No email on file at all — first request sets it.
     await env.DB.prepare('UPDATE student_identities SET parent_email = ?1 WHERE id = ?2')
       .bind(email, identity.id).run();
+  } else if (effectiveOnFile.toLowerCase() !== emailLower) {
+    // Email doesn't match what's on file — refuse.
+    return badRequest("That email doesn't match the one on file for this student. Use the same email you used before.");
   }
 
   // Resolve the parent code: read it from the vault, or mint one if the
