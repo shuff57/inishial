@@ -23,6 +23,7 @@ import { json, badRequest, serverMisconfigured, readJson } from '../../_lib/http
 import { verifyCode, normalize } from '../../_lib/codes.js';
 import { hit, reset, clientIp } from '../../_lib/ratelimit.js';
 import { signSession, sessionCookie } from '../../_lib/session.js';
+import { resolveSchoolScope, SCHOOL_SCOPE_JOIN } from '../../_lib/schoolScope.js';
 
 // One message for every failure mode. Distinguishing "no such student" from
 // "wrong code" would turn this endpoint into a student-ID oracle.
@@ -45,6 +46,9 @@ export async function onRequestPost({ request, env }) {
   if (!studentExtId || !email || !code) {
     return badRequest('Enter the student ID, your email address, and the access code.');
   }
+
+  const scope = await resolveSchoolScope(env.DB, body.school_id);
+  if (!scope.ok) return badRequest(scope.error);
 
   const nowSec = Math.floor(Date.now() / 1000);
   const ip = clientIp(request);
@@ -75,9 +79,13 @@ export async function onRequestPost({ request, env }) {
        FROM student_identities si
        JOIN accounts a ON a.identity_id = si.id
        JOIN roster   r ON r.id = a.roster_id
+       JOIN courses  c ON c.id = r.course_id
+       LEFT JOIN teachers t  ON t.id = c.owner_id
+       LEFT JOIN schools  sc ON sc.id = COALESCE(t.school_id, si.school_id)
       WHERE si.student_ext_id = ?1 AND r.status = 'active'
+        AND (?2 IS NULL OR sc.id = ?2)
       GROUP BY si.id`,
-  ).bind(studentExtId).all();
+  ).bind(studentExtId, scope.schoolIdFilter).all();
 
   // Both hashes are verified for EVERY candidate, and no result short-circuits
   // another. Stopping at the first match would make a parent code measurably

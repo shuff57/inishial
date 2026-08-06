@@ -407,7 +407,7 @@ test('a stranger requesting a shared student ID from the wrong school never reac
     // The code that arrived opens a session as WHITAKER's parent.
     const code = sent[0].body.match(/\b([2-9A-HJ-NP-Z]{8})\b/)[1];
     const loginRes = await login({
-      request: jsonRequest('https://x/api/sign/login', { student_ext_id: '123456', email: 'whitaker.family@example.com', code }),
+      request: jsonRequest('https://x/api/sign/login', { student_ext_id: '123456', email: 'whitaker.family@example.com', code, school_id: whitaker.schoolId }),
       env,
     });
     assert.equal(loginRes.status, 200);

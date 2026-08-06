@@ -150,6 +150,7 @@ function notice(el, text, kind) {
 const SCHOOL_FIELDS = [
   { label: 'reg-school-label', select: 'reg-school' },
   { label: 'rc-school-label', input: 'rc-school', hidden: 'rc-school-id' },
+  { label: 'login-school-label', select: 'login-school' },
 ];
 
 let schools = [];

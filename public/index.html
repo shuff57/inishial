@@ -257,25 +257,25 @@
       <p class="muted">Use the student ID and access code from your teacher's email.</p>
 
       <form id="loginForm" class="card plain" novalidate>
+        <label for="login-school" id="login-school-label" hidden>School</label>
+        <select id="login-school" name="school_id" hidden>
+          <option value="">Select your school</option>
+        </select>
+
         <label for="sid">Student ID number
           <span class="hint">The number on your student's school ID card.</span></label>
         <input id="sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
 
-        <label for="login-email">Your email address
-          <span class="hint">The email that belongs with your access code.</span></label>
-        <input id="login-email" name="email" type="email" inputmode="email"
+        <label for="login-email">Sign-in name or email
+          <span class="hint">Students: the sign-in name shown when you set up your account.
+            Parents: the email your code was sent to.</span></label>
+        <input id="login-email" name="email" type="text" inputmode="email"
                autocomplete="email" autocapitalize="none" spellcheck="false" required>
 
         <label for="code">Access code
           <span class="hint">Eight characters. Parents: from the email you were sent.
             Students: the code shown when you set up your account.</span></label>
         <input id="code" class="blank-code" name="code" type="text" autocomplete="off" spellcheck="false" required>
-
-        <!-- There is no "I am" question any more. It used to be a pair of radio
-             buttons, and with one code per account the answer was simply taken
-             at its word -- so a student holding the family's code could sign as
-             their own parent. The two codes are different strings now, and
-             which one is typed here is what decides whose signature this is. -->
 
         <div id="loginMsg" hidden></div>
         <p><button id="loginBtn" type="submit">Open the syllabus</button></p>
