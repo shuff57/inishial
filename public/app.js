@@ -175,11 +175,11 @@ for (const f of SCHOOL_FIELDS) {
 }
 
 (async () => {
-  let required = false;
+  let schools = [];
   try {
-    ({ schools = [], required = false } = await (await netFetch('/api/schools')).json());
+    ({ schools = [] } = await (await netFetch('/api/schools')).json());
   } catch { schools = []; }
-  if (!required) return; // stays hidden -- nothing to require
+  if (schools.length <= 1) return; // stays hidden -- nothing to pick
 
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   $('publicSchoolNames').innerHTML = schools
