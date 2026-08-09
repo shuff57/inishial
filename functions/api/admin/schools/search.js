@@ -17,7 +17,7 @@
 // otherwise have to invent the official name from memory and risk typing it
 // wrong enough to mint a near-duplicate of a real school.
 //
-// It proxies OpenStreetMap's Nominatim for the Chico-region bounding box and
+// It proxies OpenStreetMap's Nominatim, nationwide, and
 // returns the real school names, each annotated with whether it already exists
 // on this install (matched by containment, not just equality -- Nominatim
 // knows "Chico Senior High School", the seed knows "Chico High School", and
@@ -27,11 +27,11 @@
 //   - filtered to real schools, so a search never returns a park or a store
 //   - rate limited per IP, since Nominatim's public instance tolerates about
 //     1 request per second and this is a typing-ahead endpoint
-//   - bounded to California. The seed list only covers Chico and the
-//     surrounding counties, so a teacher whose school is genuinely elsewhere
-//     (Sacramento, the Bay Area, ...) would otherwise have to invent the
-//     official name from memory -- the viewbox is deliberately state-wide so
-//     the search finds the real school by name wherever it is.
+//   - scoped to the United States, with the Chico region kept only as a
+//     RANKING preference. It used to be fenced to California, which made the
+//     endpoint useless to the teacher it exists for the moment that teacher
+//     taught in another state: the school is real, Nominatim knows it, and the
+//     search returned nothing.
 //
 // Data is from OpenStreetMap, © OpenStreetMap contributors, ODbL. The response
 // carries an `attribution` field the UI shows where the results are displayed.
@@ -47,10 +47,24 @@ import { hit, clientIp } from '../../../_lib/ratelimit.js';
 // limit below is set well under that so a whole hall of teachers signing up at
 // once cannot get us (or Nominatim) throttled.
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
-// California. The seed list is Chico-region, but a teacher is not -- a school
-// in Sacramento or the Bay Area is as real as one in Butte County, and the
-// search should find it by name rather than sending the teacher to free text.
-// 33.0..42.5 lat is California's footprint plus a little margin.
+// The whole country, by country code rather than by a bounding box. A box big
+// enough for the United States has to reach past Alaska and Hawaii, at which
+// point it covers most of the Pacific and a good deal of Canada and Mexico;
+// `countrycodes` says the thing that was actually meant.
+const COUNTRY = 'us';
+// California, kept as a PREFERENCE and no longer a fence.
+//
+// `viewbox` on its own only biases ranking -- it is `bounded=1` that excludes
+// everything outside, and that exclusion is what made this endpoint useless to
+// a teacher in another state: their school exists, Nominatim knows it, and the
+// search refused to return it. Dropping bounded keeps the seed region ranking
+// first for the Chico teachers this was built for, while a school anywhere in
+// the country is still reachable.
+//
+// The cost is real and worth stating: "Lincoln High School" exists in dozens of
+// states, so a bare name can now come back several times over. Each result
+// carries its `place` and the picker renders it under the name, which is what
+// makes the list separable by eye.
 const VIEWBOX = '-124.4,42.5,-114.0,33.0';
 const ATTRIBUTION = 'Data © OpenStreetMap contributors (ODbL)';
 
@@ -170,8 +184,8 @@ async function askNominatim(q) {
     format: 'jsonv2',
     q,
     limit: '6',
-    viewbox: VIEWBOX,
-    bounded: '1',
+    countrycodes: COUNTRY,
+    viewbox: VIEWBOX,          // a preference, not a fence -- see the constant
     'accept-language': 'en',
   });
   let res;
