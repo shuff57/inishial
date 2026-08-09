@@ -170,11 +170,14 @@ export async function onRequestGet({ request, env }) {
   const counts = students.reduce((acc, s) => ({ ...acc, [s.status]: (acc[s.status] ?? 0) + 1 }), {});
 
   if (url.searchParams.get('format') === 'csv') {
-    const lines = [csvRow(['Student', 'Student ID', 'Period', 'Parent email', 'Status', 'Sections initialed', 'Required', 'Signed on'])];
+    // Both counts, matching the page. `Sections initialed` was the parent's
+    // alone under a name that did not say so.
+    const lines = [csvRow(['Student', 'Student ID', 'Period', 'Parent email', 'Status',
+      'Parent initialed', 'Student initialed', 'Required', 'Signed on'])];
     for (const s of students) {
       lines.push(csvRow([
         s.student, s.student_ext_id, s.period ?? '', s.email ?? '', s.status_label,
-        s.parent_signed, s.required,
+        s.parent_signed, s.student_signed, s.required,
         s.last_signed_at ? new Date(s.last_signed_at * 1000).toISOString() : '',
       ]));
     }

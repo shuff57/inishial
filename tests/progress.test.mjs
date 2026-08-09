@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, seedAccount, seedSyllabus, ADMIN_HEADERS, jsonRequest, cookieFrom } from './helpers.mjs';
+import { freshEnv, seedStudent, seedAccount, seedSyllabus, ADMIN_HEADERS, jsonRequest, cookieFrom, parentLogin } from './helpers.mjs';
 import { onRequestGet as progress } from '../functions/api/admin/progress.js';
 import { onRequestGet as signedCopy } from '../functions/admin/signed.js';
 import { onRequestPost as signLogin } from '../functions/api/sign/login.js';
@@ -28,7 +28,7 @@ async function setup() {
 
 async function signBlocks(env, code, blockIds) {
   const cookie = cookieFrom(await signLogin({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'parent@example.com', code, role: 'parent' }), env,
+    request: jsonRequest('https://x/api/sign/login', parentLogin(code)), env,
   }));
   for (const id of blockIds) {
     await postInitial({
@@ -178,7 +178,11 @@ test('the CSV export carries the status and the timestamp', async () => {
   assert.match(res.headers.get('Content-Disposition'), /signatures-algebra-i\.csv/);
   assert.match(csv, /Alvarez, Maria/);
   assert.match(csv, /Complete/);
-  assert.match(csv, /2,2,\d{4}-\d{2}-\d{2}T/);
+  // Parent count, student count, required, timestamp. The student column is
+  // 0 here because only the parent signed -- and it being reported separately
+  // at all is the point: this export used to fold both into one number named
+  // "Sections initialed", which was the parent's alone.
+  assert.match(csv, /Complete,2,0,2,\d{4}-\d{2}-\d{2}T/);
 });
 
 test('progress requires Access', async () => {

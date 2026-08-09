@@ -13,17 +13,16 @@
 // response includes a `courses` list for a class switcher.
 
 import { json, unauthorized, serverMisconfigured } from '../../_lib/http.js';
-import { currentSession, SIGNER_ROLES } from '../../_lib/session.js';
+import { currentSigner } from '../../_lib/session.js';
 import { attestedByAccount, promptKeys } from '../../_lib/syllabus.js';
 
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return serverMisconfigured('the DB binding');
 
   const nowSec = Math.floor(Date.now() / 1000);
-  const claims = await currentSession(request, env, nowSec);
-  // A teacher session is not a signer. Explicit, so an admin cookie can never
-  // produce a signature attributed to a parent.
-  if (!claims || !SIGNER_ROLES.has(claims.role)) return unauthorized();
+  // Authentic, unexpired, a signer rather than a teacher, and not signed out.
+  const claims = await currentSigner(request, env, nowSec);
+  if (!claims) return unauthorized();
 
   const url = new URL(request.url);
   const requestedCourse = Number(url.searchParams.get('course')) || null;

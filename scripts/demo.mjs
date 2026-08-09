@@ -219,17 +219,20 @@ export async function seedDemo(db, { hashCode, seal = async () => null, reset = 
   // student_ext_id); accounts are pure roster-enrolment join rows.
   for (const [extId, first, last] of registered) {
     const hasCode = withCode.some(([id]) => id === extId);
-    // The school address, which is what registration asks for now.
-    // Keyed off the ID, not the name. Names collide once they are generic --
-    // "A Student" exists in both seeded classes -- and student_identities.username
-    // is UNIQUE, so a name-derived address made the second class fail to seed.
-    const username = `student${extId}@student.example.com`;
+    // Derived from (student id, school) exactly as api/register.js does, on the
+    // placeholder school (id 1) an unowned course resolves to. Keyed off the ID
+    // rather than the name for the reason the column is UNIQUE: names collide
+    // once they are generic -- "A Student" exists in both seeded classes.
+    // Seeding any other shape makes the demo students unreachable, since
+    // sign-in takes the username and the code and nothing else.
+    const username = `${extId}@s1`;
+    const parentUsername = `${extId}@p1`;
     const identityId = Number(db.prepare(
       `INSERT INTO student_identities
-         (school_id, student_ext_id, username, code_hash, code_issued_at, parent_email, created_at,
+         (school_id, student_ext_id, username, parent_username, code_hash, code_issued_at, parent_email, created_at,
           student_code_hash, student_code_issued_at, code_enc, student_code_enc)
-       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
-    ).run(1, extId, username,
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+    ).run(1, extId, username, parentUsername,
       hasCode ? await hashCode(demoCode(extId)) : null,
       hasCode ? now : null, now,
       // Everyone who registered has their own code -- registration is what

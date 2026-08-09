@@ -65,9 +65,17 @@
      screen. Placement itself lives in app.css and is the same on every page. -->
 <button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
 
+<!-- The progress spine, and the only chrome on screen the whole time someone is
+     reading -- which is why Sign out lives here rather than in the site nav.
+     The nav is shared with the anonymous views, where a sign-out control would
+     be a button for a state the reader is not in. This strip appears exactly
+     when there is a session to end. -->
 <div class="progress" id="progress" hidden><div>
   <span id="progressWho"></span>
-  <span id="progressCount"></span>
+  <span class="progress-end">
+    <span id="progressCount"></span>
+    <button type="button" id="signOut" class="signout-btn">Sign out</button>
+  </span>
 </div><div class="bar" style="max-width:44rem;margin:.45rem auto 0"><i id="progressBar"></i></div></div>
 
 <main id="main" tabindex="-1">
@@ -131,16 +139,17 @@
     <form id="registerForm" class="card plain" novalidate>
       <!-- Hidden by default, and left that way for the common single-school
            install -- app.js shows it only once GET /api/schools comes back
-           with more than one row. A native datalist, the same pattern as
-           admin/index.html's placeholder-school banner: typing an exact
-           existing name resolves the hidden id this form actually submits,
-           and this form only ever SELECTS a school, so an unmatched value
-           blocks submission rather than minting one. -->
+           with more than one row. A <select> of existing schools, never a
+           free-text field: this form picks a school to find the student's
+           roster row in, and typing a new name would only ever mean a typo.
+
+           Identification, not a credential. This and the two fields below find
+           the roster row and mint the username and access code; sign-in asks
+           for those two and never for these. -->
       <label for="reg-school" id="reg-school-label" hidden>School</label>
       <select id="reg-school" name="school_id" hidden>
         <option value="">Select your school</option>
       </select>
-      <datalist id="publicSchoolNames"></datalist>
 
       <label for="reg-sid">Student ID number
         <span class="hint">The number on your school ID card.</span></label>
@@ -177,18 +186,25 @@
       <p id="doneWho" class="muted"></p>
       <p id="doneMsg"></p>
 
-      <!-- Shown once, and nowhere else ever again: the code is hashed the
+      <!-- Username first, code second, because that is the order they are typed
+           in at sign-in and they are now the only two things sign-in asks for.
+
+           The code is shown once and nowhere else ever again: it is hashed the
            moment it is made, so this screen is the only place the plaintext
            exists. Said plainly rather than in fine print, because the cost of
-           missing it is asking a teacher to reissue. Unconditional now -- only
-           a first registration reaches this card, and a first registration
-           always mints a code. -->
+           missing it is asking a teacher to reissue.
+
+           #doneCode is hidden by app.js when a student who already registered
+           is added to a SECOND class. There is no new code in that case -- the
+           one they were shown the first time still works -- and the card used
+           to print the word "null" underneath "write it down". -->
+      <p class="small muted">Your username. Use this with your access code to sign in.</p>
+      <p class="code-out"><b id="doneUsername"></b></p>
+
       <div id="doneCode">
         <p class="small muted">Your access code. Write it down. You need it to come back
           and finish later, and this is the only time it is shown.</p>
         <p class="code-out"><b id="doneCodeValue"></b></p>
-        <p class="small muted">Your username. Use this with your access code to sign in.</p>
-        <p class="code-out"><b id="doneUsername"></b></p>
       </div>
 
       <p><a class="button" href="/sign/">Read and initial the syllabus</a></p>
@@ -255,23 +271,21 @@
   <section class="view" id="view-sign" data-path="/sign/" hidden>
     <div id="loginView">
       <h1>Read and initial the syllabus</h1>
-      <p class="muted">Use the student ID and access code from your teacher's email.</p>
+      <p class="muted">Two things: your username and your access code.</p>
 
+      <!-- Two fields, and both were issued BY this app. School, student ID and
+           last name belong to /register/ and /register/code/, where they find
+           the right roster row and mint these two; asking for them again here
+           was asking a parent to re-prove something they already proved. The
+           student ID was worse than redundant -- the student's username is
+           derived from it, so the form was asking for the answer twice. -->
       <form id="loginForm" class="card plain" novalidate>
-        <label for="login-school" id="login-school-label" hidden>School</label>
-        <select id="login-school" name="school_id" hidden>
-          <option value="">Select your school</option>
-        </select>
-
-        <label for="sid">Student ID number
-          <span class="hint">The number on your student's school ID card.</span></label>
-        <input id="sid" class="blank-id" name="student_ext_id" type="text" inputmode="numeric" autocomplete="off" required>
-
-        <label for="login-email">Username
-          <span class="hint">Students: the sign-in name shown when you set up your account.
-            Parents: the username from the email you were sent.</span></label>
-        <input id="login-email" name="email" type="text" inputmode="email"
-               autocomplete="email" autocapitalize="none" spellcheck="false" required>
+        <label for="login-username">Username
+          <span class="hint">Students: shown when you set up your account.
+            Parents: in the email we sent you. It looks like
+            <span class="mark">100001@p1</span>.</span></label>
+        <input id="login-username" name="username" type="text" inputmode="email"
+               autocomplete="username" autocapitalize="none" spellcheck="false" required>
 
         <label for="code">Access code
           <span class="hint">Eight characters. Parents: from the email you were sent.

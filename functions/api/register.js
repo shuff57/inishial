@@ -1,6 +1,6 @@
 // POST /api/register  -- student self-registration (public, QR-code target)
 //
-// Body: { student_ext_id, last, username, parent_email }
+// Body: { school_id, student_ext_id, last, parent_email }
 //
 // FIRST-TIME SIGN-UP ONLY. Coming back is /api/sign/login's job, and always was
 // -- that endpoint already takes a student's school email plus their own access
@@ -15,13 +15,22 @@
 // A student who already has an account now gets a 409 pointing at /sign/.
 //
 
-// `username` carries the student's SCHOOL EMAIL. It kept its name -- the column
-// is `student_identities.username` and is read by the credentials export and the
-// admin tables -- because renaming it is a migration and six query sites for a
-// word. Nothing signs in with it: /api/sign/login is student ID plus access
-// code. It is an identifier the teacher can recognise on a roster, and it is
-// UNIQUE, so two students cannot claim the same address -- which is also why
-// re-entry asks for it: student IDs are unique per course, not globally.
+// School, last name and student ID are IDENTIFICATION ONLY. They exist to find
+// the right roster row and to prove the person filling this in is on it. None
+// of them is asked for again: this endpoint's output -- a username and an
+// access code -- is the entire credential from here on, and /api/sign/login
+// takes those two and nothing else.
+//
+// Both usernames are derived, not chosen, so a student never invents one and a
+// teacher can reconstruct either from the roster:
+//
+//   student   <student_ext_id>@s<school_id>
+//   parent    <student_ext_id>@p<school_id>
+//
+// The school id is in there because a student_ext_id is unique per COURSE, not
+// per install, while `student_identities.username` is globally UNIQUE. Without
+// it, the second school on this install to have a student with a given ID
+// number could not register at all -- see migrations/0013.
 //
 // Gated on the student already existing in the teacher's uploaded roster, so
 // only real students in real classes can create an account.
@@ -123,7 +132,7 @@ export async function onRequestPost({ request, env }) {
   const schoolId = body.school_id ? Number(body.school_id) : await resolveIdentitySchool(env.DB, primaryRow.course_id);
 
   let identity = await env.DB.prepare(
-    'SELECT id, username, code_hash FROM student_identities WHERE school_id = ?1 AND student_ext_id = ?2',
+    'SELECT id, username, code_hash, student_session_gen FROM student_identities WHERE school_id = ?1 AND student_ext_id = ?2',
   ).bind(schoolId, studentExtId).first();
 
   if (identity) {
@@ -137,7 +146,7 @@ export async function onRequestPost({ request, env }) {
     const existingCount = await countExistingAccounts(env.DB, rosterRows);
     if (existingCount === rosterRows.length) {
       return json({
-        error: 'You already have an account. Sign in with your school email and your access code to read the syllabus.',
+        error: 'You already have an account. Sign in with the username and access code you were given to read the syllabus.',
         registered: true,
         next: '/sign/',
       }, 409);
@@ -149,9 +158,14 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // Auto-generate usernames from the student ID.
-  const username = `${studentExtId}@s`;
-  const parentUsername = `p${studentExtId}@${schoolId}`;
+  // Derived from (student id, school), which is exactly the pair
+  // UNIQUE (school_id, student_ext_id) already guarantees is unique -- so the
+  // globally UNIQUE username column can never collide across schools. Lowercase
+  // so the string on screen is the string they type back; sign-in lowercases
+  // both sides regardless.
+  const idPart = studentExtId.toLowerCase();
+  const username = identity ? identity.username : `${idPart}@s${schoolId}`;
+  const parentUsername = `${idPart}@p${schoolId}`;
 
   // The student's own access code, minted here and shown once on the next
   // screen. Without it the only way back in is to register again, which works
@@ -181,9 +195,13 @@ export async function onRequestPost({ request, env }) {
       identityId = Number(insert.meta.last_row_id);
     }
   } catch (err) {
-    // UNIQUE(username) is the only constraint a well-formed request can trip.
+    // UNIQUE(username) is the only constraint a well-formed request can trip,
+    // and since migrations/0013 scoped the username by school it should no
+    // longer be reachable at all: the pair it is derived from is already
+    // guaranteed unique. Kept as a real error rather than deleted, because
+    // "should be unreachable" is not the same as "is".
     if (String(err?.message || '').includes('UNIQUE')) {
-      return json({ error: 'That school email is already registered to another student.' }, 409);
+      return json({ error: 'That student is already registered. Sign in instead.' }, 409);
     }
     throw err;
   }
@@ -206,6 +224,9 @@ export async function onRequestPost({ request, env }) {
 
   await reset(env.DB, `reg:${clientIp(request)}`);
 
+  // Whether the school has any way to reach a parent. Shapes the message and
+  // nothing else -- it used to ride along in the response as `has_contact` too,
+  // where it said the same thing in a second format that no client ever read.
   const hasContact = !!(parentEmail || primaryRow.parent_email);
 
   // Still deliberately absent from this response, and readable off a shared
@@ -217,24 +238,39 @@ export async function onRequestPost({ request, env }) {
   // The student's own code is here, and only here: it is hashed at rest like
   // every other code, so this response is the one and only time the plaintext
   // exists. A student who loses it asks their teacher to reissue.
-  const token = await signSession(env, identityId, 'student', nowSec);
+  // A new identity starts at generation 0. A returning one -- a student being
+  // added to a second class -- keeps whatever generation it is on, so getting
+  // set up for another course does not sign them out of the session they are
+  // already using on another device.
+  const token = await signSession(env, identityId, 'student', nowSec, {
+    gen: identity ? identity.student_session_gen : 0,
+  });
 
   const extraMsg = accountsCreated > 1
     ? ` You are enrolled in ${accountsCreated} classes; your syllabus covers all of them.`
     : '';
 
+  // An identity that already existed is a student being added to a SECOND
+  // class, not a new sign-up: their code was minted and shown the first time
+  // and is not re-shown here, because it is hashed and this endpoint no longer
+  // holds the plaintext. Saying so is the point -- the confirmation card used
+  // to print the word "null" under "write this down" and offer no clue that the
+  // code they already have is the one that still works.
+  const returning = !!identity;
+
   return json({
     ok: true,
     username,
-    student_code: identity ? null : studentCode,
+    student_code: returning ? null : studentCode,
     student: `${primaryRow.first} ${primaryRow.last}`,
     course: primaryRow.course,
     period: primaryRow.period,
-    has_contact: hasContact,
     next: '/sign/',
-    message: (hasContact
-      ? 'You are registered. Read the syllabus and add your initials now. Your teacher will email your parent or guardian to do the same.'
-      : 'You are registered. Read the syllabus and add your initials now, and tell your teacher we have no parent email on file for you.')
+    message: (returning
+      ? 'You are set up for this class too. Keep using the username and access code you already have.'
+      : hasContact
+        ? 'You are registered. Read the syllabus and add your initials now. Your teacher will email your parent or guardian to do the same.'
+        : 'You are registered. Read the syllabus and add your initials now, and tell your teacher we have no parent email on file for you.')
       + extraMsg,
   }, 201, { 'Set-Cookie': sessionCookie(token) });
 }

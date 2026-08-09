@@ -44,7 +44,13 @@
     <p><button id="submit" type="submit">Sign in</button></p>
   </form>
 
-  <p class="small muted" id="signupLine" hidden>
+  <p class="small muted"><a href="/admin/reset/">Forgotten your password?</a></p>
+
+  <!-- Always shown. This used to be hidden until GET /api/admin/signup said
+       sign-up was available, back when an unset TEACHER_DOMAINS closed it
+       entirely; that endpoint now answers `available: true` unconditionally, so
+       the fetch was a round-trip whose answer was known. -->
+  <p class="small muted">
     No account yet? <a href="/admin/signup/">Set one up</a> with your school email address.
   </p>
 </main>
@@ -60,13 +66,6 @@ function nextPath() {
   const raw = new URLSearchParams(location.search).get('next') || '/admin/';
   return /^\/(?!\/)/.test(raw) ? raw : '/admin/';
 }
-
-// Only offer sign-up when the server actually has a domain allowlist. A link to
-// a form that can only refuse you is worse than no link.
-fetch('/api/admin/signup')
-  .then((r) => r.json())
-  .then((b) => { document.getElementById('signupLine').hidden = !b.available; })
-  .catch(() => {});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();

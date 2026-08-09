@@ -7,7 +7,7 @@
 // application, direct *.pages.dev hit), the request is refused in code rather
 // than silently trusted. Same pattern as bookshelf's functions/_lib/auth.js.
 
-import { currentSession } from './session.js';
+import { currentSession, teacherSessionGen } from './session.js';
 
 export const ACCESS_EMAIL_HEADER = 'Cf-Access-Authenticated-User-Email';
 
@@ -82,9 +82,23 @@ export async function requireAdmin(request, env, nowSec = Math.floor(Date.now() 
   // sub 0 is the shared password: it says nothing about which person typed it,
   // so the audit trail records the method rather than a name it cannot
   // actually establish. Any other sub is a row in `teachers`.
-  return claims.sub
-    ? { via: 'teacher', email: claims.email || `teacher#${claims.sub}`, teacherId: claims.sub }
-    : { via: 'session', email: 'password-login', teacherId: null };
+  if (!claims.sub) return { via: 'session', email: 'password-login', teacherId: null };
+
+  // Signed out since this token was minted? A teacher session reaches every
+  // student record in their classes, so clearing the cookie and hoping was a
+  // weaker guarantee here than anywhere else in the app. See migrations/0016.
+  //
+  // Skipped when there is no DB binding, because this function runs BEFORE the
+  // routes check for one -- throwing here would turn a missing binding into a
+  // 500 on every admin route instead of the 503 they each report.
+  if (env.DB) {
+    const current = await teacherSessionGen(env, claims.sub);
+    // No row means the account is gone; a token for it is not a live session.
+    if (current === null) return null;
+    if ((claims.gen ?? 0) !== current) return null;
+  }
+
+  return { via: 'teacher', email: claims.email || `teacher#${claims.sub}`, teacherId: claims.sub };
 }
 
 /**

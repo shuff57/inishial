@@ -108,7 +108,7 @@ export function seedSchoolRoster(db, {
  *  for an unowned course) plus an accounts row pointing at it. Returns the
  *  same shape as before so existing call sites are untouched. */
 export async function seedAccount(db, rosterId, {
-  username = '904511@s',
+  username,
   code = 'ABCD2345',
   studentCode = 'STU45678',
   parentEmail = 'parent@example.com',
@@ -125,6 +125,13 @@ export async function seedAccount(db, rosterId, {
 
   const extId = db.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(rosterId)?.student_ext_id;
 
+  // The same derivation api/register.js uses. Built here rather than defaulted
+  // to a literal so a test seeded against a real school gets that school's id
+  // in the username, exactly as production would -- a hardcoded '904511@s'
+  // would only ever be right for the placeholder school.
+  const studentUsername = username ?? `${String(extId).toLowerCase()}@s${schoolId}`;
+  const parentUsername = `${String(extId).toLowerCase()}@p${schoolId}`;
+
   // Find or create the student_identities row.
   let identityId = db.prepare(
     'SELECT id FROM student_identities WHERE school_id = ? AND student_ext_id = ?',
@@ -136,7 +143,7 @@ export async function seedAccount(db, rosterId, {
         `INSERT INTO student_identities (school_id, student_ext_id, username, parent_username, code_hash, code_issued_at, parent_email, created_at,
                                          student_code_hash, student_code_issued_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(schoolId, extId, username, `p${extId}@${schoolId}`, code ? await hashCode(code) : null, code ? 1000 : null,
+      ).run(schoolId, extId, studentUsername, parentUsername, code ? await hashCode(code) : null, code ? 1000 : null,
         parentEmail, 1000,
         studentCode ? await hashCode(studentCode) : null, studentCode ? 1000 : null).lastInsertRowid,
     );
@@ -147,8 +154,18 @@ export async function seedAccount(db, rosterId, {
       'INSERT INTO accounts (roster_id, identity_id, created_at) VALUES (?, ?, ?)',
     ).run(rosterId, identityId, 1000).lastInsertRowid,
   );
-  return { accountId, identityId, code, studentCode };
+  return { accountId, identityId, code, studentCode, username: studentUsername, parentUsername, schoolId };
 }
+
+/** The sign-in body for a seeded student. Sign-in takes a username and a code
+ *  and nothing else, so a test that wants to be "the parent of 904511 at the
+ *  placeholder school" needs the derived username rather than the ID it came
+ *  from. Defaults match seedStudent's unowned course, which resolves to the
+ *  placeholder school id 1. */
+export const parentLogin = (code, extId = '904511', schoolId = 1) =>
+  ({ username: `${String(extId).toLowerCase()}@p${schoolId}`, code });
+export const studentLogin = (code, extId = '904511', schoolId = 1) =>
+  ({ username: `${String(extId).toLowerCase()}@s${schoolId}`, code });
 
 /**
  * Create a syllabus with blocks.
@@ -185,3 +202,95 @@ export const jsonRequest = (url, body, headers = {}) =>
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify(body),
   });
+
+// ---- mail capture ----
+//
+// Shared by every test that exercises an outbound email: the parent access
+// code and the teacher password reset both go through _lib/mail.js, and a
+// second copy of this mock would be a second thing to keep in step with the
+// JMAP call shape.
+// In-memory mail capture: stand in for Stalwart by intercepting fetch. mail.js
+// bootstraps against the JMAP session document, then posts Email/set +
+// EmailSubmission/set to the API URL; this mock answers both and records what
+// the send actually contained.
+export const MAIL_HOST = 'https://smtp.test:8443';
+export const MAIL_FROM = 'no-reply@mail.huffpalmer.fyi';
+export const MAIL_REPLY_TO = 'support@mail.huffpalmer.fyi';
+
+function mailJson(body) {
+  return new Response(JSON.stringify(body), {
+    status: 200, headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+export function mailEnv(extra = {}) {
+  const sent = [];
+  const env = freshEnv({
+    MAIL_FROM,
+    MAIL_REPLY_TO,
+    STALWART_URL: MAIL_HOST,
+    STALWART_API_KEY: 'test-api-key',
+    CODE_SECRET: 'test-code-secret-at-least-16-chars',
+    ...extra,
+  });
+
+  // Stash the real fetch so the test can restore it. The mock covers the mail
+  // host only; everything else falls through to the real one.
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    if (u === `${MAIL_HOST}/.well-known/jmap`) {
+      // Advertise an apiUrl WITHOUT the port, exactly as a Stalwart that does
+      // not know it is published on :8443 does. The client must ignore this
+      // origin and keep using STALWART_URL.
+      return mailJson({
+        apiUrl: 'https://smtp.test/jmap/',
+        primaryAccounts: { 'urn:ietf:params:jmap:mail': 'a1' },
+      });
+    }
+    if (u === 'https://smtp.test/jmap/') {
+      throw new Error('client followed the advertised origin instead of STALWART_URL');
+    }
+    if (u.startsWith(`${MAIL_HOST}/jmap`)) {
+      const calls = JSON.parse(opts.body).methodCalls;
+      const answer = (name, args, id) => {
+        if (name === 'Identity/get') {
+          // Two identities, so the "pick the one that owns MAIL_FROM" branch is
+          // exercised rather than passing by luck of ordering.
+          return ['Identity/get', { list: [
+            { id: 'id-other', email: 'someone-else@mail.huffpalmer.fyi' },
+            { id: 'id-noreply', email: MAIL_FROM },
+          ] }, id];
+        }
+        if (name === 'Mailbox/get') {
+          return ['Mailbox/get', { list: [{ id: 'mb-drafts', role: 'drafts' }] }, id];
+        }
+        if (name === 'Email/set') {
+          const e = args.create.e1;
+          sent.push({
+            to: e.to.map((a) => a.email).join(', '),
+            from: e.from.map((a) => a.email).join(', '),
+            replyTo: e.replyTo.map((a) => a.email).join(', '),
+            subject: e.subject,
+            body: Object.values(e.bodyValues).map((v) => v.value).join('\n'),
+          });
+          return ['Email/set', { created: { e1: { id: 'em-' + sent.length } } }, id];
+        }
+        if (name === 'EmailSubmission/set') {
+          const s = args.create.s1;
+          if (sent.length) Object.assign(sent[sent.length - 1], {
+            identityId: s.identityId,
+            mailFrom: s.envelope.mailFrom.email,
+            rcptTo: s.envelope.rcptTo.map((a) => a.email).join(', '),
+          });
+          return ['EmailSubmission/set', { created: { s1: { id: 'sub-' + sent.length } } }, id];
+        }
+        return ['error', { type: 'unknownMethod' }, id];
+      };
+      return mailJson({ methodResponses: calls.map(([n, a, id]) => answer(n, a, id)) });
+    }
+    return realFetch(url, opts);
+  };
+
+  return { env, sent, restore: () => { globalThis.fetch = realFetch; } };
+}

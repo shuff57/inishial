@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, seedSchoolRoster, seedAccount, seedSyllabus, cookieFrom, ADMIN_HEADERS, jsonRequest } from './helpers.mjs';
+import { freshEnv, seedStudent, seedSchoolRoster, seedAccount, seedSyllabus, cookieFrom, ADMIN_HEADERS, jsonRequest, parentLogin, studentLogin } from './helpers.mjs';
 import { onRequestPost as register } from '../functions/api/register.js';
 import { onRequestPost as uploadRoster } from '../functions/api/admin/roster.js';
 import { onRequestGet as credentials } from '../functions/api/admin/credentials.js';
@@ -25,7 +25,11 @@ test('registration succeeds without an email when the roster has one', async () 
   const body = await res.json();
 
   assert.equal(res.status, 201);
-  assert.equal(body.has_contact, true);
+  // The message is what the student is actually told, so it is what is asserted.
+  // A `has_contact` boolean used to ride along beside it saying the same thing;
+  // nothing ever read it but this line.
+  assert.match(body.message, /Your teacher will email your parent or guardian/);
+  assert.ok(!/no parent email on file/.test(body.message));
   assert.equal(env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().parent_email, null,
     'no override is stored when the student did not supply one');
 });
@@ -43,10 +47,12 @@ test('a student never sees a parent email address, in any form', async () => {
   // This used to be "no @ anywhere". The student's own school email now comes
   // back -- they typed it two seconds ago -- so the check names the one address
   // allowed instead of banning the character. Any OTHER address is still a leak.
-  assert.deepEqual(text.match(/[^\s"@]+@[^\s",}]+/g) ?? [], ['904511@s'],
+  assert.deepEqual(text.match(/[^\s"@]+@[^\s",}]+/g) ?? [], ['904511@s1'],
     'no address but the student\'s own belongs in a student-facing response');
   assert.ok(!text.includes('•'), 'nor a masked one');
-  assert.equal(JSON.parse(text).has_contact, true, 'a plain boolean is all the student needs');
+  // The student is still told the mail is going out -- just not to whom. Saying
+  // THAT there is an address on file is safe; saying which one is the leak.
+  assert.match(JSON.parse(text).message, /Your teacher will email your parent or guardian/);
 });
 
 test('the username is auto-generated from the student ID', async () => {
@@ -55,7 +61,7 @@ test('the username is auto-generated from the student ID', async () => {
 
   const ok = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   assert.equal(ok.status, 201);
-  assert.equal(env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().username, '904511@s');
+  assert.equal(env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().username, '904511@s1');
 });
 
 test('the address a student supplies is not echoed back either', async () => {
@@ -97,7 +103,6 @@ test('a student with no contact anywhere is flagged, not blocked', async () => {
   seedStudent(env._raw, { parentEmail: null });
 
   const body = await (await post(env, { student_ext_id: '904511', last: 'Alvarez' })).json();
-  assert.equal(body.has_contact, false);
   assert.match(body.message, /no parent email on file/);
 
   const csv = await (await credentials({
@@ -171,7 +176,7 @@ test('student and parent initials land on the same student, counted apart', asyn
     .run(await hashCode(code), 1000, identityId);
 
   const parentCookie = cookieFrom(await login({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'family@example.com', code, role: 'parent' }), env,
+    request: jsonRequest('https://x/api/sign/login', parentLogin(code)), env,
   }));
   await initial({ request: jsonRequest('https://x/api/sign/initial', { block_id: blockIds[0], initials: 'JA' }, { Cookie: parentCookie }), env });
 
@@ -224,7 +229,7 @@ test('deleting the re-entry path strands nobody: the work is still reachable', a
   // re-entry branch wanted, minus the last name it also asked for.
   const back = await login({
     request: jsonRequest('https://x/api/sign/login', {
-      student_ext_id: '904511', email: '904511@s', code: STUDENT_CODE,
+      username: '904511@s1', code: STUDENT_CODE,
     }), env,
   });
   assert.equal(back.status, 200);
@@ -244,7 +249,7 @@ test('re-entry does not create a second account or change the first', async () =
   await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   const rows = env._raw.prepare('SELECT si.username FROM student_identities si JOIN accounts a ON a.identity_id = si.id').all();
-  assert.deepEqual(rows.map((r) => r.username), ['904511@s'],
+  assert.deepEqual(rows.map((r) => r.username), ['904511@s1'],
     're-entry must not mint a second account or let the username be reassigned');
 });
 
@@ -282,7 +287,7 @@ test('no student-reachable endpoint ever returns an access code', async () => {
 
   const responses = [
     await post(env, { student_ext_id: '904511', last: 'Alvarez' }),
-    await login({ request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', code }), env }),
+    await login({ request: jsonRequest('https://x/api/sign/login', parentLogin(code)), env }),
   ];
 
   for (const res of responses) {
@@ -302,13 +307,19 @@ test('the credential export is the only place a plaintext code appears', async (
   })).text();
   // BOTH columns, and named separately. Asserting one 8-character code before
   // the link would have passed on the student column alone.
-  assert.match(csv, /Parent access code,Student access code,Link/);
+  assert.match(csv, /Parent username,Parent access code,Student username,Student access code,Link/);
   // Counted from the END: the Student column is "Last, First" and is quoted,
-  // so splitting on commas from the left lands a field early.
-  const [parentCode, studentCode] = csv.trim().split('\r\n')[1].split(',').slice(-3, -1);
+  // so splitting on commas from the left lands a field early. Trailing five,
+  // in order: parent username, parent code, student username, student code, link.
+  const cells = csv.trim().split('\r\n')[1].split(',');
+  const [parentUser, parentCode, studentUser, studentCode] = cells.slice(-5, -1);
   assert.match(parentCode, /^[2-9A-HJ-NP-Z]{8}$/, 'a freshly minted parent code belongs in the export');
   assert.match(studentCode, /^[2-9A-HJ-NP-Z]{8}$/, 'and the teacher can hand the student theirs back');
   assert.notEqual(parentCode, studentCode, 'one code for both would be the hole this split closed');
+  // Sign-in is username + code, so a code without its username is half a
+  // credential and this export is where a lost one is looked up.
+  assert.equal(parentUser, '904511@p1');
+  assert.equal(studentUser, '904511@s1');
 });
 
 test('registering mints the student their own code, and it signs them in', async () => {
@@ -326,7 +337,7 @@ test('registering mints the student their own code, and it signs them in', async
   assert.ok(stored && !stored.includes(body.student_code), 'the code was stored in the clear');
 
   const res = await login({ request: jsonRequest('https://x/api/sign/login', {
-    student_ext_id: '904511', email: '904511@s', code: body.student_code,
+    username: '904511@s1', code: body.student_code,
   }), env });
   assert.equal(res.status, 200);
   assert.equal((await res.json()).role, 'student', 'their own code brings them back as themselves');
@@ -460,6 +471,68 @@ test('a shared student ID with a matching last name across two schools resolves 
   assert.deepEqual(accounts.map((a) => a.roster_id), [other.rosterId]);
   assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM accounts WHERE roster_id = ?').get(reyes.rosterId).n, 0,
     "the Northside student's roster row must remain unregistered");
+});
+
+test('both students behind a shared ID number can register, and each signs in as themselves', async () => {
+  // The bug migrations/0013 fixes. The student username was `<id>@s` against a
+  // globally UNIQUE column, so the SECOND school's student to register tripped
+  // UNIQUE(username) and was told "that school email is already registered to
+  // another student" -- about an address they never typed, with no way past it
+  // ever. The school id in the username is what makes both reachable.
+  const env = freshEnv();
+  const north = seedSchoolRoster(env._raw, {
+    school: 'Northside High', course: 'Algebra I', extId: '123456', first: 'Ana', last: 'Reyes',
+  });
+  const south = seedSchoolRoster(env._raw, {
+    school: 'Southside High', course: 'Geometry', extId: '123456', first: 'Amelia', last: 'Reyes',
+  });
+
+  const first = await post(env, { student_ext_id: '123456', last: 'Reyes', school_id: south.schoolId });
+  assert.equal(first.status, 201);
+  const second = await post(env, { student_ext_id: '123456', last: 'Reyes', school_id: north.schoolId });
+  assert.equal(second.status, 201, 'the second school must not be locked out by the first');
+
+  const amelia = await first.json();
+  const ana = await second.json();
+  assert.notEqual(amelia.username, ana.username, 'two students, two usernames');
+  assert.equal(amelia.username, `123456@s${south.schoolId}`);
+  assert.equal(ana.username, `123456@s${north.schoolId}`);
+
+  // And each code opens its own student's syllabus, never the other's.
+  const mine = await login({ request: jsonRequest('https://x/api/sign/login',
+    { username: ana.username, code: ana.student_code }), env });
+  assert.equal(mine.status, 200);
+  assert.equal((await mine.json()).student, 'Ana Reyes');
+
+  const crossed = await login({ request: jsonRequest('https://x/api/sign/login',
+    { username: amelia.username, code: ana.student_code }), env });
+  assert.equal(crossed.status, 401, "the other student's code does not open this account");
+});
+
+test('a second enrolment shows no access code, because there is no new one', async () => {
+  // The confirmation card printed the literal string "null" under "write this
+  // down" here: an identity that already exists is not issued a fresh code, and
+  // the response said so with a null the page rendered as text.
+  const env = freshEnv();
+  const a = seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '555555', first: 'Sam', last: 'Kim' });
+  const firstReg = await (await post(env, { student_ext_id: '555555', last: 'Kim', school_id: a.schoolId })).json();
+  assert.match(firstReg.student_code, /^[2-9A-HJ-NP-Z]{8}$/);
+
+  // Enrolled in a second class after registering, then back through the form.
+  seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Geometry', extId: '555555', first: 'Sam', last: 'Kim' });
+  const again = await post(env, { student_ext_id: '555555', last: 'Kim', school_id: a.schoolId });
+  const body = await again.json();
+
+  assert.equal(again.status, 201, 'the new enrolment is created');
+  assert.equal(body.student_code, null, 'no second code is minted');
+  assert.equal(body.username, firstReg.username, 'and the username does not change');
+  assert.doesNotMatch(body.message, /write it down/i,
+    'the card must not tell them to write down a code it is not showing');
+
+  // The code they already hold is still the one that works.
+  const back = await login({ request: jsonRequest('https://x/api/sign/login',
+    { username: firstReg.username, code: firstReg.student_code }), env });
+  assert.equal(back.status, 200);
 });
 
 test('more than one school on the install requires a school_id', async () => {

@@ -1,0 +1,33 @@
+-- Teacher sessions can be ended, the same way parent and student ones can.
+--
+-- migrations/0014 gave signers a session generation and left teachers on the
+-- old behaviour: DELETE /api/admin/login cleared the cookie and a captured
+-- token went on working for the rest of its two hours. That was the asymmetry
+-- the wrong way round -- a teacher session reaches every student's name,
+-- student ID, parent address and access code in their classes, which is more
+-- than any single signer session can see.
+--
+-- It also made the password reset added in 0015 weaker than it looks. Setting
+-- a new password did not disturb a session opened with the old one, so the
+-- case a reset most often exists for -- someone else is in the account -- was
+-- exactly the case it did not fix. The reset now bumps this.
+--
+-- One counter, not two: a teacher is one person with one role, unlike the
+-- parent/student pair sharing a student_identities row.
+--
+-- NOT covered, deliberately, and worth knowing: the shared ADMIN_PASSWORD_HASH
+-- session carries `sub` 0, which is not a row in this table and therefore has
+-- no counter to bump. It cannot be revoked; rotating the secret is what ends
+-- it. That is a property of a credential deliberately tied to no account, and
+-- it is one more reason the shared password is the break-glass path rather
+-- than the normal one.
+--
+-- Cloudflare Access sessions never reach this either -- they authenticate at
+-- the edge on every request and carry no cookie of ours, so there is nothing
+-- to revoke and nothing that outlives the Access policy.
+--
+-- 0 for every existing row, and every already-issued teacher token predates
+-- this column and carries no generation at all, which reads as 0. Nobody is
+-- signed out by this landing.
+
+ALTER TABLE teachers ADD COLUMN session_gen INTEGER NOT NULL DEFAULT 0;

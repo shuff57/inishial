@@ -125,6 +125,39 @@ classes", and every class was still in the table. After adding a migration,
 deploy it and run the upgrade; the page failing to list classes is worth
 checking here first.
 
+**Migrate BEFORE you deploy the code, not after.** The two steps are separate
+commands and nothing enforces the order, so it is worth stating: new code reads
+columns the migration adds, and a Function that selects a column the database
+does not have fails the whole request rather than degrading. Running 0014's
+code against a pre-0014 database does not produce a missing session feature —
+it produces `no such column: si.parent_session_gen` on every attempt to sign
+in, which is the whole sign-in surface down.
+
+How long that gap is safe depends on the migration, and the two shipped
+together here are not the same:
+
+- **0014, 0015 and 0016 are additive.** They only add columns with defaults, so
+  the old code neither knows nor cares. Migrate whenever; deploy whenever
+  after. Sessions issued before the deploy keep working — a token with no
+  generation claim reads as generation 0, which is what every untouched row
+  holds, so nobody is signed out by the deploy itself.
+- **0013 (school-scoped usernames) REWRITES values**, and the old code derives
+  the old shape. Between running it and deploying, `904511@s` is what the
+  running code builds and looks for while `904511@s1` is what the database
+  holds — so sign-in fails for everyone until the deploy lands. Run it as close
+  to the deploy as you can, and do not roll the code back past it without
+  reversing the rewrite.
+
+One thing that is NOT a migration and is worth knowing: rotating
+`ADMIN_PASSWORD_HASH` is the only way to end a shared-password admin session.
+Teacher accounts carry a session generation and can be signed out (0016), but
+the shared password is deliberately tied to no account, so there is no row to
+mark. Rotate the secret if you ever need those sessions gone.
+
+The tests cover the migrated schema only, since the suite applies every
+migration in `migrations/` before it runs. The half-migrated state is not
+covered by anything and is not meant to last longer than the deploy.
+
 ### 6. Optional, for the AI authoring pass
 
 ```bash

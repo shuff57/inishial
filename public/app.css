@@ -1445,6 +1445,32 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
   border-bottom: 1px solid color-mix(in srgb, var(--desk-ink) 14%, transparent);
 }
 .progress > div { max-width: 48rem; margin: 0 auto; display: flex; justify-content: space-between; gap: 1rem; }
+/* Count and Sign out travel together on the right, so the spine stays a
+   two-part row at every width instead of the button wrapping under the name. */
+.progress-end { display: flex; align-items: baseline; gap: .9rem; flex: 0 0 auto; }
+/* Underlined text, not a filled button. Ending the session is not the action
+   this page is asking for -- initialing is -- and a solid button here would
+   compete with the one inside every section box. Still a real <button>: it
+   performs an action rather than going somewhere, and it takes focus and Enter
+   the way the keyboard expects. */
+.signout-btn {
+  background: none; border: 0; padding: 0;
+  font: inherit; color: inherit;
+  text-decoration: underline; text-underline-offset: 2px;
+  cursor: pointer; opacity: .85;
+}
+.signout-btn:hover { opacity: 1; }
+/* An editable value that reads as the value, not as a control. Used for the
+   parent address on /admin/codes/, where the cell IS the edit affordance. */
+.linky {
+  background: none; border: 0; padding: 0;
+  font: inherit; color: inherit; text-align: left;
+  text-decoration: underline dotted; text-underline-offset: 2px;
+  cursor: pointer;
+}
+.linky:hover { text-decoration-style: solid; }
+.linky:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 2px; }
+.signout-btn:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 2px; }
 .bar { height: 3px; background: color-mix(in srgb, var(--desk-ink) 20%, transparent); border-radius: 2px; margin-top: .4rem; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--mark-deep); width: 0; transition: width .3s ease-out; }
 

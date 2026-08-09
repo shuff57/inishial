@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { freshEnv, ADMIN_HEADERS } from './helpers.mjs';
-import { onRequestGet as search } from '../functions/api/admin/schools-search.js';
+import { onRequestGet as search } from '../functions/api/admin/schools/search.js';
 
 /** Stub global fetch to answer the Nominatim call the endpoint makes. */
 function fakeNominatim(results) {

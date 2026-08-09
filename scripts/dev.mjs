@@ -111,6 +111,11 @@ const env = {
   // and reports success, so /register/code/ can be walked end to end; unset it
   // and the endpoint honestly 502s rather than pretending the mail went.
   MAIL_DRY_RUN: process.env.MAIL_DRY_RUN ?? '1',
+  // Where mailed links point. Without it _lib/mail.js falls back to the
+  // production hostname, so a password-reset link logged by the dry run sent
+  // you to the live site with a token that only exists in .dev.sqlite -- the
+  // link looked right and could not possibly work.
+  APP_URL: process.env.APP_URL || `http://localhost:${PORT}`,
   ADMIN_EMAILS: DEV_ADMIN,
   // Self-service teacher sign-up. The real domain is read out of wrangler.toml
   // rather than repeated here, so testing sign-up locally exercises the same
@@ -216,12 +221,17 @@ async function seed() {
   const register = async (extId, rosterIdList) => {
     const parentCode = extId === '123456' ? DEMO_CODE : devParent(extId);
     const studentCode = devStudent(extId);
+    // Both usernames derived exactly as api/register.js derives them, against
+    // the placeholder school (id 1) these unowned courses resolve to. Seeding
+    // any other shape makes every test student unreachable: sign-in takes a
+    // username and a code and nothing else, so a seeded username that could
+    // never be minted is a seeded account nobody can open.
     const identityId = Number(db.prepare(
       `INSERT INTO student_identities
-         (school_id, student_ext_id, username, code_hash, code_issued_at, parent_email, created_at,
+         (school_id, student_ext_id, username, parent_username, code_hash, code_issued_at, parent_email, created_at,
           student_code_hash, student_code_issued_at, code_enc, student_code_enc)
-       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
-    ).run(1, extId, `student${extId}@student.example.com`,
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)`,
+    ).run(1, extId, `${extId}@s1`, `${extId}@p1`,
       await hashCode(parentCode), 1000, 1000,
       await hashCode(studentCode), 1000,
       await sealCode(env, parentCode), await sealCode(env, studentCode)).lastInsertRowid);
@@ -275,7 +285,7 @@ const ROUTES = {
   '/api/register': () => import('../functions/api/register.js'),
   '/api/schools': () => import('../functions/api/schools.js'),
   '/api/admin/school': () => import('../functions/api/admin/school.js'),
-  '/api/admin/schools/search': () => import('../functions/api/admin/schools-search.js'),
+  '/api/admin/schools/search': () => import('../functions/api/admin/schools/search.js'),
   '/api/sign/login': () => import('../functions/api/sign/login.js'),
   // Was missing here, so /register/code/ 404'd locally while working in
   // production -- the same drift the REWRITES comment below warns about, in the
@@ -292,6 +302,7 @@ const ROUTES = {
   '/api/admin/progress': () => import('../functions/api/admin/progress.js'),
   '/api/admin/login': () => import('../functions/api/admin/login.js'),
   '/api/admin/signup': () => import('../functions/api/admin/signup.js'),
+  '/api/admin/reset': () => import('../functions/api/admin/reset.js'),
   '/api/admin/models': () => import('../functions/api/admin/models.js'),
   '/admin/signed': () => import('../functions/admin/signed.js'),
 };
@@ -447,14 +458,16 @@ createServer(async (req, res) => {
 
   http://localhost:${PORT}/              landing
   http://localhost:${PORT}/register/     student sign-up   (D: ID 123459, last Student)
-  http://localhost:${PORT}/sign/         parent or student (A: ID 123456 -- ${DEMO_CODE} = parent, STU23456 = student)
+  http://localhost:${PORT}/sign/         parent or student (A: 123456@p1 + ${DEMO_CODE})
   http://localhost:${PORT}/admin/login/  teacher sign-in   (password ${DEV_PASSWORD})
   http://localhost:${PORT}/admin/signup/ teacher sign-up   (any @school.edu address)
 
-  Test students (school placeholder, all at /sign/ with ID + one code):
-    A  123456  Algebra I + Geometry  parent ${DEMO_CODE}  student STU23456  -- class switcher, sign both syllabi
-    B  123457  Algebra I             parent PAR23457       student STU23457
-    C  123458  Algebra I             parent PAR23458       student STU23458
+  Test students -- /sign/ takes a USERNAME and a code, nothing else.
+  Usernames are <id>@s1 for the student and <id>@p1 for the parent; the 1 is
+  the placeholder school these unowned courses resolve to.
+    A  123456  Algebra I + Geometry  123456@p1 ${DEMO_CODE}   123456@s1 STU23456  -- class switcher
+    B  123457  Algebra I             123457@p1 PAR23457   123457@s1 STU23457
+    C  123458  Algebra I             123458@p1 PAR23458   123458@s1 STU23458
     D  123459  Algebra I             NOT REGISTERED -- /register/ to create the account
 
   Parent code flow: /register/code/ with A's ID 123456 and parent.a@example.com

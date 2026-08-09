@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, seedAccount, seedSyllabus, ADMIN_HEADERS, jsonRequest, cookieFrom } from './helpers.mjs';
+import { freshEnv, seedStudent, seedAccount, seedSyllabus, ADMIN_HEADERS, jsonRequest, cookieFrom, parentLogin } from './helpers.mjs';
 import { onRequestGet as getSyllabus, onRequestPost as saveDraft, onRequestPut as publish } from '../functions/api/admin/syllabus.js';
 import { onRequestPost as suggest } from '../functions/api/admin/suggest.js';
 import { onRequestPost as signLogin } from '../functions/api/sign/login.js';
@@ -230,7 +230,7 @@ test('a parent sees the published version, never the draft', async () => {
   await adminSave(env, { course_id: realCourseId, blocks: [...DRAFT, { type: 'initial', html: 'Secret draft clause.' }] });
 
   const cookie = cookieFrom(await signLogin({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'parent@example.com', code }), env,
+    request: jsonRequest('https://x/api/sign/login', parentLogin(code)), env,
   }));
   const view = await (await parentView({
     request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookie } }), env,

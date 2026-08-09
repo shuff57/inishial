@@ -1,0 +1,40 @@
+-- Make signing out actually end the session, not just drop the browser's copy.
+--
+-- The session cookie is a signed, stateless JWT with a two-hour TTL. DELETE
+-- /api/sign/login clears the cookie, which is all a browser needs -- but a
+-- token captured beforehand kept working for the rest of its TTL, because
+-- nothing on the server had any idea it had been given up. On a shared
+-- classroom Chromebook, "signed out" has to mean the token is dead, not that
+-- this browser politely forgot it.
+--
+-- A GENERATION COUNTER, not a revoked-at timestamp. The token carries the
+-- generation it was minted under; signing out increments the stored one, so
+-- every token issued before it no longer matches and the next sign-in mints
+-- one that does.
+--
+-- The timestamp version was written first and is worth recording, because it
+-- looked obviously correct and was not: `iat` is whole seconds, so a token
+-- minted in the same second as the sign-out compared equal and survived. That
+-- is not the rare self-inflicted case it first appears -- a captured cookie
+-- minted in that same second outlives the sign-out too. Tightening the
+-- comparison to `<=` only moved the bug: a sign-in landing in the same second
+-- as the sign-out before it would mint a token that was born rejected, and the
+-- reader would be handed a session that 401s on its very next request.
+--
+-- A counter has no granularity to get wrong. There is no clock in it, so there
+-- is no skew, no rounding, and no window -- a token either carries the current
+-- generation or it does not. It also costs nothing to read: sign-in already
+-- SELECTs this row for the code hashes.
+--
+-- TWO counters, not one. Parent and student share a student_identities row and
+-- are two different people who can both be signed in -- sitting together at one
+-- kitchen table is the normal case. A single counter would mean a student
+-- signing out silently ended their parent's session, which is exactly the kind
+-- of quiet loss the two separate codes exist to prevent.
+--
+-- 0 for every existing row, and every existing token predates this column and
+-- carries no generation at all -- which reads as 0 and stays valid. Nobody is
+-- signed out by this migration landing.
+
+ALTER TABLE student_identities ADD COLUMN parent_session_gen  INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE student_identities ADD COLUMN student_session_gen INTEGER NOT NULL DEFAULT 0;

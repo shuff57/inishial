@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset your password · iniSHial</title>
+<link rel="stylesheet" href="/app.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script src="/ui.js" defer></script>
+<!-- A page with a live credential in its query string should not hand that
+     string to anyone else. Referrer-Policy stops the token riding along in the
+     Referer header of any request this page makes. -->
+<meta name="referrer" content="no-referrer">
+</head>
+<!--
+  Two states, one document, chosen by whether ?token= is present:
+
+    no token  -- ask for the address, POST /api/admin/reset
+    token     -- set a new password,  PUT  /api/admin/reset
+
+  One file because they are two halves of one errand, and a teacher who lands
+  on the wrong one should be one click from the other rather than hunting for a
+  second page.
+-->
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a class="to-icon" href="/admin/login/" title="Teacher sign-in"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signin"/></svg><span class="label">Teacher sign-in</span></a></li>
+    <li><a class="to-icon" href="/admin/signup/" title="Set up a teacher account"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-person-plus"/></svg><span class="label">Set up a teacher account</span></a></li>
+  </ul>
+  <div class="nav-end">
+    <a class="to-icon" href="/" title="Back to the student side"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-home"/></svg><span class="label">Back to the student side</span></a>
+  </div>
+</nav></header>
+
+<main id="main" tabindex="-1">
+
+  <!-- ---- ask for a link ---- -->
+  <section id="askView" hidden>
+    <h1>Reset your password</h1>
+    <p class="muted">We'll email you a link to set a new one. It works once and expires
+      in 30 minutes.</p>
+
+    <form id="askForm" class="card plain" novalidate>
+      <label for="email">Your school email address
+        <span class="hint">The address you signed up with.</span></label>
+      <input id="email" name="email" type="email" autocomplete="email" required autofocus>
+
+      <div id="askMsg" hidden></div>
+      <p><button id="askBtn" type="submit">Email me a link</button></p>
+    </form>
+
+    <div id="askSent" class="card plain" hidden>
+      <h2>Check your inbox</h2>
+      <p id="askSentMsg" class="muted"></p>
+      <p class="small muted">Nothing arrived? Check the address you typed, and look in
+        your spam folder. School mail systems sometimes hold outside senders.</p>
+    </div>
+
+    <p class="small muted">Remembered it? <a href="/admin/login/">Sign in</a>.</p>
+  </section>
+
+  <!-- ---- set a new password ---- -->
+  <section id="setView" hidden>
+    <h1>Set a new password</h1>
+    <p class="muted">Pick something you don't use anywhere else. This account holds
+      student names, student IDs and parent email addresses.</p>
+
+    <form id="setForm" class="card plain" novalidate>
+      <label for="password">New password
+        <span class="hint">At least 12 characters. Length beats punctuation: a short phrase
+          you'll remember is stronger than <span class="mark">P@ssw0rd</span>.</span></label>
+      <input id="password" type="password" autocomplete="new-password" required autofocus>
+
+      <label for="confirm">Type it again</label>
+      <input id="confirm" type="password" autocomplete="new-password" required>
+
+      <div id="setMsg" hidden></div>
+      <p><button id="setBtn" type="submit">Save the new password</button></p>
+    </form>
+
+    <div id="setDone" class="card plain" hidden>
+      <h2>Password changed</h2>
+      <p class="muted">Sign in with your new password.</p>
+      <p><a class="button" href="/admin/login/">Go to sign-in</a></p>
+    </div>
+
+    <p class="small muted" id="setStale" hidden>
+      Links expire after 30 minutes and work only once.
+      <a href="/admin/reset/">Ask for a new one</a>.
+    </p>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const token = new URLSearchParams(location.search).get('token');
+
+function show(el, text, kind = 'error') {
+  el.hidden = false;
+  el.className = 'notice ' + kind;
+  el.textContent = text;
+}
+
+// Which half of the errand this is.
+$(token ? 'setView' : 'askView').hidden = false;
+
+// ---- ask ----
+$('askForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const btn = $('askBtn');
+  $('askMsg').hidden = true;
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    const res = await fetch('/api/admin/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: $('email').value }),
+    });
+    const body = await res.json();
+    if (!res.ok) { show($('askMsg'), body.error || 'Could not send the link.'); return; }
+    // Deliberately the same screen whether or not an account exists -- the
+    // endpoint will not say, and neither will this.
+    $('askForm').hidden = true;
+    $('askSent').hidden = false;
+    $('askSentMsg').textContent = body.message;
+  } catch {
+    show($('askMsg'), 'Could not reach the server.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Email me a link';
+  }
+});
+
+// ---- set ----
+$('setForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const btn = $('setBtn');
+  $('setMsg').hidden = true;
+
+  // Checked here because the server never sees `confirm`: a mistyped new
+  // password would otherwise lock the account a second time, with a spent link.
+  if ($('password').value !== $('confirm').value) {
+    show($('setMsg'), 'Those two passwords are different.');
+    $('confirm').focus();
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/admin/reset', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, password: $('password').value }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      show($('setMsg'), body.error || 'Could not set the password.');
+      // A dead link is not something retyping fixes, so point at the way out.
+      if (/expired|already been used|not valid/i.test(body.error || '')) {
+        $('setForm').hidden = true;
+        $('setStale').hidden = false;
+      }
+      return;
+    }
+    $('setForm').hidden = true;
+    $('setDone').hidden = false;
+    // The token is spent; take it out of the address bar so a back button or a
+    // shared URL does not carry a dead credential around.
+    history.replaceState({}, '', '/admin/reset/');
+  } catch {
+    show($('setMsg'), 'Could not reach the server.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save the new password';
+  }
+});
+</script>
+
+<button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
+</body>
+</html>

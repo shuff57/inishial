@@ -5,9 +5,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, seedAccount, ADMIN_HEADERS, jsonRequest, cookieFrom } from './helpers.mjs';
+import { freshEnv, seedStudent, seedAccount, ADMIN_HEADERS, jsonRequest, cookieFrom, parentLogin } from './helpers.mjs';
 import { hashCode } from '../functions/_lib/codes.js';
 import { onRequestPost as adminLogin, onRequestDelete as adminLogout } from '../functions/api/admin/login.js';
+import { onRequestPost as signup } from '../functions/api/admin/signup.js';
 import { onRequestGet as rosterSummary } from '../functions/api/admin/roster.js';
 import { onRequestGet as progress } from '../functions/api/admin/progress.js';
 import { onRequestPost as signLogin } from '../functions/api/sign/login.js';
@@ -75,9 +76,58 @@ test('a misconfigured server says so rather than letting everyone in', async () 
   assert.equal((await summary(env)).status, 401, 'and the routes stay shut');
 });
 
-test('signing out clears the cookie', async () => {
-  const res = await adminLogout();
+test('signing out clears the cookie, even with no session to end', async () => {
+  const env = freshEnv();
+  const res = await adminLogout({ request: new Request('https://x/api/admin/login', { method: 'DELETE' }), env });
   assert.match(res.headers.get('Set-Cookie'), /Max-Age=0/);
+});
+
+test('a teacher cookie captured before a sign-out stops working', async () => {
+  // The admin half of migration 0014's guarantee, added in 0016. It matters
+  // more here than on the signer side: this token reaches every student's
+  // name, ID, parent address and access code in the teacher's classes.
+  const env = freshEnv();
+  await signup({
+    request: jsonRequest('https://x/api/admin/signup',
+      { email: 'tracy@school.edu', password: 'correct horse battery', school: 'Northside High' }), env,
+  });
+  const cookie = cookieFrom(await adminLogin({
+    request: jsonRequest('https://x/api/admin/login',
+      { email: 'tracy@school.edu', password: 'correct horse battery' }), env,
+  }));
+
+  assert.equal((await summary(env, { Cookie: cookie })).status, 200, 'live before');
+
+  await adminLogout({
+    request: new Request('https://x/api/admin/login', { method: 'DELETE', headers: { Cookie: cookie } }), env,
+  });
+
+  assert.equal((await summary(env, { Cookie: cookie })).status, 401,
+    'the token is dead, not merely dropped by one browser');
+
+  // And signing back in immediately works -- the counter has no clock in it,
+  // so there is no window where a fresh session is born rejected.
+  const again = cookieFrom(await adminLogin({
+    request: jsonRequest('https://x/api/admin/login',
+      { email: 'tracy@school.edu', password: 'correct horse battery' }), env,
+  }));
+  assert.equal((await summary(env, { Cookie: again })).status, 200);
+});
+
+test('the shared password session is cleared but cannot be revoked', async () => {
+  // Honest about the limit: sub 0 is not a row, so there is no counter to
+  // bump. Rotating ADMIN_PASSWORD_HASH is what ends those sessions. Asserted
+  // so the property is recorded rather than discovered.
+  const env = await adminEnv();
+  const cookie = cookieFrom(await login(env, PASSWORD));
+  assert.equal((await summary(env, { Cookie: cookie })).status, 200);
+
+  const out = await adminLogout({
+    request: new Request('https://x/api/admin/login', { method: 'DELETE', headers: { Cookie: cookie } }), env,
+  });
+  assert.match(out.headers.get('Set-Cookie'), /Max-Age=0/, 'the browser is signed out');
+  assert.equal((await summary(env, { Cookie: cookie })).status, 200,
+    'but a captured shared-password token survives -- rotate the secret to end it');
 });
 
 // ---- Cloudflare Access, independently ----
@@ -112,7 +162,7 @@ test('a parent session is not an admin session', async () => {
   const { code } = await seedAccount(env._raw, rosterId);
 
   const cookie = cookieFrom(await signLogin({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'parent@example.com', code, role: 'parent' }), env,
+    request: jsonRequest('https://x/api/sign/login', parentLogin(code)), env,
   }));
 
   assert.equal((await summary(env, { Cookie: cookie })).status, 401,

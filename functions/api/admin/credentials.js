@@ -23,6 +23,11 @@ import {
 import { generateCode, hashCode } from '../../_lib/codes.js';
 import { sealCode, openCode, vaultReady } from '../../_lib/vault.js';
 
+// Same deliberately-permissive shape as registration uses. Strict RFC-5322
+// validation rejects addresses that work; the real check is whether the mail
+// arrives.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 export async function onRequestGet({ request, env }) {
   const admin = await requireAdmin(request, env);
   if (!admin) return unauthorized();
@@ -51,7 +56,7 @@ export async function onRequestGet({ request, env }) {
   // two have not signed up". There is nothing to hand out for them yet -- the
   // codes live on the account -- and that is the thing worth seeing.
   const { results } = await env.DB.prepare(
-    `SELECT a.id, si.username, si.code_hash, si.student_code_hash,
+    `SELECT a.id, si.username, si.parent_username, si.code_hash, si.student_code_hash,
             si.code_enc, si.student_code_enc,
             si.code_issued_at, si.student_code_issued_at,
             COALESCE(si.parent_email, r.parent_email) AS email,
@@ -113,7 +118,14 @@ export async function onRequestGet({ request, env }) {
       period: row.period ?? '',
       email: row.email ?? '',
       email_source: row.email_source,
-      school_email: row.username,
+      // Both usernames, because sign-in is username + code and a code alone is
+      // half a credential. The student sees theirs once at registration and the
+      // parent gets theirs by email; when either is lost this export is the
+      // only place left that holds it, and it used to hold neither -- the
+      // student's was in the JSON under a name the page never rendered, and the
+      // parent's was nowhere at all.
+      username: row.username,
+      parent_username: row.parent_username,
       parent: await settle(row, 'parent'),
       student_code: await settle(row, 'student'),
     });
@@ -130,17 +142,97 @@ export async function onRequestGet({ request, env }) {
     });
   }
 
+  // Username beside its own code in both pairs, since that is how they are
+  // typed and how they are mail-merged.
   const lines = [csvRow([
     'Student', 'Student ID', 'Period', 'Parent email', 'Email source',
-    'Parent access code', 'Student access code', 'Link',
+    'Parent username', 'Parent access code',
+    'Student username', 'Student access code', 'Link',
   ])];
   for (const s of students) {
     lines.push(csvRow([
       s.student, s.student_ext_id, s.period, s.email, s.email_source,
-      s.parent.code ?? '', s.student_code.code ?? '', link,
+      s.parent_username ?? '', s.parent.code ?? '',
+      s.username ?? '', s.student_code.code ?? '', link,
     ]));
   }
 
   const slug = String(course.name).replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
   return csvResponse(`access-codes-${slug || courseId}.csv`, lines.join('\r\n') + '\r\n');
+}
+
+/**
+ * PATCH /api/admin/credentials -- set or clear one student's parent email.
+ *
+ * Body: { account_id, parent_email }  -- an empty or null address clears it.
+ *
+ * The teacher's fix for a contact address that is wrong, missing, or was
+ * locked to a typo. Until this existed there was no way to change
+ * `student_identities.parent_email` from anywhere in the app: the parent
+ * self-signup page set it once, on first request, and then refused every
+ * address that did not match -- so a mistyped address permanently locked the
+ * family out, and re-uploading the roster did not help, because the override
+ * wins over the roster.
+ *
+ * CLEARING is the important half and is why this takes a null rather than only
+ * a new address. With the override gone the roster address applies again,
+ * which is the state the account should have been in all along.
+ *
+ * Lives on this route because it is the same subject as the codes beside it,
+ * the same ownership boundary, and the same page. A teacher who can already
+ * read a class's access codes is not gaining reach by editing a contact
+ * address in the same table.
+ */
+export async function onRequestPatch({ request, env }) {
+  const admin = await requireAdmin(request, env);
+  if (!admin) return unauthorized();
+  if (!env.DB) return serverMisconfigured('the DB binding');
+
+  let body;
+  try { body = await request.json(); } catch { return badRequest('Expected a JSON body.'); }
+
+  const accountId = Number(body?.account_id);
+  if (!Number.isInteger(accountId) || accountId < 1) return badRequest('account_id is required.');
+
+  const raw = String(body?.parent_email ?? '').trim();
+  if (raw && !EMAIL_RE.test(raw)) return badRequest("That doesn't look like an email address.");
+
+  // Ownership is checked through the account's own course, not a course id the
+  // caller supplies -- otherwise a teacher could name their own course while
+  // pointing at somebody else's student.
+  const row = await env.DB.prepare(
+    `SELECT a.identity_id, r.course_id, r.first, r.last
+       FROM accounts a
+       JOIN roster r ON r.id = a.roster_id
+      WHERE a.id = ?1`,
+  ).bind(accountId).first();
+  // Same answer for "no such account" and "not yours", exactly as ownedCourse
+  // does, so this cannot be used to probe which account ids exist.
+  if (!row || !(await ownedCourse(env, row.course_id, admin))) return badRequest('No such student.');
+
+  await env.DB.prepare(
+    'UPDATE student_identities SET parent_email = ?1 WHERE id = ?2',
+  ).bind(raw || null, row.identity_id).run();
+
+  // What the page should now show: the override if one was set, otherwise
+  // whatever the roster carries, which is what the parent flow will use.
+  const after = await env.DB.prepare(
+    `SELECT COALESCE(si.parent_email, r.parent_email) AS email,
+            CASE
+              WHEN si.parent_email IS NOT NULL THEN 'student-supplied'
+              WHEN r.parent_email  IS NOT NULL THEN 'roster'
+              ELSE 'missing'
+            END AS email_source
+       FROM accounts a
+       JOIN roster r ON r.id = a.roster_id
+       JOIN student_identities si ON si.id = a.identity_id
+      WHERE a.id = ?1`,
+  ).bind(accountId).first();
+
+  return json({
+    ok: true,
+    student: `${row.last}, ${row.first}`,
+    email: after?.email ?? '',
+    email_source: after?.email_source ?? 'missing',
+  });
 }

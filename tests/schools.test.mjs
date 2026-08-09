@@ -73,7 +73,7 @@ async function legacyPlaceholderTeacher(env, email = 'legacy@school.org') {
   const nowSec = Math.floor(Date.now() / 1000);
   const id = Number(env._raw.prepare('INSERT INTO teachers (email, name, password_hash, school_id, created_at) VALUES (?, ?, ?, ?, ?)')
     .run(email, 'Legacy Teacher', 'pbkdf2$1$deadbeef', 1, nowSec).lastInsertRowid);
-  const token = await signSession(env, id, 'teacher', nowSec, email);
+  const token = await signSession(env, id, 'teacher', nowSec, { email });
   return sessionCookie(token).split(';')[0];
 }
 

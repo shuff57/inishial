@@ -121,7 +121,7 @@ test('a prompt is never retagged, at either level', () => {
 // So it is asserted end to end -- seed a syllabus with subheadings, call the
 // real handler, and count the pages the way the page itself does.
 
-import { freshEnv, seedStudent, seedAccount, jsonRequest, cookieFrom } from './helpers.mjs';
+import { freshEnv, seedStudent, seedAccount, jsonRequest, cookieFrom, parentLogin } from './helpers.mjs';
 import { onRequestPost as signLogin } from '../functions/api/sign/login.js';
 import { onRequestGet as parentView } from '../functions/api/sign/syllabus.js';
 
@@ -155,7 +155,7 @@ test('the parent view receives the level, and pages on it', async () => {
   seedLevelled(env._raw, courseId);
 
   const cookie = cookieFrom(await signLogin({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'parent@example.com', code, role: 'parent' }), env,
+    request: jsonRequest('https://x/api/sign/login', parentLogin(code)), env,
   }));
   const body = await (await parentView({
     request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookie } }), env,
@@ -179,7 +179,7 @@ test('each signing prompt stays in the section it attests to', async () => {
   seedLevelled(env._raw, courseId);
 
   const cookie = cookieFrom(await signLogin({
-    request: jsonRequest('https://x/api/sign/login', { student_ext_id: '904511', email: 'parent@example.com', code, role: 'parent' }), env,
+    request: jsonRequest('https://x/api/sign/login', parentLogin(code)), env,
   }));
   const body = await (await parentView({
     request: new Request('https://x/api/sign/syllabus', { headers: { Cookie: cookie } }), env,

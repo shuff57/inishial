@@ -99,7 +99,7 @@ export async function onRequestPost({ request, env }) {
 
   await adoptUnownedCourses(env, teacherId, email);
 
-  const token = await signSession(env, teacherId, 'teacher', nowSec, email);
+  const token = await signSession(env, teacherId, 'teacher', nowSec, { email });
   return json({ ok: true, email }, 200, { 'Set-Cookie': sessionCookie(token) });
 }
 

@@ -212,7 +212,13 @@ function wireSignOut() {
   const button = document.getElementById('navSignout');
   if (!button) return;
   button.addEventListener('click', async () => {
-    // Clears the cookie server-side. An Access session is ended by Access itself.
+    // Revokes the session server-side and clears the cookie. The cookie rides
+    // along because fetch defaults to credentials: 'same-origin' -- the request
+    // needs it, since the endpoint reads the session to know whose to end.
+    //
+    // An Access session is ended by Access itself, and the shared-password
+    // session cannot be revoked at all (no account row to mark); see
+    // migrations/0016.
     await fetch('/api/admin/login', { method: 'DELETE' });
     location.href = '/admin/login/';
   });

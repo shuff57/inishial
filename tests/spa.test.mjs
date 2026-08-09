@@ -90,3 +90,40 @@ test('a POST to /sign/ is not rewritten', async () => {
   const { res } = await run('https://x/sign/', 'POST');
   assert.equal(res.status, FELL_THROUGH);
 });
+
+// ---- dev server / production routing parity ----
+
+test('every Function file is reachable in the dev server too', async () => {
+  // Cloudflare Pages routes Functions by FILE PATH. scripts/dev.mjs cannot --
+  // it is a plain node server with a hand-written ROUTES table -- so a new
+  // endpoint works in production and 404s locally until someone remembers to
+  // add it. That is a bad failure: it looks like the code is broken when the
+  // routing is, and the test suite cannot see it at all because tests import
+  // the handlers directly rather than going through either router.
+  //
+  // Caught exactly once, by hand, when /api/admin/reset returned "Not found"
+  // from a dev server while all of its unit tests passed.
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join, relative, sep } = await import('node:path');
+
+  // Windows hands back both a leading-slash drive path and backslash
+  // separators; routes are neither.
+  const toPosix = (p) => p.split(sep).join('/');
+  const root = new URL('../functions/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+  const found = [];
+  (function walk(dir) {
+    for (const entry of readdirSync(dir)) {
+      // `_lib`, `_middleware.js` -- Pages treats a leading underscore as
+      // "not a route", and so does this.
+      if (entry.startsWith('_')) continue;
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (entry.endsWith('.js')) found.push('/' + toPosix(relative(root, full)).replace(/\.js$/, ''));
+    }
+  }(root));
+
+  const dev = readFileSync(new URL('../scripts/dev.mjs', import.meta.url), 'utf8');
+  const missing = found.filter((route) => !dev.includes(`'${route}':`));
+  assert.deepEqual(missing, [],
+    `add these to ROUTES in scripts/dev.mjs, or they 404 in local dev only:\n  ${missing.join('\n  ')}`);
+});

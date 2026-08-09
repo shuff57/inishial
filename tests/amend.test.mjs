@@ -10,7 +10,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, seedAccount, seedSyllabus, ADMIN_HEADERS, jsonRequest, cookieFrom } from './helpers.mjs';
+import { freshEnv, seedStudent, seedAccount, seedSyllabus, ADMIN_HEADERS, jsonRequest, cookieFrom, parentLogin, studentLogin } from './helpers.mjs';
 import { onRequestPost as login } from '../functions/api/sign/login.js';
 import { onRequestGet as getSyllabus } from '../functions/api/sign/syllabus.js';
 import { onRequestPost as postInitial } from '../functions/api/sign/initial.js';
@@ -41,10 +41,8 @@ async function setup() {
 const signInAs = async (env, extId, code, role = 'parent') => cookieFrom(await login({
   // The email decides which side signs in: the school address is the student,
   // the family address is the parent.
-  request: jsonRequest('https://x/api/sign/login', {
-    student_ext_id: extId, code, role,
-    email: role === 'student' ? '904511@s' : 'parent@example.com',
-  }), env,
+  request: jsonRequest('https://x/api/sign/login',
+    role === 'student' ? studentLogin(code, extId) : parentLogin(code, extId)), env,
 }));
 
 const view = async (env, cookie) => (await getSyllabus({

@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshEnv, seedStudent, ADMIN_HEADERS } from './helpers.mjs';
+import { freshEnv, seedStudent, ADMIN_HEADERS, studentLogin } from './helpers.mjs';
 import { sealCode, openCode, vaultReady } from '../functions/_lib/vault.js';
 import { onRequestGet as credentials } from '../functions/api/admin/credentials.js';
 import { onRequestPost as register } from '../functions/api/register.js';
@@ -75,7 +75,7 @@ test('the codes page shows a code the teacher can read back later', async () => 
   const res = await login({
     request: new Request('https://x/api/sign/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ student_ext_id: '904511', email: '904511@s', code: row.student_code.code }),
+      body: JSON.stringify(studentLogin(row.student_code.code)),
     }),
     env,
   });

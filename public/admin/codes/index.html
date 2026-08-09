@@ -113,7 +113,7 @@
   <table>
     <thead><tr>
       <th>Student</th><th>Per.</th><th>Parent email</th>
-      <th>Parent code</th><th>Student code</th><th></th>
+      <th>Parent sign-in</th><th>Student sign-in</th><th></th>
     </tr></thead>
     <tbody id="rows"></tbody>
   </table>
@@ -143,15 +143,29 @@ function codeCell(c) {
   return `<span class="code none" title="Issued ${esc(when(c.issued_at))}. Reissue to see a code, and the current one stops working.">cannot be shown</span>`;
 }
 
+/** Username above its own code, in one cell rather than two more columns.
+ *  They are typed together and they are useless apart -- sign-in takes both --
+ *  so splitting them across the table would only widen it. Neither username
+ *  appeared anywhere on this page before, which left a lost one recoverable
+ *  only from the database. */
+function credCell(username, c) {
+  const name = username
+    ? `<span class="muted" style="font-size:.78rem;display:block">${esc(username)}</span>`
+    : '';
+  return name + codeCell(c);
+}
+
 function render() {
   const registered = data.students.filter((s) => s.account_id).length;
   $('sub').textContent = `${data.course} · ${registered} of ${data.students.length} registered`;
   $('rows').innerHTML = data.students.map((s) => `<tr data-id="${s.account_id ?? ''}">
       <td class="name">${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
       <td data-label="Per.">${esc(s.period)}</td>
-      <td class="small" data-label="Parent email">${esc(s.email || '—')}</td>
-      <td data-label="Parent code">${codeCell(s.parent)}</td>
-      <td data-label="Student code">${codeCell(s.student_code)}</td>
+      <td class="small" data-label="Parent email">${s.account_id
+        ? `<button class="linky" data-email="${s.account_id}" title="Change or clear this address">${esc(s.email || 'add an address')}</button>`
+        : esc(s.email || '—')}</td>
+      <td data-label="Parent sign-in">${credCell(s.parent_username, s.parent)}</td>
+      <td data-label="Student sign-in">${credCell(s.username, s.student_code)}</td>
       <td class="act">${s.account_id
         ? `<button class="compact" data-reissue="${s.account_id}">Reissue both</button>`
         : '<span class="muted" style="font-size:.78rem">not registered yet</span>'}</td>
@@ -184,7 +198,55 @@ async function reissue(accountId, who) {
   }
 }
 
+/**
+ * Set or clear the parent address for one student.
+ *
+ * The recovery path for an address that is wrong or missing. It matters most
+ * when a parent typed a typo into the self-signup page back when that page
+ * still set the address itself: the wrong address then refused every other
+ * one, and nothing -- not even re-uploading the roster -- could shift it.
+ * Clearing here puts the account back on the roster address.
+ *
+ * A prompt() rather than an inline editor: this is a rare repair, and a
+ * per-row edit mode is a lot of page for something a teacher does once a term.
+ */
+async function editEmail(accountId, who, current) {
+  const next = prompt(`Parent or guardian's email for ${who}.\n\n`
+    + 'Leave it empty to clear it and fall back to the address on the roster.', current || '');
+  if (next === null) return;                       // cancelled
+  if ((next.trim() || '') === (current || '')) return;   // unchanged
+
+  try {
+    const res = await fetch('/api/admin/credentials', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_id: accountId, parent_email: next.trim() }),
+    });
+    const body = await res.json();
+    if (!res.ok) { notice(body.error || 'Could not save that address.', 'error'); return; }
+
+    // Reload rather than patching the row by hand: clearing an override falls
+    // back to the roster address, so the value that comes back is not the one
+    // that was typed and the source label changes with it.
+    const fresh = await fetch(`/api/admin/credentials?course_id=${courseId}&format=json`);
+    if (fresh.ok) { data = await fresh.json(); render(); }
+    document.querySelector(`tr[data-id="${accountId}"]`)?.classList.add('fresh');
+    notice(body.email
+      ? `Contact address for ${body.student} is now ${body.email} (${body.email_source}).`
+      : `Contact address for ${body.student} cleared. There is none on the roster either.`, 'ok');
+  } catch {
+    notice('Could not reach the server.', 'error');
+  }
+}
+
 $('rows').addEventListener('click', (e) => {
+  const mail = e.target.closest('[data-email]');
+  if (mail) {
+    const id = Number(mail.dataset.email);
+    const row = data.students.find((s) => s.account_id === id);
+    editEmail(id, row.student, row.email || '');
+    return;
+  }
   const btn = e.target.closest('[data-reissue]');
   if (!btn) return;
   const id = Number(btn.dataset.reissue);

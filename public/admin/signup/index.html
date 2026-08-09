@@ -36,11 +36,6 @@
   <p class="muted" id="whoFor">Anyone teaching a course can set one up. Your classes,
     rosters and syllabus are yours, other teachers cannot see them.</p>
 
-  <div id="closed" class="notice error" hidden>
-    Teacher sign-up isn't turned on for this school yet. Ask whoever set up iniSHial
-    to add your domain, or sign in with the shared admin password.
-  </div>
-
   <form id="form" class="card plain" hidden novalidate>
     <label for="email">Email address
       <span class="hint" id="emailHint">This is how you sign in. Nothing is emailed to it.</span></label>
@@ -103,16 +98,13 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
   try {
     const res = await fetch('/api/admin/signup');
     const body = await res.json();
-    if (!body.available) {
-      document.getElementById('closed').hidden = false;
-      return;
-    }
-    // Narrow the copy only when a school has actually configured a restriction.
-    // Unset means open, and the page should not invent a rule nobody enforces.
+    // Only the domain list is read now. The endpoint answers `available: true`
+    // unconditionally -- unset TEACHER_DOMAINS means open, not closed -- so the
+    // "sign-up isn't turned on" notice this page used to carry could never be
+    // reached, and a reader who hit a problem would never have seen it.
     //
-    // A branch rather than an early return: `form.hidden = false` runs after
-    // this block, so returning here would leave the form hidden and the page
-    // blank -- exactly the state that only the CLOSED case is meant to produce.
+    // Narrow the copy only when a school has actually configured a restriction.
+    // The page should not invent a rule nobody enforces.
     if (body.domains.length) {
       const list = body.domains.map((d) => (d.startsWith('.') ? '@…' + d : '@' + d));
       document.getElementById('whoFor').textContent =

@@ -177,7 +177,14 @@
 
   <table>
     <thead><tr>
-      <th>Student</th><th>Per.</th><th>Status</th><th class="num">Initialed</th><th>Parent email</th><th></th>
+      <!-- Parent and student counted in their own columns. The two attestations
+           are deliberately independent -- that is what the two access codes are
+           for -- and this page reported only the parent's, so half of what the
+           app records was invisible to the person who has to chase it. Status
+           still tracks the parent: that is the signature the syllabus needs. -->
+      <th>Student</th><th>Per.</th><th>Status</th>
+      <th class="num">Parent</th><th class="num">Student</th>
+      <th>Parent email</th><th></th>
     </tr></thead>
     <tbody id="rows"></tbody>
   </table>
@@ -209,7 +216,8 @@ function render() {
       <td class="name">${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
       <td data-label="Per.">${esc(s.period ?? '')}</td>
       <td><span class="pill ${s.status}">${esc(s.status_label)}</span></td>
-      <td class="num" data-label="Initialed">${s.required ? `${s.parent_signed}/${s.required}` : '—'}</td>
+      <td class="num" data-label="Parent">${s.required ? `${s.parent_signed}/${s.required}` : '—'}</td>
+      <td class="num" data-label="Student">${s.required ? `${s.student_signed}/${s.required}` : '—'}</td>
       <td class="small">${esc(s.email ?? '—')}</td>
       <td>${s.account_id && s.parent_signed
         ? `<a href="/admin/signed?account_id=${s.account_id}" target="_blank">Signed copy</a>` : ''}</td>

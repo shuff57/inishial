@@ -40,8 +40,8 @@
 // { error } with 502, and the admin signup page falls back to plain free text
 // (which the server has always accepted).
 
-import { json, badRequest, serverMisconfigured } from '../../_lib/http.js';
-import { hit, clientIp } from '../../_lib/ratelimit.js';
+import { json, badRequest, serverMisconfigured } from '../../../_lib/http.js';
+import { hit, clientIp } from '../../../_lib/ratelimit.js';
 
 // Nominatim's public instance. 1 req/sec sustained, 30/min bursts -- the rate
 // limit below is set well under that so a whole hall of teachers signing up at

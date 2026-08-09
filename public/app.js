@@ -136,6 +136,10 @@ document.addEventListener('click', (event) => {
 let state = null;
 let book = null;
 
+// The unsent initials boxes currently on the page. Rebuilt by render(), which
+// throws the old ones away with the DOM they lived in.
+let pendingInputs = new Set();
+
 function notice(el, text, kind) {
   el.hidden = false;
   el.className = 'notice ' + kind;
@@ -144,50 +148,51 @@ function notice(el, text, kind) {
 
 // ---- the school field on /register/ and /register/code/ ----
 //
-// The student form uses a <select> (populated from /api/schools), the parent
-// form uses a text input with datalist. Both only ever SELECT an existing
-// school.
+// Both are <select>s populated from /api/schools, and both only ever SELECT an
+// existing school. Hidden until that endpoint reports more than one school in
+// use, so the common single-school install never sees the field at all.
+//
+// /sign/ is deliberately NOT in this list. Since migrations/0013 the school id
+// is baked into the username, so sign-in needs no school field to disambiguate
+// -- and the one it used to have was the only one of the three whose value was
+// never checked before submitting.
 const SCHOOL_FIELDS = [
   { label: 'reg-school-label', select: 'reg-school' },
   { label: 'rc-school-label', select: 'rc-school' },
-  { label: 'login-school-label', select: 'login-school' },
 ];
 
-let schools = [];
-
-function resolveSchool({ input, hidden }) {
-  const typed = $(input).value.trim().toLowerCase();
-  const match = schools.find((s) => s.name.toLowerCase() === typed);
-  $(hidden).value = match ? match.id : '';
-}
-
-/** Safe to submit: the field is still hidden (nothing to require), or it has
- *  resolved to a real school id. */
-function schoolFieldOk(f) {
-  if (f.select) return $(f.select).hidden || !!$(f.select).value;
-  return $(f.input).hidden || !!$(f.hidden).value;
-}
-
-for (const f of SCHOOL_FIELDS) {
-  if (f.input) $(f.input).addEventListener('input', () => resolveSchool(f));
-}
+/** Safe to submit: the field is still hidden (nothing to require), or a real
+ *  school id has been picked. */
+const schoolFieldOk = (f) => $(f.select).hidden || !!$(f.select).value;
 
 (async () => {
+  let schools = [];
+  let required = false;
   try {
-    ({ schools = [] } = await (await netFetch('/api/schools')).json());
+    ({ schools = [], required = false } = await (await netFetch('/api/schools')).json());
   } catch { schools = []; }
 
+  // `required`, NOT `schools.length`. The two stopped meaning the same thing
+  // when migration 0011 seeded ~50 Chico-area schools as a type-ahead
+  // reference list: every install now has plenty of rows, while almost none
+  // has more than one school actually IN USE. Keying off the row count turned
+  // "hidden unless it is needed" into "always shown", and since a shown field
+  // must be answered before the form will submit (schoolFieldOk below), every
+  // student and parent on a one-school install was made to pick their school
+  // out of fifty before they could register -- for a value the server then
+  // ignores, because scoping is a no-op at one school.
+  //
+  // The endpoint has reported `required` since that migration, on exactly the
+  // threshold schoolScope.js scopes by. Nothing ever read it.
+  if (!required) return;
+
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  $('publicSchoolNames').innerHTML = schools
-    .map((s) => `<option value="${esc(s.name)}">`).join('');
   for (const f of SCHOOL_FIELDS) {
     $(f.label).hidden = false;
-    const el = $(f.select || f.input);
+    const el = $(f.select);
     el.hidden = false;
-    if (f.select) {
-      el.innerHTML = '<option value="">Select your school</option>'
-        + schools.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-    }
+    el.innerHTML = '<option value="">Select your school</option>'
+      + schools.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
   }
 })();
 
@@ -241,8 +246,12 @@ $('registerForm').addEventListener('submit', async (event) => {
     $('doneWho').textContent =
       [body.student, body.course, body.period && ('Period ' + body.period)].filter(Boolean).join(' · ');
     $('doneMsg').textContent = body.message;
-    $('doneCodeValue').textContent = body.student_code;
     $('doneUsername').textContent = body.username;
+    // No code when an existing student is added to a second class -- there is
+    // no new one to show, and the card printed the string "null" under "write
+    // it down" before this. body.message says which case it is.
+    $('doneCode').hidden = !body.student_code;
+    $('doneCodeValue').textContent = body.student_code ?? '';
     form.hidden = true;
     $('registerDone').hidden = false;
   } catch {
@@ -317,15 +326,15 @@ requestCodeForm?.addEventListener('submit', async (event) => {
     const body = await res.json();
     if (!res.ok) { notice(msg, body.error || 'Could not send the code.', 'error'); return; }
 
-    // Replace the form with the confirmation, and carry the student ID over to
-    // the sign-in form -- still the same document, so it survives the trip.
+    // Replace the form with the confirmation. Nothing is carried over to the
+    // sign-in form any more: it asks for a username and a code, and both of
+    // those are in the email rather than on this page.
     requestCodeForm.hidden = true;
     $('requestCodeNote').hidden = true;
     requestCodeSent.hidden = false;
     $('requestCodeSentMsg').textContent =
-      `We sent the access code to ${body.email_preview}, along with the student's own code. `
-      + 'Open it, then go to the syllabus and sign in with the code.';
-    $('sid').value = $('rc-sid').value;
+      `We sent your username and access code to ${body.email_preview}, along with the `
+      + "student's own code. Open it, then go to the syllabus and sign in.";
   } catch {
     notice(msg, 'Could not reach the server. Check your connection and try again.', 'error');
   } finally {
@@ -424,6 +433,8 @@ function render() {
   const host = $('blocks');
   host.textContent = '';
   host.className = 'book';
+  // The inputs tracked here belong to the DOM about to be discarded.
+  pendingInputs = new Set();
   clearFlags();
   // Release the previous book's key bindings before building another.
   book?.destroy();
@@ -565,6 +576,12 @@ function initialBox(block) {
 
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); button.click(); } });
 
+  // Registered so signing out can tell whether anything is typed but unsent.
+  // Every OTHER piece of a signer's work is already on the server -- an initial
+  // is POSTed the moment the button is pressed, there is no draft and no
+  // autosave -- so this box is the only thing a sign-out could throw away.
+  pendingInputs.add(input);
+
   row.append(input, button);
   box.append(row, error);
   return box;
@@ -577,6 +594,69 @@ function updateProgress() {
   $('progressBar').style.width = required.length ? (signed / required.length * 100) + '%' : '0%';
   $('doneBanner').hidden = !(required.length && signed === required.length);
 }
+
+// ---- signing out ----
+//
+// Everything a signer has done is already on the server: POST /api/sign/initial
+// writes the signature when the button is pressed, so there is no draft to
+// flush here and no request that could fail and lose one. The single exception
+// is a box with initials typed into it whose button was never pressed, and
+// that is what the check below is for -- on a shared Chromebook the cost of
+// getting it wrong is a section silently unsigned.
+//
+// The cookie is HttpOnly, so only the server can clear it; this cannot be done
+// in the client alone.
+
+/** Initials boxes with something typed in them and nothing sent. */
+const unsent = () => [...pendingInputs].filter((i) => i.value.trim() !== '').length;
+
+$('signOut').addEventListener('click', async () => {
+  const pending = unsent();
+  if (pending) {
+    const which = pending === 1
+      ? 'One section has initials typed in but not submitted yet.'
+      : `${pending} sections have initials typed in but not submitted yet.`;
+    if (!confirm(`${which} Signing out now will lose them — everything you have already `
+      + 'initialed is saved. Sign out anyway?')) return;
+  }
+
+  const btn = $('signOut');
+  btn.disabled = true;
+  try {
+    await netFetch('/api/sign/login', { method: 'DELETE' });
+  } catch {
+    // The cookie may or may not have been cleared. Fall through and reset the
+    // page regardless: leaving someone looking at another family's syllabus
+    // because the network hiccupped is the worse of the two failures, and the
+    // next request re-checks the session anyway.
+  } finally {
+    btn.disabled = false;
+  }
+
+  // Tear the reading state down rather than hiding it. `state` is what
+  // ensureSyllabus() checks, so leaving it set would make a later arrival at
+  // /sign/ skip the check and show the previous reader's syllabus from memory.
+  state = null;
+  book?.destroy();
+  book = null;
+  pendingInputs = new Set();
+  $('blocks').textContent = '';
+  $('docView').hidden = true;
+  $('bookBar').hidden = true;
+  $('progress').hidden = true;
+  $('loginView').hidden = false;
+
+  // Nothing of theirs left in the fields for the next person at this machine.
+  $('loginForm').reset();
+  notice($('loginMsg'), 'You are signed out. Everything you initialed has been saved.', 'ok');
+  focusMain();
+
+  // Deliberately NOT show('/sign/'): that routes through ensureSyllabus(), and
+  // with `state` now null it would fetch the syllabus again. If the DELETE had
+  // failed the session would still be live, the fetch would succeed, and the
+  // page would silently undo the sign-out it just told the reader about. The
+  // views are already switched above; there is nothing left to route to.
+});
 
 // ---- turning the notebook ----
 
