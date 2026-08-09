@@ -87,38 +87,49 @@ export async function onRequestGet({ request, env }) {
     });
   }
 
-  const params = new URLSearchParams({
-    format: 'jsonv2',
-    q,
-    limit: '6',
-    viewbox: VIEWBOX,
-    bounded: '1',
-    'accept-language': 'en',
-  });
-  // Nominatim asks for an identifying User-Agent. This install's name is fine;
-  // the request is outbound from Cloudflare, so the worker itself is the client.
-  let res;
-  try {
-    res = await fetch(`${NOMINATIM}?${params}`, {
-      headers: { 'User-Agent': 'inishial-school-search/1.0 (syllabus app)' },
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch {
-    return json({ error: 'The school search is unavailable right now. Type the school name instead and it will be created.' }, 502);
-  }
+  // TWO passes, because one query cannot serve both ways people search.
+  //
+  // Nominatim's free text finds a school when the text resolves to one, so
+  // "Luther Burbank High School" works. A PLACE does not: "Sacramento" resolves
+  // to the city, which the amenity filter below then correctly discards, and
+  // the teacher is told nothing was found in the very region they teach in.
+  // That is how this read to anyone whose school is not in the Chico seed --
+  // it worked only if you already knew and typed the school's full official
+  // name, which is the thing the search exists to save you from.
+  //
+  // Adding the word "school" is what turns a place into a school query, and it
+  // is Nominatim's own free-text ranking doing the work rather than a second
+  // API shape. Measured against the live service:
+  //
+  //   "Sacramento"        -> 0   |  "Sacramento school"  -> 6
+  //   "Elk Grove"         -> 0   |  "Elk Grove school"   -> 4
+  //   "sacramento high"   -> 0   |  + " school"          -> Sacramento High
+  //
+  // Structured search (amenity=school&city=...) was tried first and is not
+  // dependable: city=Elk Grove returns four schools, city=Sacramento returns
+  // nothing, because it matches administrative boundaries rather than the name
+  // people type.
+  //
+  // The second pass runs ONLY when the first found nothing, so an exact name
+  // still costs one request. Skipped when the text already says "school",
+  // which would otherwise ask for "... school school".
+  const attempts = [q];
+  if (!/\bschools?\b/i.test(q)) attempts.push(`${q} school`);
 
-  if (!res.ok) {
-    return json({ error: 'The school search is unavailable right now. Type the school name instead and it will be created.' }, 502);
+  let results = null;
+  for (const attempt of attempts) {
+    const found = await askNominatim(attempt);
+    if (found === null) {
+      return json({ error: 'The school search is unavailable right now. Type the school name instead and it will be created.' }, 502);
+    }
+    results = found;
+    if (found.some((r) => r.type === 'school')) break;
   }
-
-  let results;
-  try { results = await res.json(); } catch { results = []; }
-  if (!Array.isArray(results)) results = [];
 
   // The seeded schools, once, for the containment match below.
   const seeded = await env.DB.prepare('SELECT id, name FROM schools').all();
 
-  const schools = results
+  const schools = (results ?? [])
     // jsonv2 names these `category`/`type`, not `class` -- a school comes back
     // as { category: 'amenity', type: 'school' }, a park as
     // { category: 'leisure', type: 'park' }. Filtering on `class` matched
@@ -144,4 +155,39 @@ export async function onRequestGet({ request, env }) {
     .filter((s, i, arr) => arr.findIndex((x) => x.name === s.name) === i);
 
   return json({ schools, attribution: ATTRIBUTION });
+}
+
+/**
+ * One Nominatim query. Returns the raw result array, or null when the service
+ * could not be reached -- null rather than [] so the caller can tell "nothing
+ * matched" from "the search is down" and say the honest thing about each.
+ *
+ * Nominatim asks for an identifying User-Agent. This install's name is fine;
+ * the request is outbound from Cloudflare, so the worker itself is the client.
+ */
+async function askNominatim(q) {
+  const params = new URLSearchParams({
+    format: 'jsonv2',
+    q,
+    limit: '6',
+    viewbox: VIEWBOX,
+    bounded: '1',
+    'accept-language': 'en',
+  });
+  let res;
+  try {
+    res = await fetch(`${NOMINATIM}?${params}`, {
+      headers: { 'User-Agent': 'inishial-school-search/1.0 (syllabus app)' },
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  try {
+    const body = await res.json();
+    return Array.isArray(body) ? body : [];
+  } catch {
+    return [];
+  }
 }

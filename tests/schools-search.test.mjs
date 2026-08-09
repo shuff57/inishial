@@ -133,3 +133,78 @@ test('rate limits per IP', async () => {
     assert.equal(status, 429);
   } finally { restore(); }
 });
+
+// ---- searching by place, not just by exact school name ----
+
+/** Nominatim stub that answers per query string, and records what was asked. */
+function fakeNominatimByQuery(answers) {
+  const original = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (url) => {
+    const q = new URL(String(url)).searchParams.get('q');
+    asked.push(q);
+    return new Response(JSON.stringify(answers[q] ?? []), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    });
+  };
+  return { asked, restore: () => { globalThis.fetch = original; } };
+}
+
+const SAC_HIGH = {
+  category: 'amenity', type: 'school',
+  display_name: 'Sacramento High School, Y Street, Sacramento, Sacramento County, California, United States',
+};
+const SAC_CITY = {
+  category: 'place', type: 'city',
+  display_name: 'Sacramento, Sacramento County, California, United States',
+};
+
+test('a place name retries with "school" and finds the area\'s schools', async () => {
+  // The failure this fixes: typing a place returned the PLACE, which the
+  // amenity filter then discarded, so a teacher was told nothing was found in
+  // the region they teach in. The search only worked if you already knew the
+  // school's full official name -- the thing it exists to save you from.
+  const env = freshEnv();
+  const { asked, restore } = fakeNominatimByQuery({
+    'Sacramento': [SAC_CITY],                 // a city, filtered out -> no schools
+    'Sacramento school': [SAC_HIGH],
+  });
+  try {
+    const res = await req(env, 'Sacramento');
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.deepEqual(body.schools.map((s) => s.name), ['Sacramento High School']);
+    assert.deepEqual(asked, ['Sacramento', 'Sacramento school'], 'raw first, then widened');
+  } finally { restore(); }
+});
+
+test('an exact school name costs a single request', async () => {
+  // The retry must not double every lookup -- only the ones that found nothing.
+  const env = freshEnv();
+  const { asked, restore } = fakeNominatimByQuery({ 'Sacramento High School': [SAC_HIGH] });
+  try {
+    const body = await (await req(env, 'Sacramento High School')).json();
+    assert.deepEqual(body.schools.map((s) => s.name), ['Sacramento High School']);
+    assert.deepEqual(asked, ['Sacramento High School'], 'no second call once schools were found');
+  } finally { restore(); }
+});
+
+test('a query that already says "school" is not widened again', async () => {
+  const env = freshEnv();
+  const { asked, restore } = fakeNominatimByQuery({});   // everything answers empty
+  try {
+    const body = await (await req(env, 'Nowhere School')).json();
+    assert.deepEqual(body.schools, []);
+    assert.deepEqual(asked, ['Nowhere School'], 'never asks for "... school school"');
+  } finally { restore(); }
+});
+
+test('the search being down is still reported, not read as "no results"', async () => {
+  const env = freshEnv();
+  const original = globalThis.fetch;
+  globalThis.fetch = async () => new Response('nope', { status: 503 });
+  try {
+    const res = await req(env, 'Sacramento');
+    assert.equal(res.status, 502, 'a dead upstream must not look like an empty area');
+  } finally { globalThis.fetch = original; }
+});
