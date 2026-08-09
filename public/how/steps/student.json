@@ -12,24 +12,28 @@
     },
     {
       "title": "Fill in your information",
-      "body": "Three things: your student ID number and last name exactly as they appear on your school ID, then your school email. That is the whole form. If the syllabus should go to an address other than the one your school already has for your family, put it in the optional \"Parent or guardian's email\" field underneath.",
-      "n": 2
+      "body": "Your student ID number and your last name, exactly as they appear on your school ID -- and your school from the list, if the site asks for one. That is the whole form. If the syllabus should go to an address other than the one your school already has for your family, put it in the optional \"Parent or guardian's email\" field underneath. None of this is what you sign in with later; it is only how we find you on your teacher's roster.",
+      "clip": "student-register-fill.mp4",
+      "n": 2,
+      "clipDark": "student-register-fill-dark.mp4"
     },
     {
-      "title": "Write down your access code",
-      "body": "After you submit the form, your own access code is shown once, right there on the screen. Write it down before you go on. This is the only time you will see it, and you need it to come back and finish later.",
+      "title": "Write down your username and access code",
+      "body": "After you submit the form, the screen shows your username and your access code. Write down both -- they are the only two things you need to get back in, and the code is shown this once and never again. Your username looks like an email address but is not one; nothing is sent to it.",
       "clip": "student-register-code.mp4",
       "n": 3,
       "clipDark": "student-register-code-dark.mp4"
     },
     {
       "title": "Coming back later",
-      "body": "Don't go back to the sign-up form -- it will only tell you that you already have an account. Use \"Read & initial\" instead and sign in with three things: your student ID, your school email, and the access code you wrote down. Everything you already initialed is still there.",
-      "n": 4
+      "body": "Don't go back to the sign-up form -- it will only tell you that you already have an account. Use \"Read & initial\" instead and sign in with the two things you wrote down: your username and your access code. Nothing else is asked for. Everything you already initialed is still there.",
+      "clip": "student-register-returning.mp4",
+      "n": 4,
+      "clipDark": "student-register-returning-dark.mp4"
     },
     {
-      "title": "If you lost your access code",
-      "body": "It cannot be emailed to you. School and district mail systems block outside senders, so nothing we send would reach your school address. Follow \"Don't have a code, or lost it?\" on the sign-in page instead and enter a parent or guardian's personal email -- both codes go to that inbox, and they can read yours back to you.",
+      "title": "If you lost your username or access code",
+      "body": "Neither can be emailed to you directly. School and district mail systems block outside senders, so nothing we send would reach your school address. Follow \"Don't have a code, or lost it?\" on the sign-in page instead and enter a parent or guardian's personal email -- your username and code both go to that inbox alongside theirs, and they can read yours back to you. Your teacher can also look both up.",
       "n": 5
     }
   ]

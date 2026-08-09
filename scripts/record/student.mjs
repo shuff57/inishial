@@ -24,8 +24,11 @@ const DB = '.dev-student.sqlite';
 // a real school domain.
 const SID = '100016';
 const LAST = 'Student';
-const SCHOOL_EMAIL = 'student100016@student.example.com';
 const PARENT_EMAIL = 'guardian@example.com';
+// What registration hands back and what sign-in then asks for. Derived from
+// (student id, school), so it is predictable enough to name here -- see
+// api/register.js. There is no school-email field on the form any more: the
+// username is generated rather than chosen.
 
 const server = await startServer(PORT, DB);
 console.log(server.log());
@@ -56,7 +59,6 @@ await rec.clip('register-fill', async (page) => {
   await beat(page, 900);
   await type(page, '#reg-sid', SID);
   await type(page, '#reg-last', LAST);
-  await type(page, '#reg-username', SCHOOL_EMAIL);
   await type(page, '#reg-email', PARENT_EMAIL);
   // Off the just-typed text before the clip sits on it -- otherwise the
   // cursor parks mid-word over whatever was last typed.
@@ -71,35 +73,48 @@ await rec.clip('register-code', async (page) => {
   await page.goto(server.base + '/register/');
   await type(page, '#reg-sid', SID);
   await type(page, '#reg-last', LAST);
-  await type(page, '#reg-username', SCHOOL_EMAIL);
   // Parent/guardian email left blank here: the roster already has one on file
   // for this student, which is the realistic case -- the field's own hint
   // text says to fill it in only when the syllabus should go somewhere else.
   await tap(page, '#registerBtn', { after: 900 });
   // point()'s scrollIntoViewIfNeeded already waits out the fetch round trip,
   // so no separate wait is needed for the reveal to be on screen.
+  //
+  // BOTH halves are the point of this frame now, not just the code. Sign-in
+  // takes a username and an access code, so a student who writes down only one
+  // of them cannot get back in -- and the username is shown here and in no
+  // other place a student ever sees.
+  await point(page, '#doneUsername');
+  await beat(page, 900);
   await point(page, '#doneCodeValue');
   await beat(page, 400);
   // The cursor would otherwise sit directly on the code -- parked off it so
   // the long read-beat below shows every character, unobstructed. This is
   // the most important frame on the whole student path.
   await park(page);
-  await beat(page, 2200);          // shown exactly once -- give it room to sit
+  await beat(page, 2600);          // shown exactly once -- give it room to sit
 });
 
-// ---- 4. coming back later, which is also how first-timers get to /sign/ ----
+// ---- 4. what happens if they come back to the WRONG page ----
+//
+// This clip used to show re-registering as the way to resume, because the form
+// accepted a second submission and carried the student through to their
+// syllabus. It does not any more: registration is first-time-only, and coming
+// back a second time is answered with a card that says so and points at
+// /sign/. Recording the old behaviour would be recording a path that no longer
+// exists, so the clip now shows the signpost and follows it.
 await rec.clip('register-returning', async (page) => {
   await page.goto(server.base + '/register/');
   await beat(page, 700);
   await type(page, '#reg-sid', SID);
   await type(page, '#reg-last', LAST);
-  // Username and parent email stay blank on purpose: those two are what tell
-  // the server this is a return visit rather than a first registration.
   await tap(page, '#registerBtn', { after: 900 });
-  await beat(page, 1000);
-  await tap(page, '#doneNext', { after: 900 });
+  await page.waitForSelector('#registerExists', { state: 'visible', timeout: 8000 });
   await park(page);
-  await beat(page, 1200);
+  await beat(page, 1600);          // long enough to read why nothing went wrong
+  await tap(page, '#registerExists a.button', { after: 900 });
+  await park(page);
+  await beat(page, 1400);
 });
 
 await rec.close();
@@ -116,18 +131,22 @@ writeSteps('student', {
     },
     {
       title: 'Fill in your information',
-      body: 'Enter your student ID number and last name exactly as they appear on your school ID, then your school email. The parent or guardian email is optional. Only fill it in if the syllabus should go to an address different from the one your school already has on file.',
+      body: 'Your student ID number and your last name, exactly as they appear on your school ID -- and your school from the list, if the site asks for one. That is the whole form. If the syllabus should go to an address other than the one your school already has for your family, put it in the optional "Parent or guardian\'s email" field underneath. None of this is what you sign in with later; it is only how we find you on your teacher\'s roster.',
       clip: 'student-register-fill.mp4',
     },
     {
-      title: 'Write down your access code',
-      body: 'After you submit the form, your own access code is shown once, right there on the screen. Write it down before you go on. This is the only time you will see it, and you need it to come back and finish later.',
+      title: 'Write down your username and access code',
+      body: 'After you submit the form, the screen shows your username and your access code. Write down both -- they are the only two things you need to get back in, and the code is shown this once and never again. Your username looks like an email address but is not one; nothing is sent to it.',
       clip: 'student-register-code.mp4',
     },
     {
       title: 'Coming back later',
-      body: 'Already set up your account? Go back to the same form and enter just your student ID and last name, leaving the rest blank. That takes you straight to your syllabus instead of asking you to register again.',
+      body: 'Don\'t go back to the sign-up form -- it will only tell you that you already have an account. Use "Read & initial" instead and sign in with the two things you wrote down: your username and your access code. Nothing else is asked for. Everything you already initialed is still there.',
       clip: 'student-register-returning.mp4',
+    },
+    {
+      title: 'If you lost your username or access code',
+      body: 'Neither can be emailed to you directly. School and district mail systems block outside senders, so nothing we send would reach your school address. Follow "Don\'t have a code, or lost it?" on the sign-in page instead and enter a parent or guardian\'s personal email -- your username and code both go to that inbox alongside theirs, and they can read yours back to you. Your teacher can also look both up.',
     },
   ],
 });

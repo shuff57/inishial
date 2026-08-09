@@ -27,8 +27,21 @@ const DB = '.dev-parent.sqlite';
 // PARENT code is what this role signs in with -- the STUDENT code belongs to
 // the student recorder, and typing the wrong one would sign as the wrong
 // role entirely, which is the whole point of the two-code design.
-const SID = '123456';
-const PARENT_CODE = 'DEMO2345';
+//
+// Student B, NOT student A. A is enrolled in Algebra I *and* Geometry, and two
+// things follow from that which are wrong for a walkthrough. The class
+// switcher appears in every frame, which is a control this tutorial never
+// explains; and /api/sign/syllabus defaults to the course with work still
+// outstanding, so the moment Algebra I was finished a reload silently landed
+// on Geometry -- which is why the "all sections initialed" clip could not find
+// the done banner it was recorded to show. B has one class and one syllabus.
+const SID = '123457';
+const PARENT_CODE = 'PAR23457';
+// What the parent actually types. Sign-in takes a username and a code and
+// nothing else -- the student ID identified them once, at /register/code/, and
+// is not asked for again. `@p1` is the parent side of the placeholder school
+// the seeded (unowned) course resolves to; see api/register.js.
+const PARENT_USERNAME = `${SID}@p1`;
 // Not tied to any real name -- just something short and legible for the clip.
 const INITIALS = 'AR';
 
@@ -54,17 +67,17 @@ async function main() {
       await beat(page, 1400);
     });
 
-    // ---- what the two codes mean ----
-    // The step names two things -- an ID and a code -- so the clip fills in the
-    // first and stops at the second. An earlier version only hovered the fields
-    // and scrolled to the hint, and seven seconds of a still page with a
+    // ---- what the two things in the email are ----
+    // The step names two things -- a username and a code -- so the clip fills in
+    // the first and stops at the second. An earlier version only hovered the
+    // fields and scrolled to the hint, and seven seconds of a still page with a
     // pointer resting on it reads as a video that failed to load rather than
     // one that is making a point. Signing in is step 3's job; this one gets far
     // enough to show what the code field is asking for.
     files.codes = await rec.clip('codes', async (page) => {
       await page.goto(base + '/sign/');
       await beat(page, 1400);
-      await type(page, '#sid', SID);
+      await type(page, '#login-username', PARENT_USERNAME);
       await beat(page, 700);
       await point(page, '#code');
       await reveal(page, 'label[for="code"] .hint');
@@ -76,7 +89,7 @@ async function main() {
     files.signIn = await rec.clip('sign-in', async (page) => {
       await page.goto(base + '/sign/');
       await beat(page, 700);
-      await type(page, '#sid', SID);
+      await type(page, '#login-username', PARENT_USERNAME);
       await type(page, '#code', PARENT_CODE);
       await tap(page, '#loginBtn');
       await page.waitForSelector('#docTitle', { state: 'visible', timeout: 8000 });
@@ -173,7 +186,7 @@ async function main() {
       await page.context().clearCookies();
       await page.goto(base + '/sign/');
       await beat(page, 900);
-      await type(page, '#sid', SID);
+      await type(page, '#login-username', PARENT_USERNAME);
       await type(page, '#code', PARENT_CODE);
       await tap(page, '#loginBtn');
       await page.waitForSelector('#docTitle', { state: 'visible', timeout: 8000 });
@@ -192,17 +205,17 @@ async function main() {
     steps: [
       {
         title: 'Start on the home page',
-        body: 'Open the link your school gave you. Under "I\'m a parent or guardian," tap "Read and sign the syllabus."',
+        body: 'Open the link your school gave you. Under "I\'m a parent or guardian," tap "Get my access code" and enter your email. If your teacher already emailed you a code, use "Go straight to the syllabus" instead -- the link in that email takes you straight there.',
         clip: files.home,
       },
       {
-        title: 'Know your access code',
-        body: 'You need two things: your student\'s ID number, and an access code -- eight characters, from the email your teacher sent you. That code is what tells the app you\'re the parent and not the student, so use the one from your own email, not one your child gives you.',
+        title: 'Know your username and access code',
+        body: 'You need two things, and both arrive in the same email: your username and your access code. The username looks like an email address but is not one -- it is just the name you sign in under. The code is eight characters. Use the pair from your own email, not one your child gives you: which of the two codes is used is what tells the app you are the parent and not the student. Never got an email? Follow "Don\'t have a code, or lost it?" under the form and we\'ll send one, as long as your student has set up their account already.',
         clip: files.codes,
       },
       {
         title: 'Open the syllabus',
-        body: 'Type the student ID and your access code exactly as they appear, then tap "Open the syllabus." If it doesn\'t work after a couple of tries, wait a few minutes before trying again, or ask your teacher to resend the code.',
+        body: 'Type the username and the access code from the email exactly as they appear, then tap "Open the syllabus." Nothing else is asked for -- no student ID, no school. If it doesn\'t work after a couple of tries, wait a few minutes before trying again, or ask your teacher to resend.',
         clip: files.signIn,
       },
       {
@@ -232,7 +245,7 @@ async function main() {
       },
       {
         title: 'Coming back later',
-        body: 'Didn\'t finish, or want to check what you signed? Go back to the same link and sign in again with the same student ID and access code. The syllabus opens back up already showing everything you\'ve initialed -- nothing is lost between visits.',
+        body: 'Didn\'t finish, or want to check what you signed? Go back to the same link and sign in again with the same two things -- your username and your access code. The syllabus opens back up already showing everything you\'ve initialed, so nothing is lost between visits.',
         clip: files.comeBack,
       },
     ],

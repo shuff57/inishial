@@ -20,11 +20,32 @@ import { startServer, open, tap, type, point, beat, park, reveal, writeSteps } f
 const PORT = 8803;
 const DB = '.dev-teacher-setup.sqlite';
 
-// scripts/dev.mjs seeds Algebra I first, then scripts/demo.mjs adds
-// "Biology 1 (demo)" -- confirmed as ids 1 and 2 against a running server
-// rather than assumed, the same way student.mjs confirms its student id.
-const ALGEBRA_ID = 1;
-const BIOLOGY_ID = 2;
+// Resolved BY NAME from this recorder's own database, not hardcoded.
+//
+// They were 1 and 2, "confirmed against a running server rather than assumed"
+// -- and that confirmation expired the moment the seed grew a Geometry class
+// for the multi-class flow. Geometry took id 2, Biology slid to 3, and every
+// clip that thought it was opening the demo class opened Geometry instead:
+// same editor, different syllabus, so nothing errored until a step reached for
+// a heading only Biology has. An id is a fact about insertion order; a name is
+// a fact about the seed.
+const { DatabaseSync } = await import('node:sqlite');
+const { join } = await import('node:path');
+const { fileURLToPath } = await import('node:url');
+
+function courseIds(dbFile) {
+  const db = new DatabaseSync(join(fileURLToPath(new URL('../..', import.meta.url)), dbFile));
+  const byName = (name) => {
+    const row = db.prepare('SELECT id FROM courses WHERE name = ?').get(name);
+    if (!row) throw new Error(`no course named ${name} in ${dbFile} -- has the seed in scripts/dev.mjs changed?`);
+    return row.id;
+  };
+  try {
+    return { algebra: byName('Algebra I'), biology: byName('Biology 1 (demo)') };
+  } finally {
+    db.close();
+  }
+}
 
 // Unpinned. This was 'gpt-oss:20b', chosen when the configured default was
 // gpt-oss:120b and its cold start turned the AI clips into a minute of a
@@ -126,6 +147,10 @@ async function dragBlockAbove(page, fromSelector, toSelector) {
 const server = await startServer(PORT, DB);
 console.log(server.log());
 
+// After startServer, because that is what creates and seeds the database.
+const { algebra: ALGEBRA_ID, biology: BIOLOGY_ID } = courseIds(DB);
+console.log(`  courses: Algebra I = ${ALGEBRA_ID}, Biology 1 (demo) = ${BIOLOGY_ID}`);
+
 const rec = await open(server.base, { prefix: 'teacher-setup' });
 
 // ---- setup that leaves no clip of its own ----
@@ -210,10 +235,19 @@ await rec.clip('start-paste', async (page) => {
   await beat(page, 900);
   await point(page, '#drop');
   await beat(page, 700);
-  await page.evaluate((text) => navigator.clipboard.writeText(text), PASTE_TEXT);
+  // The text is put INTO the box directly rather than through the OS clipboard.
+  // navigator.clipboard.writeText needs both a permission grant and a focused
+  // document, and a recorded page reliably has neither -- it failed silently,
+  // which left the box empty, "Use this text" building nothing, and Save
+  // writing an EMPTY DRAFT. The damage surfaced three clips later as an AI step
+  // with no blocks to act on, which looks nothing like a clipboard problem.
+  //
+  // Nothing is lost: #pasteBtn reads the textarea's value (editor/index.html),
+  // so this exercises the same path, and a real paste lands instantly too --
+  // the box jumping to size is what a viewer sees either way.
   await tap(page, '#paste', { after: 300 });
-  await page.keyboard.press('Control+V');
-  await beat(page, 1400);              // the box growing to fit is the whole point of this clip
+  await page.fill('#paste', PASTE_TEXT);
+  await beat(page, 1400);              // the box grown to fit is the whole point of this clip
   await tap(page, '#pasteBtn', { after: 300 });
   await beat(page, 900);
   await point(page, '#blocks');

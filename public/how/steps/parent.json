@@ -11,15 +11,15 @@
       "clipDark": "parent-home-dark.mp4"
     },
     {
-      "title": "Know your access code",
-      "body": "You need three things: your student's ID number, the email address the code was sent to, and the access code itself -- eight characters, from the email your teacher sent you. That code is what tells the app you're the parent and not the student, so use the one from your own email, not one your child gives you. Never got a code? Follow \"Don't have a code, or lost it?\" under the form and we'll email you one, as long as your student has set up their account already.",
+      "title": "Know your username and access code",
+      "body": "You need two things, and both arrive in the same email: your username and your access code. The username looks like an email address but is not one -- it is just the name you sign in under. The code is eight characters. Use the pair from your own email, not one your child gives you: which of the two codes is used is what tells the app you are the parent and not the student. Never got an email? Follow \"Don't have a code, or lost it?\" under the form and we'll send one, as long as your student has set up their account already.",
       "clip": "parent-codes.mp4",
       "n": 2,
       "clipDark": "parent-codes-dark.mp4"
     },
     {
       "title": "Open the syllabus",
-      "body": "Type the student ID, the email address the code was sent to, and the access code exactly as it appears, then tap \"Open the syllabus.\" The email matters: it is what tells the app which family and which of the two codes this is. If it doesn't work after a couple of tries, wait a few minutes before trying again, or ask your teacher to resend the code.",
+      "body": "Type the username and the access code from the email exactly as they appear, then tap \"Open the syllabus.\" Nothing else is asked for -- no student ID, no school. If it doesn't work after a couple of tries, wait a few minutes before trying again, or ask your teacher to resend.",
       "clip": "parent-sign-in.mp4",
       "n": 3,
       "clipDark": "parent-sign-in-dark.mp4"
@@ -61,7 +61,7 @@
     },
     {
       "title": "Coming back later",
-      "body": "Didn't finish, or want to check what you signed? Go back to the same link and sign in again with the same three things -- student ID, your email, and your access code. The syllabus opens back up already showing everything you've initialed, so nothing is lost between visits.",
+      "body": "Didn't finish, or want to check what you signed? Go back to the same link and sign in again with the same two things -- your username and your access code. The syllabus opens back up already showing everything you've initialed, so nothing is lost between visits.",
       "clip": "parent-come-back.mp4",
       "n": 9,
       "clipDark": "parent-come-back-dark.mp4"
