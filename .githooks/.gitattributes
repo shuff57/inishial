@@ -1,0 +1,2 @@
+# Hook scripts must stay LF — CRLF breaks sh on checkout.
+* text eol=lf

@@ -1,0 +1,11 @@
+# Media only — the code graph here is already clean (god nodes are real
+# functions), so .html/.md stay indexed. Keeps hook rebuilds off 68 screen
+# recordings. Merged with .gitignore by graphify.
+*.mp4
+*.mov
+*.webm
+*.mp3
+*.wav
+*.png
+*.jpg
+*.jpeg
