@@ -129,6 +129,16 @@ export async function onRequestPost({ request, env }) {
   ).bind(rosterRow.id).first();
   const schoolId = schoolIdRow ? schoolIdRow.school_id : 1;
 
+  // Same check register.js makes, for the same reason: at a one-school install
+  // resolveSchoolScope filters nothing, so a wrong pick would otherwise sail
+  // through ignored. Here it cannot corrupt anything -- the school is derived
+  // from the roster either way -- but a parent who picked the wrong school
+  // should be told, not quietly handed the right family's code. Roster-miss
+  // message, so this cannot be asked which school a student ID belongs to.
+  if (body.school_id && Number(body.school_id) !== schoolId) {
+    return badRequest(NO_STUDENT);
+  }
+
   const identity = await env.DB.prepare(
     `SELECT id, code_hash, code_enc, student_code_enc, parent_email, parent_username, username
        FROM student_identities

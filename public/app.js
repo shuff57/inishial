@@ -157,42 +157,93 @@ function notice(el, text, kind) {
 // -- and the one it used to have was the only one of the three whose value was
 // never checked before submitting.
 const SCHOOL_FIELDS = [
-  { label: 'reg-school-label', select: 'reg-school' },
-  { label: 'rc-school-label', select: 'rc-school' },
+  { label: 'reg-school-label', input: 'reg-school-name', list: 'reg-school-list', hidden: 'reg-school' },
+  { label: 'rc-school-label', input: 'rc-school-name', list: 'rc-school-list', hidden: 'rc-school' },
 ];
 
-/** Safe to submit: the field is still hidden (nothing to require), or a real
- *  school id has been picked. */
-const schoolFieldOk = (f) => $(f.select).hidden || !!$(f.select).value;
+// Below this many characters the list stays empty, so the field opens blank
+// instead of unrolling fifty schools at anyone who clicks it. Two is enough to
+// cut the list to a handful and short enough that nobody has to think.
+const SCHOOL_MIN_CHARS = 2;
+// A menu longer than this is not a menu. Keep typing narrows it.
+const SCHOOL_MAX_OPTIONS = 8;
+
+let schools = [];
+
+/** Type-ahead: fill the datalist from what has been typed, and resolve an
+ *  exact name to the id the form actually submits.
+ *
+ *  A <datalist> rather than a <select> because the list is a reference set --
+ *  migration 0011 seeded ~50 area schools -- and a fifty-item select asks a
+ *  fifteen-year-old to scroll for a value they can type in four keystrokes.
+ *  Native, so the filtering, keyboard handling and mobile presentation are the
+ *  browser's rather than ours.
+ *
+ *  The visible field is a NAME and the submitted field is an ID: only a typed
+ *  name that matches a real school resolves, so this form can only ever SELECT
+ *  a school, never invent one. The server checks the answer against the
+ *  student's roster row regardless (api/register.js).
+ */
+function resolveSchool(f) {
+  const typed = $(f.input).value.trim();
+  const q = typed.toLowerCase();
+  const options = $(f.list);
+
+  options.innerHTML = q.length < SCHOOL_MIN_CHARS ? '' : schools
+    .filter((s) => s.name.toLowerCase().includes(q))
+    .slice(0, SCHOOL_MAX_OPTIONS)
+    .map((s) => `<option value="${escAttr(s.name)}"></option>`)
+    .join('');
+
+  const match = schools.find((s) => s.name.toLowerCase() === q);
+  $(f.hidden).value = match ? match.id : '';
+}
+
+const escAttr = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/** Safe to submit: the field is still hidden (we never got a list, so the
+ *  server falls back to the roster's own school), or a typed name resolved to
+ *  a real id. */
+const schoolFieldOk = (f) => $(f.input).hidden || !!$(f.hidden).value;
+
+for (const f of SCHOOL_FIELDS) {
+  $(f.input).addEventListener('input', () => resolveSchool(f));
+}
 
 (async () => {
-  let schools = [];
   let required = false;
   try {
     ({ schools = [], required = false } = await (await netFetch('/api/schools')).json());
   } catch { schools = []; }
 
-  // `required`, NOT `schools.length`. The two stopped meaning the same thing
-  // when migration 0011 seeded ~50 Chico-area schools as a type-ahead
-  // reference list: every install now has plenty of rows, while almost none
-  // has more than one school actually IN USE. Keying off the row count turned
-  // "hidden unless it is needed" into "always shown", and since a shown field
-  // must be answered before the form will submit (schoolFieldOk below), every
-  // student and parent on a one-school install was made to pick their school
-  // out of fifty before they could register -- for a value the server then
-  // ignores, because scoping is a no-op at one school.
-  //
-  // The endpoint has reported `required` since that migration, on exactly the
-  // threshold schoolScope.js scopes by. Nothing ever read it.
-  if (!required) return;
+  // No list, no field. If /api/schools could not be reached there is nothing
+  // to type against, and a required field nobody can satisfy is a locked door:
+  // left hidden, the form submits without a school and the server falls back
+  // to the roster row's own -- which is where the value comes from anyway.
+  if (!schools.length) return;
 
-  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  // ALWAYS shown, on both forms, whatever `required` says.
+  //
+  // School is one of the three things that identify a student here -- school,
+  // last name, student ID -- and the parent form asks the same three plus the
+  // address to mail to. That is the design, not an optimisation to make: this
+  // was briefly hidden at one-school installs on the grounds that picking from
+  // a list of one is friction, which quietly dropped a field the flow is
+  // specified around.
+  //
+  // `required` from /api/schools is still worth having and is deliberately not
+  // consulted here: it reports whether the SERVER will scope by school, which
+  // is a different question from whether the form should ask. The server now
+  // validates the answer against the roster row either way (see
+  // api/register.js), so a wrong pick is refused rather than ignored.
+  void required;
+
+  // The options themselves are filled in by resolveSchool() as the reader
+  // types -- nothing is listed before then, which is the point of the field
+  // opening blank rather than unrolling the whole seeded reference list.
   for (const f of SCHOOL_FIELDS) {
     $(f.label).hidden = false;
-    const el = $(f.select);
-    el.hidden = false;
-    el.innerHTML = '<option value="">Select your school</option>'
-      + schools.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+    $(f.input).hidden = false;
   }
 })();
 

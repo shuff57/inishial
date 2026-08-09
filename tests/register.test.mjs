@@ -535,6 +535,32 @@ test('a second enrolment shows no access code, because there is no new one', asy
   assert.equal(back.status, 200);
 });
 
+test('a school that is not the roster row\'s is refused, not silently used', async () => {
+  // The picker is on the form for every student, and at a ONE-school install
+  // resolveSchoolScope filters nothing -- so nothing but this check stops a
+  // wrong pick. It used to win: the identity was written under the submitted
+  // school while the roster row lived at another, producing `904511@s52` for a
+  // class at school 1. The parent side derives the school from the roster, so
+  // it would then look up school 1, find no identity, and tell the family
+  // their student had never registered.
+  const env = freshEnv();
+  seedStudent(env._raw, { parentEmail: 'family@example.com' });   // unowned course -> school 1
+  const other = Number(env._raw.prepare("INSERT INTO schools (name) VALUES ('Somewhere Else')").run().lastInsertRowid);
+
+  const wrong = await post(env, { student_ext_id: '904511', last: 'Alvarez', school_id: other });
+  assert.equal(wrong.status, 400);
+  assert.match((await wrong.json()).error, /don't match our class roster/,
+    'the roster-miss message, so this cannot be asked which school an ID belongs to');
+  assert.equal(env._raw.prepare('SELECT COUNT(*) AS n FROM student_identities').get().n, 0,
+    'and nothing is written on the way out');
+
+  // The right one still works, and lands on the roster row's school.
+  const ok = await post(env, { student_ext_id: '904511', last: 'Alvarez', school_id: 1 });
+  assert.equal(ok.status, 201);
+  assert.equal((await ok.json()).username, '904511@s1');
+  assert.equal(env._raw.prepare('SELECT school_id FROM student_identities').get().school_id, 1);
+});
+
 test('more than one school on the install requires a school_id', async () => {
   const env = freshEnv();
   seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '904511', last: 'Alvarez' });

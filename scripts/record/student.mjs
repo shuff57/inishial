@@ -25,6 +25,11 @@ const DB = '.dev-student.sqlite';
 const SID = '100016';
 const LAST = 'Student';
 const PARENT_EMAIL = 'guardian@example.com';
+// Typed into the school type-ahead, which resolves a name to the id the form
+// submits. Must match a seeded school EXACTLY or nothing resolves and the form
+// refuses to submit -- the dev seed's courses are unowned, so they resolve to
+// the placeholder school, which is what this name is.
+const SCHOOL = '(unassigned)';
 // What registration hands back and what sign-in then asks for. Derived from
 // (student id, school), so it is predictable enough to name here -- see
 // api/register.js. There is no school-email field on the form any more: the
@@ -59,6 +64,7 @@ await rec.clip('register-fill', async (page) => {
   await beat(page, 900);
   await type(page, '#reg-sid', SID);
   await type(page, '#reg-last', LAST);
+  await type(page, '#reg-school-name', SCHOOL);
   await type(page, '#reg-email', PARENT_EMAIL);
   // Off the just-typed text before the clip sits on it -- otherwise the
   // cursor parks mid-word over whatever was last typed.
@@ -73,6 +79,7 @@ await rec.clip('register-code', async (page) => {
   await page.goto(server.base + '/register/');
   await type(page, '#reg-sid', SID);
   await type(page, '#reg-last', LAST);
+  await type(page, '#reg-school-name', SCHOOL);
   // Parent/guardian email left blank here: the roster already has one on file
   // for this student, which is the realistic case -- the field's own hint
   // text says to fill it in only when the syllabus should go somewhere else.
@@ -108,6 +115,7 @@ await rec.clip('register-returning', async (page) => {
   await beat(page, 700);
   await type(page, '#reg-sid', SID);
   await type(page, '#reg-last', LAST);
+  await type(page, '#reg-school-name', SCHOOL);
   await tap(page, '#registerBtn', { after: 900 });
   await page.waitForSelector('#registerExists', { state: 'visible', timeout: 8000 });
   await park(page);

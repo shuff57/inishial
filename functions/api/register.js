@@ -126,10 +126,27 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Find or create the student_identities row for (school_id, student_ext_id).
-  // Use the school the student selected from the form, falling back to the
-  // course -> teacher -> school chain (placeholder id 1 for unowned courses).
+  //
+  // The school comes from the ROSTER ROW, never from the form. The submitted
+  // value is checked against it and then discarded.
+  //
+  // It used to be the other way round -- the submitted id won, falling back to
+  // the roster only when the form left it out -- and that is a split-brain
+  // waiting to happen, because resolveSchoolScope is a NO-OP at a one-school
+  // install: nothing filtered the roster by school, so a student who picked
+  // the wrong entry registered successfully against the right roster row while
+  // their identity was written under the wrong school. Username `<id>@s52` for
+  // a student whose class lives at school 1. The parent side then derives the
+  // school from the roster (see sign/request-code.js), looks up school 1, finds
+  // nothing, and tells the family their student never registered.
+  //
+  // Rejected with the roster-miss message rather than one of its own, so this
+  // cannot be used to ask which school a given student ID belongs to.
   const primaryRow = rosterRows[0];
-  const schoolId = body.school_id ? Number(body.school_id) : await resolveIdentitySchool(env.DB, primaryRow.course_id);
+  const schoolId = await resolveIdentitySchool(env.DB, primaryRow.course_id);
+  if (body.school_id && Number(body.school_id) !== schoolId) {
+    return badRequest("That student ID and last name don't match our class roster. Check with your teacher.");
+  }
 
   let identity = await env.DB.prepare(
     'SELECT id, username, code_hash, student_session_gen FROM student_identities WHERE school_id = ?1 AND student_ext_id = ?2',

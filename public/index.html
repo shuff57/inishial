@@ -146,10 +146,12 @@
            Identification, not a credential. This and the two fields below find
            the roster row and mint the username and access code; sign-in asks
            for those two and never for these. -->
-      <label for="reg-school" id="reg-school-label" hidden>School</label>
-      <select id="reg-school" name="school_id" hidden>
-        <option value="">Select your school</option>
-      </select>
+      <label for="reg-school-name" id="reg-school-label" hidden>School
+        <span class="hint">Start typing and pick yours from the list.</span></label>
+      <input id="reg-school-name" list="reg-school-list" type="text" autocomplete="off"
+             spellcheck="false" placeholder="Start typing your school" hidden>
+      <datalist id="reg-school-list"></datalist>
+      <input type="hidden" id="reg-school" name="school_id">
 
       <label for="reg-sid">Student ID number
         <span class="hint">The number on your school ID card.</span></label>
@@ -233,10 +235,12 @@
       own code with it, in case that one has been lost too.</p>
 
     <form id="requestCodeForm" class="card plain" novalidate>
-      <label for="rc-school" id="rc-school-label" hidden>School</label>
-      <select id="rc-school" name="school_id" hidden>
-        <option value="">Select your school</option>
-      </select>
+      <label for="rc-school-name" id="rc-school-label" hidden>School
+        <span class="hint">Start typing and pick your student's school from the list.</span></label>
+      <input id="rc-school-name" list="rc-school-list" type="text" autocomplete="off"
+             spellcheck="false" placeholder="Start typing the school" hidden>
+      <datalist id="rc-school-list"></datalist>
+      <input type="hidden" id="rc-school" name="school_id">
 
       <label for="rc-sid">Student ID number
         <span class="hint">The number on the student's school ID card.</span></label>
