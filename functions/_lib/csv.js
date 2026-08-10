@@ -191,9 +191,12 @@ export function parseRoster(text) {
     if (seen.has(studentExtId)) { skipped.push({ line, reason: `duplicate student ID ${studentExtId}` }); continue; }
     seen.add(studentExtId);
 
+    // `first` is parsed but deliberately NOT returned. It is still read above
+    // because it is how a "Last, First" cell gets split and how an unparseable
+    // name is detected -- but nothing downstream stores it. See migration 0017:
+    // the given name was only ever displayed, so the app stopped keeping it.
     rows.push({
       student_ext_id: studentExtId,
-      first,
       last,
       period: cell(columns.period) || null,
       course: cell(columns.course) || null,

@@ -7,6 +7,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { hashCode } from '../functions/_lib/codes.js';
+import { seal, blindIndex } from '../functions/_lib/vault.js';
 
 // Every migration, in filename order -- not just the initial one. Pinning this
 // to 0001 meant a new migration was invisible to the whole suite, so tests
@@ -44,6 +45,11 @@ export function freshEnv(extra = {}) {
     DB: d1(db),
     ADMIN_EMAILS: 'teacher@school.edu',
     SESSION_SECRET: 'test-secret-not-used-anywhere-real',
+    // Every roster row now carries a sealed surname and a keyed digest
+    // (migration 0017), so the vault is part of the baseline environment
+    // rather than something only the code-vault tests switch on. A test that
+    // wants it absent passes `{ CODE_SECRET: undefined }`.
+    CODE_SECRET: 'test-code-secret-not-used-anywhere-real',
     _raw: db,
     ...extra,
   };
@@ -51,16 +57,22 @@ export function freshEnv(extra = {}) {
 
 export const ADMIN_HEADERS = { 'Cf-Access-Authenticated-User-Email': 'teacher@school.edu' };
 
-/** Insert a course with one student, and return the ids. */
-export function seedStudent(db, { course = 'Algebra I', extId = '904511', first = 'Maria', last = 'Alvarez', period = '3', parentEmail = null } = {}) {
+/** Insert a course with one student, and return the ids.
+ *
+ *  Takes the whole env, not the raw handle: seeding a roster row now needs
+ *  CODE_SECRET to seal the surname and compute its lookup digest, exactly as
+ *  the import endpoint does. Async for the same reason -- WebCrypto has no
+ *  synchronous form. */
+export async function seedStudent(env, { course = 'Algebra I', extId = '904511', last = 'Alvarez', period = '3', parentEmail = null } = {}) {
+  const db = env._raw;
   let courseId = db.prepare('SELECT id FROM courses WHERE name = ?').get(course)?.id;
   if (!courseId) {
     courseId = Number(db.prepare('INSERT INTO courses (name, created_at) VALUES (?, ?)').run(course, 1000).lastInsertRowid);
   }
   const rosterId = Number(
     db.prepare(
-      "INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
-    ).run(courseId, period, extId, first, last, parentEmail).lastInsertRowid,
+      "INSERT INTO roster (course_id, period, student_ext_id, last_enc, last_idx, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+    ).run(courseId, period, extId, await seal(env, last), await blindIndex(env, last, extId), parentEmail).lastInsertRowid,
   );
   return { courseId, rosterId, extId };
 }
@@ -71,9 +83,10 @@ export function seedStudent(db, { course = 'Algebra I', extId = '904511', first 
  *  course cannot reach. Reuses an existing school/course by name so two calls
  *  can share one school or one course, the way two teachers at a real school
  *  would. */
-export function seedSchoolRoster(db, {
-  school, course, extId = '904511', first = 'Maria', last = 'Alvarez', period = '3', parentEmail = null,
+export async function seedSchoolRoster(env, {
+  school, course, extId = '904511', last = 'Alvarez', period = '3', parentEmail = null,
 } = {}) {
+  const db = env._raw;
   let schoolId = db.prepare('SELECT id FROM schools WHERE name = ?').get(school)?.id;
   if (!schoolId) {
     schoolId = Number(db.prepare('INSERT INTO schools (name) VALUES (?)').run(school).lastInsertRowid);
@@ -92,8 +105,8 @@ export function seedSchoolRoster(db, {
   }
   const rosterId = Number(
     db.prepare(
-      "INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
-    ).run(courseId, period, extId, first, last, parentEmail).lastInsertRowid,
+      "INSERT INTO roster (course_id, period, student_ext_id, last_enc, last_idx, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+    ).run(courseId, period, extId, await seal(env, last), await blindIndex(env, last, extId), parentEmail).lastInsertRowid,
   );
   return { schoolId, teacherId, courseId, rosterId, extId };
 }

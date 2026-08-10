@@ -26,6 +26,7 @@
 
 import { json, badRequest, serverMisconfigured, readJson } from '../../_lib/http.js';
 import { verifyCode, normalize } from '../../_lib/codes.js';
+import { open } from '../../_lib/vault.js';
 import { hit, reset, clientIp } from '../../_lib/ratelimit.js';
 import {
   signSession, sessionCookie, clearCookie, currentSession, revokeSigner, SIGNER_ROLES,
@@ -72,7 +73,7 @@ export async function onRequestPost({ request, env }) {
   const { results: rows = [] } = await env.DB.prepare(
     `SELECT si.id, si.code_hash, si.student_code_hash, si.username, si.parent_username,
             si.parent_session_gen, si.student_session_gen,
-            r.first, r.last
+            r.last_enc
        FROM student_identities si
        JOIN accounts a ON a.identity_id = si.id
        JOIN roster   r ON r.id = a.roster_id
@@ -112,7 +113,10 @@ export async function onRequestPost({ request, env }) {
 
   const token = await signSession(env, row.id, role, nowSec, { gen });
   return json(
-    { ok: true, role, student: `${row.first} ${row.last}` },
+    // Surname only, and null rather than a blank if it will not open: the
+    // caller renders a greeting, and "Welcome, " with nothing after it reads as
+    // a bug where a missing name should simply not be greeted.
+    { ok: true, role, student: (await open(env, row.last_enc)) || null },
     200,
     { 'Set-Cookie': sessionCookie(token) },
   );

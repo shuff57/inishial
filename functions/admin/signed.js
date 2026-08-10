@@ -14,6 +14,7 @@
 
 import { unauthorized, serverMisconfigured, badRequest, requireAdmin, owns, escapeHtml, html } from '../_lib/http.js';
 import { attestationKey, promptKeys } from '../_lib/syllabus.js';
+import { open } from '../_lib/vault.js';
 
 export async function onRequestGet({ request, env }) {
   const admin = await requireAdmin(request, env);
@@ -25,7 +26,7 @@ export async function onRequestGet({ request, env }) {
 
   const who = await env.DB.prepare(
     `SELECT a.id, si.username, COALESCE(si.parent_email, r.parent_email) AS email,
-            r.first, r.last, r.student_ext_id, r.period, c.name AS course, c.owner_id
+            r.last_enc, r.student_ext_id, r.period, c.name AS course, c.owner_id
        FROM accounts a
        JOIN roster r ON r.id = a.roster_id
        JOIN courses c ON c.id = r.course_id
@@ -131,12 +132,17 @@ export async function onRequestGet({ request, env }) {
   const required = (blocks ?? []).filter((b) => b.needs_initials).length;
   const done = (blocks ?? []).filter((b) => b.needs_initials && byBlock.get(b.id)?.parent).length;
 
+  // Surname only (migration 0017). This page is the record a teacher prints or
+  // sends on when someone disputes what was agreed to, so the student ID stays
+  // beside it -- that pairing, not the given name, is what identifies the row.
+  const surname = (await open(env, who.last_enc)) || '';
+
   return html(`<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(who.last)}, ${escapeHtml(who.first)} — signed syllabus</title>
+<title>${escapeHtml(surname || who.student_ext_id)} — signed syllabus</title>
 <link rel="stylesheet" href="/app.css">
 <style>
   .record { border: 1px solid var(--ring); border-radius: var(--radius-sm); padding: .8rem 1rem; margin: 0 0 1.5rem; background: var(--ivory); }
@@ -163,7 +169,7 @@ export async function onRequestGet({ request, env }) {
 
   <div class="record">
     <dl>
-      <dt>Student</dt><dd>${escapeHtml(who.last)}, ${escapeHtml(who.first)} (ID ${escapeHtml(who.student_ext_id)})</dd>
+      <dt>Student</dt><dd>${escapeHtml(surname)} (ID ${escapeHtml(who.student_ext_id)})</dd>
       <dt>Class</dt><dd>${escapeHtml(who.course)}${who.period ? ` · Period ${escapeHtml(who.period)}` : ''}</dd>
       <dt>Contact</dt><dd>${escapeHtml(who.email ?? 'none on file')}</dd>
       <dt>Version</dt><dd>${version.num}, published ${escapeHtml(when(version.published_at))}</dd>

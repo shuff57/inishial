@@ -150,7 +150,7 @@ function seedLevelled(db, courseId) {
 
 test('the parent view receives the level, and pages on it', async () => {
   const env = freshEnv();
-  const { rosterId, courseId } = seedStudent(env._raw);
+  const { rosterId, courseId } = await seedStudent(env);
   const { code } = await seedAccount(env._raw, rosterId);
   seedLevelled(env._raw, courseId);
 
@@ -174,7 +174,7 @@ test('the parent view receives the level, and pages on it', async () => {
 
 test('each signing prompt stays in the section it attests to', async () => {
   const env = freshEnv();
-  const { rosterId, courseId } = seedStudent(env._raw);
+  const { rosterId, courseId } = await seedStudent(env);
   const { code } = await seedAccount(env._raw, rosterId);
   seedLevelled(env._raw, courseId);
 

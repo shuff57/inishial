@@ -18,7 +18,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { d1 } from '../tests/helpers.mjs';
 import { hashCode } from '../functions/_lib/codes.js';
-import { sealCode } from '../functions/_lib/vault.js';
+import { sealCode, seal, blindIndex } from '../functions/_lib/vault.js';
 import { seedDemo } from './demo.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -186,14 +186,17 @@ async function seed() {
   // fallback the production migration and seedAccount use for unowned courses.
   // One identity per (school, student_ext_id); accounts are pure
   // roster-enrolment join rows pointing at them.
-  const makeCourse = (name, roster) => {
+  // Async since migration 0017: surnames are sealed and digested on the way in,
+  // exactly as the import endpoint does it, so the dev database is shaped like
+  // a real one rather than being the last place plaintext names survive.
+  const makeCourse = async (name, roster) => {
     const courseId = Number(db.prepare('INSERT INTO courses (name, created_at) VALUES (?, ?)')
       .run(name, now).lastInsertRowid);
     const rosterIds = new Map();
-    for (const [extId, first, last, period, parentEmail] of roster) {
+    for (const [extId, , last, period, parentEmail] of roster) {
       rosterIds.set(extId, Number(db.prepare(
-        "INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
-      ).run(courseId, period, extId, first, last, parentEmail).lastInsertRowid));
+        "INSERT INTO roster (course_id, period, student_ext_id, last_enc, last_idx, parent_email, status) VALUES (?, ?, ?, ?, ?, ?, 'active')",
+      ).run(courseId, period, extId, await seal(env, last), await blindIndex(env, last, extId), parentEmail).lastInsertRowid));
     }
 
     const syllabusId = Number(db.prepare('INSERT INTO syllabi (course_id, title, slug) VALUES (?, ?, ?)')
@@ -209,8 +212,8 @@ async function seed() {
     return { courseId, rosterIds };
   };
 
-  const algebra = makeCourse('Algebra I', ALGEBRA);
-  const geometry = makeCourse('Geometry', GEOMETRY);
+  const algebra = await makeCourse('Algebra I', ALGEBRA);
+  const geometry = await makeCourse('Geometry', GEOMETRY);
 
   // Register A (both courses, one identity), B and C (single course each).
   // Student A keeps the fixed DEMO2345 the banner prints; the others get codes
@@ -404,7 +407,8 @@ await seed();
 // survive a dev restart. DEMO_RESET=1 rebuilds it.
 const demo = await seedDemo(db, {
   hashCode,
-  seal: (code) => sealCode(env, code),
+  seal: (text) => sealCode(env, text),
+  blindIndex: (text, scope) => blindIndex(env, text, scope),
   reset: process.env.DEMO_RESET === '1',
 });
 

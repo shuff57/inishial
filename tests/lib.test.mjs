@@ -41,14 +41,14 @@ test('parseRoster reads a typical SIS export', () => {
   assert.equal(skipped.length, 0);
   assert.equal(rows.length, 2);
   assert.deepEqual(rows[0], {
-    student_ext_id: '904511', first: 'Maria', last: 'Alvarez', period: '3', course: 'Algebra I', parent_email: null,
+    student_ext_id: '904511', last: 'Alvarez', period: '3', course: 'Algebra I', parent_email: null,
   });
 });
 
 test('parseRoster falls back to splitting a combined name column', () => {
   const { rows } = parseRoster('Student Number,Student Name\n77,"Doyle, Robert James"\n78,Kevin Chen\n');
-  assert.deepEqual(rows[0], { student_ext_id: '77', first: 'Robert James', last: 'Doyle', period: null, course: null, parent_email: null });
-  assert.deepEqual(rows[1], { student_ext_id: '78', first: 'Kevin', last: 'Chen', period: null, course: null, parent_email: null });
+  assert.deepEqual(rows[0], { student_ext_id: '77', last: 'Doyle', period: null, course: null, parent_email: null });
+  assert.deepEqual(rows[1], { student_ext_id: '78', last: 'Chen', period: null, course: null, parent_email: null });
 });
 
 test('parseRoster reports skipped lines instead of dropping students silently', () => {

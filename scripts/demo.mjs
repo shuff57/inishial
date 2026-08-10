@@ -186,7 +186,11 @@ const VERSION_2 = (() => {
  * purpose: this is a fixture, and it should not depend on the endpoints it
  * exists to let you exercise.
  */
-export async function seedDemo(db, { hashCode, seal = async () => null, reset = false,
+export async function seedDemo(db, { hashCode, seal = async () => null,
+  // Surnames are sealed and digested like the codes are (migration 0017), and
+  // the digest is injected for the same reason the sealer is: this fixture
+  // takes its crypto rather than reaching for an env it does not have.
+  blindIndex = async () => null, reset = false,
   now = Math.floor(Date.now() / 1000) } = {}) {
   const existing = db.prepare('SELECT id FROM courses WHERE name = ?').get(COURSE)?.id;
   if (existing && !reset) return { added: false, courseId: existing, course: COURSE };
@@ -197,13 +201,13 @@ export async function seedDemo(db, { hashCode, seal = async () => null, reset = 
     .run(COURSE, now).lastInsertRowid);
 
   const rosterIds = new Map();
-  for (const [extId, first, last, email] of STUDENTS) {
+  for (const [extId, , last, email] of STUDENTS) {
     const dropped = DROPPED.has(extId);
     rosterIds.set(extId, Number(db.prepare(
-      `INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status, dropped_at)
+      `INSERT INTO roster (course_id, period, student_ext_id, last_enc, last_idx, parent_email, status, dropped_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(courseId, PERIOD, extId, first, last, email, dropped ? 'dropped' : 'active',
-      dropped ? now : null).lastInsertRowid));
+    ).run(courseId, PERIOD, extId, await seal(last), await blindIndex(last, extId),
+      email, dropped ? 'dropped' : 'active', dropped ? now : null).lastInsertRowid));
   }
 
   // Who has an account, and who has a code. Three states, because the progress

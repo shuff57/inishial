@@ -220,7 +220,7 @@ test('diffVersions matches on text, not block id', async () => {
 test('a parent sees the published version, never the draft', async () => {
   const env = freshEnv();
   const id = course(env);
-  const { rosterId } = seedStudent(env._raw, { course: 'Algebra I' });
+  const { rosterId } = await seedStudent(env, { course: 'Algebra I' });
   // seedStudent reuses the course by name, so point at the row it used.
   const realCourseId = env._raw.prepare('SELECT course_id FROM roster').get().course_id;
   const { code } = await seedAccount(env._raw, rosterId);

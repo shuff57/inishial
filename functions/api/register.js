@@ -62,7 +62,7 @@ import { json, badRequest, serverMisconfigured, readJson } from '../_lib/http.js
 import { hit, reset, clientIp } from '../_lib/ratelimit.js';
 import { signSession, sessionCookie } from '../_lib/session.js';
 import { generateCode, hashCode } from '../_lib/codes.js';
-import { sealCode } from '../_lib/vault.js';
+import { sealCode, open, blindIndex } from '../_lib/vault.js';
 import { resolveSchoolScope, SCHOOL_SCOPE_JOIN } from '../_lib/schoolScope.js';
 
 // Deliberately permissive. Strict RFC-5322 validation rejects addresses that
@@ -109,15 +109,26 @@ export async function onRequestPost({ request, env }) {
   // school, a student enrolled in two courses has two roster rows sharing one
   // student_ext_id -- that is the multi-class case this endpoint now handles
   // by fanning out accounts across all matching rows.
+  // Matched on a DIGEST of the surname, not the surname: since migration 0017
+  // the roster stores `last_idx` (keyed HMAC, for this) and `last_enc` (sealed,
+  // for display), and no plaintext column to compare against. Equality on the
+  // digest is exactly the old case-insensitive match -- blindIndex lowercases
+  // and trims on both sides -- so the behaviour here is unchanged.
+  //
+  // Null when CODE_SECRET is missing. Registration then matches nothing, which
+  // is the right failure: the import path refuses to write rows it could not
+  // seal, so a live install cannot reach this state without the secret being
+  // pulled out from under existing data.
+  const lastIdx = await blindIndex(env, last, studentExtId);
   const { results: rosterRows = [] } = await env.DB.prepare(
-    `SELECT r.id, r.first, r.last, r.period, r.parent_email, c.name AS course, c.id AS course_id
+    `SELECT r.id, r.last_enc, r.period, r.parent_email, c.name AS course, c.id AS course_id
        FROM roster r
        JOIN courses c ON c.id = r.course_id
        ${SCHOOL_SCOPE_JOIN}
-      WHERE r.student_ext_id = ?1 AND lower(r.last) = lower(?2)
+      WHERE r.student_ext_id = ?1 AND r.last_idx = ?2
         AND r.status = 'active'
         AND (?3 IS NULL OR sc.id = ?3)`,
-  ).bind(studentExtId, last, scope.schoolIdFilter).all();
+  ).bind(studentExtId, lastIdx, scope.schoolIdFilter).all();
 
   // Same message whether the ID is absent or the name doesn't match, so this
   // endpoint can't be used to confirm which student IDs exist.
@@ -279,7 +290,11 @@ export async function onRequestPost({ request, env }) {
     ok: true,
     username,
     student_code: returning ? null : studentCode,
-    student: `${primaryRow.first} ${primaryRow.last}`,
+    // Surname only -- given names are not stored any more (migration 0017).
+    // Decrypted rather than echoing what was typed, so the card shows the
+    // roster's capitalisation; falls back to their own spelling if it will not
+    // open, which is better than a blank where a name should be.
+    student: (await open(env, primaryRow.last_enc)) || last,
     course: primaryRow.course,
     period: primaryRow.period,
     next: '/sign/',

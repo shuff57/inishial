@@ -20,7 +20,7 @@ const get = (env, qs) =>
 
 async function setup() {
   const env = freshEnv();
-  const { courseId, rosterId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { courseId, rosterId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   const { accountId, code } = await seedAccount(env._raw, rosterId);
   const { versionId, blockIds } = seedSyllabus(env._raw, courseId, BLOCKS);
   return { env, courseId, rosterId, accountId, code, versionId, blockIds };
@@ -41,7 +41,7 @@ async function signBlocks(env, code, blockIds) {
 
 test('a student with no account reads as not registered', async () => {
   const env = freshEnv();
-  const { courseId } = seedStudent(env._raw);
+  const { courseId } = await seedStudent(env);
   seedSyllabus(env._raw, courseId, BLOCKS);
 
   const body = await (await get(env, `course_id=${courseId}`)).json();
@@ -51,7 +51,7 @@ test('a student with no account reads as not registered', async () => {
 
 test('a registered student with no code issued is distinguished from one who just has not signed', async () => {
   const env = freshEnv();
-  const { courseId, rosterId } = seedStudent(env._raw);
+  const { courseId, rosterId } = await seedStudent(env);
   seedSyllabus(env._raw, courseId, BLOCKS);
   const extId = env._raw.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(rosterId).student_ext_id;
   const identityId = Number(env._raw.prepare(
@@ -131,7 +131,7 @@ test('only the section that changed comes back unsigned', async () => {
     { type: 'initial', html: 'I have read the attendance policy.', needs_initials: true },
   ];
   const env = freshEnv();
-  const { courseId, rosterId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { courseId, rosterId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   const { code } = await seedAccount(env._raw, rosterId);
   const { blockIds } = seedSyllabus(env._raw, courseId, SECTIONED);
   await signBlocks(env, code, [blockIds[2], blockIds[5]]);
@@ -157,7 +157,7 @@ test('a dropped student disappears from the working list', async () => {
 
 test('a course with no published syllabus reports nobody as signable', async () => {
   const env = freshEnv();
-  const { courseId, rosterId } = seedStudent(env._raw);
+  const { courseId, rosterId } = await seedStudent(env);
   await seedAccount(env._raw, rosterId);
   seedSyllabus(env._raw, courseId, BLOCKS, { published: false });
 
@@ -176,7 +176,7 @@ test('the CSV export carries the status and the timestamp', async () => {
   const res = await get(env, `course_id=${courseId}&format=csv`);
   const csv = await res.text();
   assert.match(res.headers.get('Content-Disposition'), /signatures-algebra-i\.csv/);
-  assert.match(csv, /Alvarez, Maria/);
+  assert.match(csv, /Alvarez/);
   assert.match(csv, /Complete/);
   // Parent count, student count, required, timestamp. The student column is
   // 0 here because only the parent signed -- and it being reported separately
@@ -201,7 +201,7 @@ test('the signed copy stamps each initial with its audit detail', async () => {
   await signBlocks(env, code, [blockIds[1], blockIds[2]]);
 
   const page = await (await printed(env, `account_id=${accountId}`)).text();
-  assert.match(page, /Alvarez, Maria/);
+  assert.match(page, /Alvarez/);
   assert.match(page, /ID 904511/);
   assert.match(page, /2 of 2 required sections/);
   assert.match(page, /<b>MRA<\/b>/);
@@ -233,7 +233,7 @@ test('the signed copy shows the version actually signed, not the current one', a
 
 test('the signed copy escapes content rather than rendering it', async () => {
   const env = freshEnv();
-  const { courseId, rosterId } = seedStudent(env._raw, { last: '<script>alert(1)</script>' });
+  const { courseId, rosterId } = await seedStudent(env, { last: '<script>alert(1)</script>' });
   const { accountId } = await seedAccount(env._raw, rosterId);
   seedSyllabus(env._raw, courseId, BLOCKS);
 

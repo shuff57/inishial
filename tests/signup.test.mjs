@@ -189,7 +189,7 @@ async function twoTeachers() {
   const aliceId = ids.find((t) => t.email.startsWith('alice')).id;
   const bobId = ids.find((t) => t.email.startsWith('bob')).id;
 
-  const { courseId, rosterId } = seedStudent(e._raw, { course: 'Statistics' });
+  const { courseId, rosterId } = await seedStudent(e, { course: 'Statistics' });
   e._raw.prepare('UPDATE courses SET owner_id = ? WHERE id = ?').run(aliceId, courseId);
   const { accountId } = await seedAccount(e._raw, rosterId);
   const { syllabusId } = seedSyllabus(e._raw, courseId, [{ type: 'initial', html: 'I agree.', needs_initials: true }]);
@@ -305,7 +305,7 @@ test('the site owner cannot reach another teacher\'s students by id', async () =
 
 test('the first sign-up adopts courses that predate teacher accounts', async () => {
   const e = env();
-  const { courseId } = seedStudent(e._raw);
+  const { courseId } = await seedStudent(e);
   assert.equal(e._raw.prepare('SELECT owner_id FROM courses WHERE id = ?').get(courseId).owner_id, null);
 
   await create(e, 'first@' + DOMAIN);
@@ -319,7 +319,7 @@ test('the first sign-up adopts courses that predate teacher accounts', async () 
 
 test('with ADMIN_EMAILS set, only that address adopts them', async () => {
   const e = env({ ADMIN_EMAILS: 'owner@' + DOMAIN });
-  const { courseId } = seedStudent(e._raw);
+  const { courseId } = await seedStudent(e);
 
   await create(e, 'someone.else@' + DOMAIN, PASSWORD, '', 'Pleasant Valley High');
   assert.equal(e._raw.prepare('SELECT owner_id FROM courses WHERE id = ?').get(courseId).owner_id, null,

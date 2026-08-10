@@ -14,7 +14,7 @@ const post = (env, body, headers) =>
 
 test('mints both codes at registration, so the parent code is ready to mail', async () => {
   const { env } = mailEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
 
   await register({ request: jsonRequest('https://x/api/register', {
     student_ext_id: '904511', last: 'Alvarez',
@@ -33,7 +33,7 @@ test('the mail carries both usernames, and never the word null', async () => {
   // mailed the literal line "YOUR username: null".
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     await register({ request: jsonRequest('https://x/api/register', {
       student_ext_id: '904511', last: 'Alvarez',
     }), env });
@@ -60,7 +60,7 @@ test('the mail carries both usernames, and never the word null', async () => {
 test('a valid request emails the parent code and returns a masked preview', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     // Registration mints BOTH codes and seals the parent code in the vault, so
     // the self-signup page can read it back here. This is the normal path.
     await register({ request: jsonRequest('https://x/api/register', {
@@ -94,7 +94,7 @@ test('a valid request emails the parent code and returns a masked preview', asyn
 test('the code that was mailed opens a parent session at sign-in', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     await register({ request: jsonRequest('https://x/api/register', {
       student_ext_id: '904511', last: 'Alvarez',
     }), env });
@@ -130,7 +130,7 @@ test('a wrong student ID gives the same no-oracle message as login', async () =>
 test('no account yet tells the parent the student must register first', async () => {
   const { env, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     // No seedAccount: the student has not registered.
 
     const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'family@example.com' });
@@ -143,7 +143,7 @@ test('no account yet tells the parent the student must register first', async ()
 test('a parent-supplied email that differs from the roster is rejected once the parent email is set', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'roster@example.com' });
+    await seedStudent(env, { parentEmail: 'roster@example.com' });
     await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
     const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'new@example.com' });
@@ -155,7 +155,7 @@ test('a parent-supplied email that differs from the roster is rejected once the 
 test('a request whose email matches the roster does NOT write an override', async () => {
   const { env, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
     await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'family@example.com' });
@@ -167,7 +167,7 @@ test('a request whose email matches the roster does NOT write an override', asyn
 test('an invalid email is rejected before any mail is sent', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
     const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'not-an-email' });
@@ -179,7 +179,7 @@ test('an invalid email is rejected before any mail is sent', async () => {
 test('rate-limits after three attempts per student', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
     let refused = false;
@@ -204,7 +204,7 @@ test('ten teachers of forty on one IP in one window are not limited', async () =
   try {
     for (let i = 0; i < 120; i++) {
       const extId = `9060${String(i).padStart(3, '0')}`;
-      const { rosterId } = seedStudent(env._raw, { extId, first: `Kid${i}`, last: `Fam${i}`, parentEmail: `fam${i}@example.com` });
+      const { rosterId } = await seedStudent(env, { extId, first: `Kid${i}`, last: `Fam${i}`, parentEmail: `fam${i}@example.com` });
       await seedAccount(env._raw, rosterId, { username: `kid${i}@chicousd.org`, code: `ABCD${String(1000 + i)}`, parentEmail: null });
     }
 
@@ -223,7 +223,7 @@ test('a different email than the one on file is refused outright', async () => {
   try {
     for (let i = 0; i < 3; i++) {
       const extId = `90700${String(i).padStart(2, '0')}`;
-      const { rosterId } = seedStudent(env._raw, { extId, first: `Kid${i}`, last: `Fam${i}`, parentEmail: `onfile${i}@example.com` });
+      const { rosterId } = await seedStudent(env, { extId, first: `Kid${i}`, last: `Fam${i}`, parentEmail: `onfile${i}@example.com` });
       await seedAccount(env._raw, rosterId, { username: `k${i}@chicousd.org`, code: `WXYZ23${String(i).padStart(2, '0')}`, parentEmail: null });
     }
 
@@ -240,7 +240,7 @@ test('the mail carries a link to the sign page, on the configured host', async (
   // a filter, and leaves the parent holding a code with nowhere to type it.
   const { env, sent, restore } = mailEnv({ APP_URL: 'https://syllabus.example.org/' });
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     await register({ request: jsonRequest('https://x/api/register', {
       student_ext_id: '904511', last: 'Alvarez',
     }), env });
@@ -256,7 +256,7 @@ test('the mail carries a link to the sign page, on the configured host', async (
 
 test('honest failure when no mail server creds are configured and not in dry-run', async () => {
   const env = freshEnv({ MAIL_FROM: 'no-reply@mail.huffpalmer.fyi', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
   await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'family@example.com' });
@@ -267,7 +267,7 @@ test('honest failure when no mail server creds are configured and not in dry-run
 
 test('dry-run logs instead of sending and still reports success', async () => {
   const env = freshEnv({ MAIL_FROM: 'no-reply@mail.huffpalmer.fyi', MAIL_DRY_RUN: '1', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
   await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'family@example.com' });
@@ -279,7 +279,7 @@ test('dry-run logs instead of sending and still reports success', async () => {
 test('a legacy account with no parent code mints one on demand and mails it', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     // Seed an account with NO parent code (the pre-this-change shape).
     const rosterId = (await env.DB.prepare('SELECT id FROM roster').first()).id;
     await seedAccount(env._raw, rosterId, { code: null, studentCode: 'STU45678', parentEmail: null });
@@ -306,7 +306,7 @@ test('a legacy account with no parent code mints one on demand and mails it', as
 test('the masked preview does not leak the full address to a stranger', async () => {
   const { env, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: 'jennifer.alvarez@example.com' });
+    await seedStudent(env, { parentEmail: 'jennifer.alvarez@example.com' });
     await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
     const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'jennifer.alvarez@example.com' });
@@ -327,11 +327,11 @@ test('a stranger requesting a shared student ID from the wrong school never reac
   const { env, sent, restore } = mailEnv();
   try {
     // Ana Reyes at Northside and Ben Whitaker at Southside share ID 123456.
-    const reyes = seedSchoolRoster(env._raw, {
+    const reyes = await seedSchoolRoster(env, {
       school: 'Northside High', course: 'Algebra I', extId: '123456',
       first: 'Ana', last: 'Reyes', parentEmail: 'reyes.family@example.com',
     });
-    const whitaker = seedSchoolRoster(env._raw, {
+    const whitaker = await seedSchoolRoster(env, {
       school: 'Southside High', course: 'Geometry', extId: '123456',
       first: 'Ben', last: 'Whitaker', parentEmail: 'whitaker.family@example.com',
     });
@@ -346,7 +346,7 @@ test('a stranger requesting a shared student ID from the wrong school never reac
     assert.equal(res.status, 200);
     assert.equal(sent.length, 1, 'exactly one mail, to the Whitaker family');
     assert.equal(sent[0].to, 'whitaker.family@example.com');
-    assert.match(sent[0].body, /Ben Whitaker/, "the mail must name Whitaker, not Reyes");
+    assert.match(sent[0].body, /Whitaker/, "the mail must name Whitaker, not Reyes");
     assert.ok(!sent[0].body.includes('Ana Reyes'), 'the mail must never name the other family\'s student');
 
     // The code that arrived opens a session as WHITAKER's parent.
@@ -369,11 +369,11 @@ test('a stranger requesting a shared student ID from the wrong school never reac
 test('the same shared ID from the OTHER school reaches the other family, symmetrically', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    const reyes = seedSchoolRoster(env._raw, {
+    const reyes = await seedSchoolRoster(env, {
       school: 'Northside High', course: 'Algebra I', extId: '123456',
       first: 'Ana', last: 'Reyes', parentEmail: 'reyes.family@example.com',
     });
-    const whitaker = seedSchoolRoster(env._raw, {
+    const whitaker = await seedSchoolRoster(env, {
       school: 'Southside High', course: 'Geometry', extId: '123456',
       first: 'Ben', last: 'Whitaker', parentEmail: 'whitaker.family@example.com',
     });
@@ -385,7 +385,7 @@ test('the same shared ID from the OTHER school reaches the other family, symmetr
     });
     assert.equal(res.status, 200);
     assert.equal(sent.length, 1);
-    assert.match(sent[0].body, /Ana Reyes/);
+    assert.match(sent[0].body, /Reyes/);
 
     const whitakerEmail = env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id WHERE a.roster_id = ?').get(whitaker.rosterId).parent_email;
     assert.equal(whitakerEmail, null, "the Northside request must never touch Whitaker's account");
@@ -395,8 +395,8 @@ test('the same shared ID from the OTHER school reaches the other family, symmetr
 test('more than one school on the install requires a school_id', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '904511' });
-    seedSchoolRoster(env._raw, { school: 'Southside High', course: 'Geometry', extId: '904512' });
+    await seedSchoolRoster(env, { school: 'Northside High', course: 'Algebra I', extId: '904511' });
+    await seedSchoolRoster(env, { school: 'Southside High', course: 'Geometry', extId: '904512' });
 
     const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'x@example.com' });
     assert.equal(res.status, 400);
@@ -410,8 +410,8 @@ test('a student enrolled in two courses at one school resolves to one identity',
   // concern. The old "refuse if more than one roster row" guard is gone.
   const { env, sent, restore } = mailEnv();
   try {
-    const a = seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '555555', first: 'Sam', last: 'Kim' });
-    seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Trigonometry', extId: '555555', first: 'Sam', last: 'Kim' });
+    const a = await seedSchoolRoster(env, { school: 'Northside High', course: 'Algebra I', extId: '555555', last: 'Kim' });
+    await seedSchoolRoster(env, { school: 'Northside High', course: 'Trigonometry', extId: '555555', last: 'Kim' });
 
     // No identity yet -- the student hasn't registered.
     const res = await post(env, { student_ext_id: '555555', last: 'Kim', email: 'x@example.com', school_id: a.schoolId });
@@ -433,7 +433,7 @@ test('a single-school install still resolves a roster row behind an unowned lega
   const { env, sent, restore } = mailEnv();
   try {
     assert.equal(env._raw.prepare('SELECT COUNT(DISTINCT school_id) AS n FROM teachers').get().n, 0);
-    seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    await seedStudent(env, { parentEmail: 'family@example.com' });
     await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
     const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', email: 'family@example.com' });

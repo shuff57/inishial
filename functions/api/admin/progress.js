@@ -10,6 +10,7 @@
 
 import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, ownedCourse, csvResponse, csvRow } from '../../_lib/http.js';
 import { attestationKey, attestedBlocks, blocksOf, promptKeys } from '../../_lib/syllabus.js';
+import { open } from '../../_lib/vault.js';
 
 const STATUS = {
   not_registered: 'Not registered',
@@ -89,7 +90,7 @@ export async function onRequestGet({ request, env }) {
   }
 
   const { results } = await env.DB.prepare(
-    `SELECT r.student_ext_id, r.first, r.last, r.period,
+    `SELECT r.student_ext_id, r.last_enc, r.period,
             a.id AS account_id, si.username,
             COALESCE(si.parent_email, r.parent_email) AS email,
             CASE WHEN si.code_hash IS NOT NULL THEN 1 ELSE 0 END AS code_issued,
@@ -100,7 +101,8 @@ export async function onRequestGet({ request, env }) {
        LEFT JOIN accounts a ON a.roster_id = r.id
        LEFT JOIN student_identities si ON si.id = a.identity_id
       WHERE r.course_id = ?1 AND r.status = 'active'
-      ORDER BY r.period, r.last, r.first`,
+      -- Sorted by surname after decryption, below: ciphertext does not sort.
+      ORDER BY r.period, r.student_ext_id`,
   ).bind(courseId).all();
 
   // Every signature in the class, once, and the tallying done here rather than
@@ -132,7 +134,10 @@ export async function onRequestGet({ request, env }) {
     lastAt.set(s.account_id, Math.max(lastAt.get(s.account_id) ?? 0, s.signed_at));
   }
 
-  const students = (results ?? []).map((r) => {
+  // Async because each row's surname has to be decrypted (migration 0017).
+  // Promise.all rather than a sequential loop: the vault key is cached per
+  // isolate, so these are AES calls on already-derived key material.
+  const students = await Promise.all((results ?? []).map(async (r) => {
     const mine = satisfied.get(r.account_id);
     const parentSigned = mine?.parent.size ?? 0;
     const studentSigned = mine?.student.size ?? 0;
@@ -150,7 +155,7 @@ export async function onRequestGet({ request, env }) {
     else status = 'not_started';
 
     return {
-      student: `${r.last}, ${r.first}`,
+      student: (await open(env, r.last_enc)) || `(ID ${r.student_ext_id})`,
       student_ext_id: r.student_ext_id,
       period: r.period,
       username: r.username,
@@ -165,7 +170,12 @@ export async function onRequestGet({ request, env }) {
       status,
       status_label: STATUS[status],
     };
-  });
+  }));
+
+  // The alphabetical order the SQL gave up when the surname became ciphertext.
+  students.sort((a, b) =>
+    String(a.period).localeCompare(String(b.period))
+    || a.student.localeCompare(b.student));
 
   const counts = students.reduce((acc, s) => ({ ...acc, [s.status]: (acc[s.status] ?? 0) + 1 }), {});
 

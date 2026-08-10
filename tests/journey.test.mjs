@@ -32,10 +32,10 @@ const BLOCKS = [
 ];
 
 /** A school with one course, one roster row, and a published syllabus. */
-function school(env) {
-  const seat = seedSchoolRoster(env._raw, {
+async function school(env) {
+  const seat = await seedSchoolRoster(env, {
     school: 'Northside High', course: 'Algebra I',
-    extId: '904511', first: 'Maria', last: 'Alvarez', period: '3',
+    extId: '904511', last: 'Alvarez', period: '3',
     parentEmail: 'family@example.com',
   });
   const syllabus = seedSyllabus(env._raw, seat.courseId, BLOCKS);
@@ -62,7 +62,7 @@ const out = (env, cookie) => signOut({
 
 test('JOURNEY: a student signs up, reads, initials, signs out, and comes back', async () => {
   const env = freshEnv();
-  const seat = school(env);
+  const seat = await school(env);
 
   // --- 1. First day of class. School, last name, student ID: identification,
   //        and the only time any of it is asked for.
@@ -76,7 +76,7 @@ test('JOURNEY: a student signs up, reads, initials, signs out, and comes back', 
   // code will ever appear.
   assert.equal(reg.username, `904511@s${seat.schoolId}`);
   assert.match(reg.student_code, /^[2-9A-HJ-NP-Z]{8}$/);
-  assert.equal(reg.student, 'Maria Alvarez');
+  assert.equal(reg.student, 'Alvarez', 'surname only -- given names are not stored');
   // Nothing about the family leaks onto a screen in a classroom.
   assert.ok(!JSON.stringify(reg).includes('family@example.com'));
 
@@ -132,7 +132,7 @@ test('JOURNEY: a student signs up, reads, initials, signs out, and comes back', 
 
 test('JOURNEY: a parent is emailed their credentials, signs, and signs out', async () => {
   const env = freshEnv({ MAIL_DRY_RUN: '1', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
-  const seat = school(env);
+  const seat = await school(env);
 
   // --- 1. The student has to exist before there is anything to mail.
   const early = await post(env, 'requestCode', {
@@ -179,7 +179,7 @@ test('JOURNEY: a parent is emailed their credentials, signs, and signs out', asy
   // --- 5. Read and initial both sections.
   const doc = await (await view(env, cookie)).json();
   assert.equal(doc.role, 'parent');
-  assert.equal(doc.student, 'Maria Alvarez');
+  assert.equal(doc.student, 'Alvarez');
   for (const b of doc.blocks.filter((x) => x.needs_initials)) {
     assert.equal((await initial(env, cookie, b.id, 'JA')).status, 201);
   }
@@ -205,7 +205,7 @@ test('JOURNEY: the two attestations stay independent on one account', async () =
   // own side, so "the parent agreed" and "the student agreed" never collapse
   // into one signature made twice by whoever was sitting there.
   const env = freshEnv({ MAIL_DRY_RUN: '1', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
-  const seat = school(env);
+  const seat = await school(env);
 
   const reg = await (await post(env, 'register', {
     school_id: seat.schoolId, student_ext_id: '904511', last: 'Alvarez',

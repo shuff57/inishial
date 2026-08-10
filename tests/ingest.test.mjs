@@ -34,7 +34,8 @@ test('a comma file is still read as comma-separated', () => {
 
 test('a semicolon export is handled', () => {
   const { rows } = parseRoster('Student ID;Last Name;First Name\n1;Lee;Ann\n');
-  assert.deepEqual([rows[0].student_ext_id, rows[0].last, rows[0].first], ['1', 'Lee', 'Ann']);
+  assert.deepEqual([rows[0].student_ext_id, rows[0].last], ['1', 'Lee']);
+  assert.equal(rows[0].first, undefined, 'given names are parsed but never returned');
 });
 
 test('a comma inside a quoted name does not fool tab detection', () => {
@@ -42,8 +43,10 @@ test('a comma inside a quoted name does not fool tab detection', () => {
   assert.equal(detectDelimiter(pasted), '\t',
     'separators inside quotes must not be counted');
   const { rows } = parseRoster(pasted);
+  // The given name still has to be PARSED -- it is how "Doyle, Robert" is
+  // split -- it just does not survive into the row that gets stored.
   assert.equal(rows[0].last, 'Doyle');
-  assert.equal(rows[0].first, 'Robert');
+  assert.equal(rows[0].first, undefined);
 });
 
 test('a single-column file falls back to comma rather than throwing', () => {
@@ -78,7 +81,7 @@ test('preview names the students an import would drop', async () => {
 
   const plan = await (await upload(env, 'Student ID,Last Name,First Name,Period\n1,Lee,Ann,3\n', '&preview=1')).json();
   assert.equal(plan.would_drop, 1);
-  assert.deepEqual(plan.would_drop_students, ['Ray, Bob (2)']);
+  assert.deepEqual(plan.would_drop_students, ['Ray (2)']);
   assert.equal(plan.updates, 1);
 
   assert.equal(env._raw.prepare("SELECT COUNT(*) AS n FROM roster WHERE status = 'dropped'").get().n, 0,
@@ -125,7 +128,7 @@ test('preview reports the delimiter it used', async () => {
 
 test('preview counts an existing student as an update, not an insert', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { extId: '1', first: 'Ann', last: 'Lee', period: '3' });
+  await seedStudent(env, { extId: '1', last: 'Lee', period: '3' });
 
   const plan = await (await upload(env, 'Student ID,Last Name,First Name,Period\n1,Lee,Ann,3\n', '&preview=1')).json();
   assert.equal(plan.updates, 1);
@@ -158,7 +161,7 @@ test('a multi-word course name does not confuse the drop scope', async () => {
   await upload2('Student ID,Last Name,First Name,Period\n1,Lee,Ann,3\n2,Ray,Bob,3\n');
   const plan = await (await upload2('Student ID,Last Name,First Name,Period\n1,Lee,Ann,3\n', '&preview=1')).json();
   assert.equal(plan.would_drop, 1);
-  assert.deepEqual(plan.would_drop_students, ['Ray, Bob (2)']);
+  assert.deepEqual(plan.would_drop_students, ['Ray (2)']);
 
   const applied = await (await upload2('Student ID,Last Name,First Name,Period\n1,Lee,Ann,3\n')).json();
   assert.equal(applied.dropped, 1);

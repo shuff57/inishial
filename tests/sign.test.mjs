@@ -23,7 +23,7 @@ const BLOCKS = [
 
 async function setup({ published = true } = {}) {
   const env = freshEnv();
-  const { courseId, rosterId, extId } = seedStudent(env._raw);
+  const { courseId, rosterId, extId } = await seedStudent(env);
   const { accountId, identityId, code, studentCode } = await seedAccount(env._raw, rosterId);
   const seeded = seedSyllabus(env._raw, courseId, BLOCKS, { published });
   return { env, courseId, accountId, identityId, extId, code, studentCode, ...seeded };
@@ -298,7 +298,7 @@ test('the syllabus comes back in order with progress', async () => {
   const body = await res.json();
 
   assert.equal(res.status, 200);
-  assert.equal(body.student, 'Maria Alvarez');
+  assert.equal(body.student, 'Alvarez');
   assert.equal(body.blocks.length, 5);
   assert.deepEqual(body.blocks.map((b) => b.type), ['heading', 'text', 'initial', 'heading', 'initial']);
   assert.deepEqual(body.progress, { signed: 0, required: 2 });
@@ -506,7 +506,7 @@ test('completing every required section reports complete', async () => {
 
 test('a block from another class is not reachable', async () => {
   const { env, cookie } = await signedIn();
-  const other = seedStudent(env._raw, { course: 'Geometry', extId: '777', last: 'Chen', first: 'Kevin' });
+  const other = await seedStudent(env, { course: 'Geometry', extId: '777', last: 'Chen', first: 'Kevin' });
   const otherSyllabus = seedSyllabus(env._raw, other.courseId, BLOCKS, { title: 'Geometry Syllabus' });
 
   const res = await initial(env, cookie, { block_id: otherSyllabus.blockIds[2], initials: 'MRA' });
@@ -522,7 +522,7 @@ test('a section that does not ask for initials refuses them', async () => {
 
 test('initials must look like initials', async () => {
   const { env, cookie, blockIds } = await signedIn();
-  for (const bad of ['', '   ', '1234', 'Maria Alvarez', '<script>', 'ABCDEFGH']) {
+  for (const bad of ['', '   ', '1234', 'Alvarez', '<script>', 'ABCDEFGH']) {
     const res = await initial(env, cookie, { block_id: blockIds[2], initials: bad });
     assert.equal(res.status, 400, `expected "${bad}" to be refused`);
   }
@@ -554,7 +554,7 @@ test('a student ID shared by two schools resolves by username, not by luck', asy
   // lets both students register at all (migrations/0013).
   const ctx = await setup();
   const { seedSchoolRoster } = await import('./helpers.mjs');
-  const other = seedSchoolRoster(ctx.env._raw, {
+  const other = await seedSchoolRoster(ctx.env, {
     school: 'Southside High', course: 'Geometry', extId: ctx.extId, first: 'Other', last: 'Person',
     parentEmail: 'other-family@example.com',
   });
@@ -567,11 +567,11 @@ test('a student ID shared by two schools resolves by username, not by luck', asy
 
   const mine = await doLogin(ctx.env, { username: PARENT_USER, code: ctx.code });
   assert.equal(mine.status, 200);
-  assert.equal((await mine.json()).student, 'Maria Alvarez', 'my username, my student');
+  assert.equal((await mine.json()).student, 'Alvarez', 'my username, my student');
 
   const theirs = await doLogin(ctx.env, { username: theirSeed.parentUsername, code: 'OTHR2345' });
   assert.equal(theirs.status, 200);
-  assert.equal((await theirs.json()).student, 'Other Person', 'their username, their student');
+  assert.equal((await theirs.json()).student, 'Person', 'their username, their student');
 
   // And a code cannot be used across the two identities that share the ID.
   const crossed = await doLogin(ctx.env, { username: PARENT_USER, code: 'OTHR2345' });
@@ -585,7 +585,7 @@ test('a tampered block id from another course resolves to 404, never to another 
   const cookie = cookieFrom(await doLogin(env, { code }));
 
   // Create a second course with its own syllabus, but no account for this identity.
-  const other = seedStudent(env._raw, { course: 'Geometry', extId: '777', last: 'Chen', first: 'Kevin' });
+  const other = await seedStudent(env, { course: 'Geometry', extId: '777', last: 'Chen', first: 'Kevin' });
   const otherSyllabus = seedSyllabus(env._raw, other.courseId, BLOCKS, { title: 'Geometry Syllabus' });
 
   const res = await initial(env, cookie, { block_id: otherSyllabus.blockIds[2], initials: 'MRA' });
@@ -598,7 +598,7 @@ test('a tampered course id resolves to 404, never to another identity\'s account
   const cookie = cookieFrom(await doLogin(env, { code }));
 
   // Create a second course with a different student who has an account.
-  const other = seedStudent(env._raw, { course: 'Geometry', extId: '777', last: 'Chen', first: 'Kevin' });
+  const other = await seedStudent(env, { course: 'Geometry', extId: '777', last: 'Chen', first: 'Kevin' });
   await seedAccount(env._raw, other.rosterId, { username: 'kchen@chicousd.org' });
   seedSyllabus(env._raw, other.courseId, BLOCKS, { title: 'Geometry Syllabus' });
 
@@ -611,8 +611,8 @@ test('a tampered course id resolves to 404, never to another identity\'s account
 
 test('the class switcher appears when an identity has more than one account', async () => {
   const env = freshEnv();
-  const { courseId: c1, rosterId: r1 } = seedStudent(env._raw, { course: 'Algebra I', parentEmail: 'family@example.com' });
-  const { courseId: c2, rosterId: r2 } = seedStudent(env._raw, { course: 'Geometry', extId: '904512', first: 'Maria', last: 'Alvarez', parentEmail: 'family@example.com' });
+  const { courseId: c1, rosterId: r1 } = await seedStudent(env, { course: 'Algebra I', parentEmail: 'family@example.com' });
+  const { courseId: c2, rosterId: r2 } = await seedStudent(env, { course: 'Geometry', extId: '904512', last: 'Alvarez', parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, c1, BLOCKS);
   seedSyllabus(env._raw, c2, BLOCKS, { title: 'Geometry Syllabus' });
 
@@ -642,8 +642,8 @@ test('the class switcher appears when an identity has more than one account', as
 
 test('the class switcher defaults to the course with unsigned sections remaining', async () => {
   const env = freshEnv();
-  const { courseId: c1, rosterId: r1 } = seedStudent(env._raw, { course: 'Algebra I', parentEmail: 'family@example.com' });
-  const { courseId: c2, rosterId: r2 } = seedStudent(env._raw, { course: 'Geometry', extId: '904512', first: 'Maria', last: 'Alvarez', parentEmail: 'family@example.com' });
+  const { courseId: c1, rosterId: r1 } = await seedStudent(env, { course: 'Algebra I', parentEmail: 'family@example.com' });
+  const { courseId: c2, rosterId: r2 } = await seedStudent(env, { course: 'Geometry', extId: '904512', last: 'Alvarez', parentEmail: 'family@example.com' });
   const s1 = seedSyllabus(env._raw, c1, BLOCKS);
   seedSyllabus(env._raw, c2, BLOCKS, { title: 'Geometry Syllabus' });
 

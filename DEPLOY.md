@@ -115,14 +115,39 @@ retired shared password is refused rather than left to expire.
 Two things this does NOT cover, stated plainly because it would be easy to read
 the above as more than it is:
 
-- **Direct database access.** Anyone who can query D1 reads everything, and no
-  amount of in-app authorisation changes that. Names, student IDs and parent
-  addresses are stored in the clear; only access codes and passwords are hashed,
-  and the codes are additionally sealed under `CODE_SECRET` so the teacher can
-  read them back — which means whoever holds the database AND that secret can
-  read every code. Encrypting the PII columns would not close this either: the
-  Worker must decrypt to display, so the key has to be reachable from the same
-  account that can read the database.
+- **Direct database access.** Anyone who can query D1 reads a great deal, and no
+  amount of in-app authorisation changes that. What a dump does and does not
+  give up, since migration 0017:
+
+  | column | in a dump | why |
+  |---|---|---|
+  | given name | **absent** | not stored at all — it was only ever displayed |
+  | surname | sealed + keyed digest | must be matchable at registration |
+  | student ID | **clear** | registration looks the row up by it |
+  | parent email | **clear** | the code email is addressed with no teacher present |
+  | access codes, passwords | hashed (codes also sealed) | as before |
+
+  Read the surname row honestly. Sealing it defends a COPY of the database — a
+  stray export, an old backup — from someone who does not also hold
+  `CODE_SECRET`. It does **not** defend against whoever runs the deployment,
+  who holds both; and surnames come from a small guess space, so confirming a
+  guessed one costs a single HMAC. `tests/name-privacy.test.mjs` pins that
+  limit deliberately rather than leaving it implied.
+
+  The floor underneath all of it is self-service registration. A student types
+  a surname and a student ID while nobody is signed in, and the server has to
+  match on both — so the server holds the key, so the operator does. The only
+  way past it is to stop students signing themselves up and have the teacher
+  hand out codes; everything could then be sealed under a key derived from the
+  teacher's password, and a dump would be unreadable. That trade was considered
+  and not taken.
+
+  **Upgrading a database that already has rosters:** 0017 adds `last_enc` and
+  `last_idx`, then drops `first` and `last`. It cannot backfill — SQL cannot
+  encrypt — so rows predating it keep a NULL digest and will not match at
+  registration. **Re-import each roster CSV after migrating.** When this shipped
+  the only production rows were five synthetic demo students, so nothing real
+  needed preserving.
 - **`adoptUnownedCourses`.** The first teacher to sign up (or any address in
   `ADMIN_EMAILS`) absorbs every course with no owner. That is how legacy classes
   find a home, but it does mean the first account can end up owning a class

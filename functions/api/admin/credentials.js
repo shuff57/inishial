@@ -21,7 +21,7 @@ import {
   csvResponse, csvRow, json,
 } from '../../_lib/http.js';
 import { generateCode, hashCode } from '../../_lib/codes.js';
-import { sealCode, openCode, vaultReady } from '../../_lib/vault.js';
+import { sealCode, openCode, open, vaultReady } from '../../_lib/vault.js';
 
 // Same deliberately-permissive shape as registration uses. Strict RFC-5322
 // validation rejects addresses that work; the real check is whether the mail
@@ -65,12 +65,16 @@ export async function onRequestGet({ request, env }) {
               WHEN r.parent_email IS NOT NULL THEN 'roster'
               ELSE 'missing'
             END AS email_source,
-            r.first, r.last, r.period, r.student_ext_id
+            r.last_enc, r.period, r.student_ext_id
        FROM roster r
        LEFT JOIN accounts a ON a.roster_id = r.id
        LEFT JOIN student_identities si ON si.id = a.identity_id
       WHERE r.course_id = ?1 AND r.status = 'active'
-      ORDER BY r.period, r.last, r.first`,
+      -- Alphabetical by surname is what a teacher wants and SQL can no longer
+      -- do it: the name is ciphertext, which sorts by its random IV. Ordered
+      -- by ID here to keep the result stable, then re-sorted below once the
+      -- names are open. Fine at roster scale, which is tens of rows.
+      ORDER BY r.period, r.student_ext_id`,
   ).bind(courseId).all();
 
   const nowSec = Math.floor(Date.now() / 1000);
@@ -113,7 +117,10 @@ export async function onRequestGet({ request, env }) {
   for (const row of results ?? []) {
     students.push({
       account_id: row.id,
-      student: `${row.last}, ${row.first}`,
+      // Surname only since migration 0017. A row whose name will not open is
+      // still listed -- the teacher needs the codes either way -- with the ID
+      // standing in for the name rather than an empty cell.
+      student: (await open(env, row.last_enc)) || `(ID ${row.student_ext_id})`,
       student_ext_id: row.student_ext_id,
       period: row.period ?? '',
       email: row.email ?? '',
@@ -130,6 +137,13 @@ export async function onRequestGet({ request, env }) {
       student_code: await settle(row, 'student'),
     });
   }
+
+  // The alphabetical order SQL gave up when the surname became ciphertext.
+  // Period first, so a teacher reading down a printed sheet still sees their
+  // classes in blocks rather than one interleaved list.
+  students.sort((a, b) =>
+    String(a.period).localeCompare(String(b.period))
+    || a.student.localeCompare(b.student));
 
   if (wantsJson) {
     return json({
@@ -201,7 +215,7 @@ export async function onRequestPatch({ request, env }) {
   // caller supplies -- otherwise a teacher could name their own course while
   // pointing at somebody else's student.
   const row = await env.DB.prepare(
-    `SELECT a.identity_id, r.course_id, r.first, r.last
+    `SELECT a.identity_id, r.course_id, r.last_enc
        FROM accounts a
        JOIN roster r ON r.id = a.roster_id
       WHERE a.id = ?1`,
@@ -231,7 +245,7 @@ export async function onRequestPatch({ request, env }) {
 
   return json({
     ok: true,
-    student: `${row.last}, ${row.first}`,
+    student: (await open(env, row.last_enc)) || '',
     email: after?.email ?? '',
     email_source: after?.email_source ?? 'missing',
   });

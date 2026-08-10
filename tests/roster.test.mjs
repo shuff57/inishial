@@ -17,6 +17,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { freshEnv, ADMIN_HEADERS as ADMIN } from './helpers.mjs';
 import { onRequestPost, onRequestGet } from '../functions/api/admin/roster.js';
+import { open, blindIndex } from '../functions/_lib/vault.js';
 
 function upload(csv, { course = 'Algebra I', headers = ADMIN } = {}) {
   return new Request(`https://x/api/admin/roster?course=${encodeURIComponent(course)}`, {
@@ -113,9 +114,12 @@ test('a name change in the SIS updates in place rather than duplicating', async 
   assert.equal(body.inserted, 0);
   assert.equal(body.updated, 1);
   assert.equal(body.dropped, 0);
-  const rows = env._raw.prepare("SELECT last FROM roster WHERE student_ext_id = '1'").all();
+  const rows = env._raw.prepare("SELECT last_enc, last_idx FROM roster WHERE student_ext_id = '1'").all();
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].last, 'Lee-Novak');
+  assert.equal(await open(env, rows[0].last_enc), 'Lee-Novak', 'the sealed name follows the change');
+  // The digest has to move with it, or the student keeps matching under their
+  // old surname and stops matching under the new one.
+  assert.equal(rows[0].last_idx, await blindIndex(env, 'Lee-Novak', '1'));
 });
 
 test('a Course column splits one file across courses', async () => {

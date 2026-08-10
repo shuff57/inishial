@@ -68,6 +68,58 @@ async function keyFor(secret) {
 
 export const vaultReady = (env) => typeof env?.CODE_SECRET === 'string' && env.CODE_SECRET.length >= 16;
 
+// --- Blind index -------------------------------------------------------
+//
+// Student surnames are sealed like codes, which would make them unmatchable:
+// registration has to find a roster row from a name typed by someone who is not
+// signed in, and AES-GCM ciphertext differs every time it is written. So the
+// surname is ALSO stored as a keyed digest, and matching compares digests.
+//
+// Keyed, not a plain hash, and that is the whole point. Surnames come from a
+// space of maybe a hundred thousand candidates, so an unkeyed digest of one is
+// a dictionary attack with no key to steal -- a leaked database would give up
+// every name in it. HMAC under CODE_SECRET means a stolen copy of the database
+// is not enough on its own.
+//
+// Read the limit honestly: this defends the DATABASE, not against whoever runs
+// the deployment. Anyone holding both the data and CODE_SECRET can confirm a
+// guessed surname, and the guess space is small. See DEPLOY.md 5a.
+const indexKeyCache = new Map();
+
+async function indexKeyFor(secret) {
+  if (indexKeyCache.has(secret)) return indexKeyCache.get(secret);
+  const material = await crypto.subtle.importKey('raw', enc.encode(secret), 'PBKDF2', false, ['deriveKey']);
+  // A DIFFERENT salt from the encryption key above: one secret, two purposes,
+  // and the same bytes should never be both an AES key and a MAC key.
+  const key = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode('inishial/blind-index/v1'), iterations: ITERATIONS, hash: 'SHA-256' },
+    material,
+    { name: 'HMAC', hash: 'SHA-256', length: 256 },
+    false,
+    ['sign'],
+  );
+  indexKeyCache.set(secret, key);
+  return key;
+}
+
+/**
+ * Lookup digest for a surname, scoped to a school so the same name in two
+ * schools does not share a digest. Returns null with no secret configured;
+ * callers treat that as "cannot match" rather than falling back to plaintext.
+ */
+export async function blindIndex(env, text, scope) {
+  if (!vaultReady(env)) return null;
+  const key = await indexKeyFor(env.CODE_SECRET);
+  // Normalised the same way on write and on read, or the digests never meet.
+  const value = `${scope}|${String(text ?? '').trim().toLowerCase()}`;
+  const mac = await crypto.subtle.sign('HMAC', key, enc.encode(value));
+  return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Seal/open any short string, not just a code. Same key, same format. */
+export const seal = (env, text) => sealCode(env, text);
+export const open = (env, sealed) => openCode(env, sealed);
+
 /**
  * Encrypt a code for storage. Returns null when no secret is configured, which
  * the callers store as NULL -- an account with a hash and no ciphertext is one

@@ -35,7 +35,7 @@
 
 import { json, badRequest, serverMisconfigured, readJson } from '../../_lib/http.js';
 import { generateCode, hashCode } from '../../_lib/codes.js';
-import { sealCode, openCode } from '../../_lib/vault.js';
+import { sealCode, openCode, open, blindIndex } from '../../_lib/vault.js';
 import { hit, clientIp } from '../../_lib/ratelimit.js';
 import { sendAccessCode } from '../../_lib/mail.js';
 import { resolveSchoolScope, SCHOOL_SCOPE_JOIN } from '../../_lib/schoolScope.js';
@@ -106,16 +106,20 @@ export async function onRequestPost({ request, env }) {
     }
   }
 
-  // Roster lookup, scoped by school and matched by last name.
+  // Roster lookup, scoped by school and matched on the surname DIGEST -- the
+  // same construction /api/register uses, and it has to stay the same or a
+  // family would register through one door and be refused at the other. See
+  // migration 0017.
+  const lastIdx = await blindIndex(env, last, studentExtId);
   const { results: rosterRows = [] } = await env.DB.prepare(
-    `SELECT r.id, r.first, r.last, r.parent_email AS roster_email
+    `SELECT r.id, r.last_enc, r.parent_email AS roster_email
        FROM roster r
        JOIN courses c ON c.id = r.course_id
        ${SCHOOL_SCOPE_JOIN}
-      WHERE r.student_ext_id = ?1 AND lower(r.last) = lower(?2)
+      WHERE r.student_ext_id = ?1 AND r.last_idx = ?2
         AND r.status = 'active'
         AND (?3 IS NULL OR sc.id = ?3)`,
-  ).bind(studentExtId, last, scope.schoolIdFilter).all();
+  ).bind(studentExtId, lastIdx, scope.schoolIdFilter).all();
 
   if (rosterRows.length === 0) return badRequest(NO_STUDENT);
   const rosterRow = rosterRows[0];
@@ -199,7 +203,12 @@ export async function onRequestPost({ request, env }) {
   // Both usernames go too. Sign-in takes a username and a code, so a code on
   // its own is half a credential -- and the student's username is the half
   // they are most likely to have lost, since they saw it once on a screen.
-  const studentName = `${rosterRow.first} ${rosterRow.last}`;
+  // Surname only. The given name is gone from the database (migration 0017),
+  // and this is the one place a student's name leaves the app entirely -- an
+  // email sits in an inbox and gets forwarded, so it is worth sending less.
+  // The parent typed this surname to get here; it identifies the child to the
+  // person who already knows which child they asked about.
+  const studentName = (await open(env, rosterRow.last_enc)) || last;
   const sent = await sendAccessCode(env, email, studentName, {
     parentCode: code,
     studentCode,

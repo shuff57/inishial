@@ -47,7 +47,7 @@ test('no secret means no vault, and nothing crashes', async () => {
 
 test('the codes page shows a code the teacher can read back later', async () => {
   const env = withSecret();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
 
   // Registering mints the student's code...
   const reg = await (await register({
@@ -85,7 +85,7 @@ test('the codes page shows a code the teacher can read back later', async () => 
 
 test('a code from before the vault reports itself unreadable rather than blank', async () => {
   const env = withSecret();
-  const { rosterId } = seedStudent(env._raw);
+  const { rosterId } = await seedStudent(env);
   // Hash but no ciphertext: exactly what an account issued before this looks like.
   const extId = env._raw.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(rosterId).student_ext_id;
   const identityId = Number(env._raw.prepare(
@@ -109,8 +109,8 @@ test('a code from before the vault reports itself unreadable rather than blank',
 
 test('reissuing one student leaves the rest of the class alone', async () => {
   const env = withSecret();
-  seedStudent(env._raw, { extId: '904511', last: 'Alvarez' });
-  seedStudent(env._raw, { extId: '904512', last: 'Chen', first: 'Kevin', course: 'Algebra I' });
+  await seedStudent(env, { extId: '904511', last: 'Alvarez' });
+  await seedStudent(env, { extId: '904512', last: 'Chen', course: 'Algebra I' });
   for (const [roster, name] of [[1, 'a@chicousd.org'], [2, 'b@chicousd.org']]) {
     const extId = env._raw.prepare('SELECT student_ext_id FROM roster WHERE id = ?').get(roster).student_ext_id;
     const identityId = Number(env._raw.prepare(

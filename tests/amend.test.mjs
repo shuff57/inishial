@@ -32,7 +32,7 @@ const amended = () => BLOCKS.map((b) => (b.html === LATE ? { ...b, html: '<p>Lat
 
 async function setup() {
   const env = freshEnv();
-  const { courseId, rosterId, extId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { courseId, rosterId, extId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   const { accountId, code } = await seedAccount(env._raw, rosterId);
   const v1 = seedSyllabus(env._raw, courseId, BLOCKS);
   return { env, courseId, accountId, extId, code, v1 };
@@ -123,7 +123,7 @@ test('two prompts in one section are not satisfied by initialing one of them', a
   // tell them apart -- the key carries the prompt's own sentence for exactly
   // this case. Without it, initialing one filled in the other.
   const env = freshEnv();
-  const { courseId, rosterId, extId } = seedStudent(env._raw);
+  const { courseId, rosterId, extId } = await seedStudent(env);
   const { code } = await seedAccount(env._raw, rosterId);
   seedSyllabus(env._raw, courseId, [
     { type: 'heading', html: '<h2>Policies</h2>' },
@@ -170,7 +170,7 @@ test('an agree block is not reported as a changed section', async () => {
   // "section" is whatever heading opens the syllabus. Still re-initialed;
   // just not something that changed.
   const env = freshEnv();
-  const { courseId, rosterId } = seedStudent(env._raw);
+  const { courseId, rosterId } = await seedStudent(env);
   await seedAccount(env._raw, rosterId);
   const WITH_AGREE = [...BLOCKS, { type: 'agree', html: 'I have read this syllabus in full.', needs_initials: true }];
   seedSyllabus(env._raw, courseId, WITH_AGREE);

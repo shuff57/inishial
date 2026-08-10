@@ -15,6 +15,7 @@
 import { json, unauthorized, serverMisconfigured } from '../../_lib/http.js';
 import { currentSigner } from '../../_lib/session.js';
 import { attestedByAccount, promptKeys } from '../../_lib/syllabus.js';
+import { open } from '../../_lib/vault.js';
 
 export async function onRequestGet({ request, env }) {
   if (!env.DB) return serverMisconfigured('the DB binding');
@@ -70,7 +71,7 @@ export async function onRequestGet({ request, env }) {
   }
 
   const version = await env.DB.prepare(
-    `SELECT v.id, v.num, v.published_at, s.title, c.name AS course, r.first, r.last, r.period
+    `SELECT v.id, v.num, v.published_at, s.title, c.name AS course, r.last_enc, r.period
        FROM accounts  a
        JOIN roster    r ON r.id = a.roster_id
        JOIN courses   c ON c.id = r.course_id
@@ -115,7 +116,7 @@ export async function onRequestGet({ request, env }) {
 
   const response = {
     role: claims.role,
-    student: `${version.first} ${version.last}`,
+    student: (await open(env, version.last_enc)) || null,
     period: version.period,
     course: version.course,
     course_id: courseId,

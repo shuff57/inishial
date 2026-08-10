@@ -17,11 +17,19 @@
 
 import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, ownerFilter } from '../../_lib/http.js';
 import { parseRoster } from '../../_lib/csv.js';
+import { seal, open, blindIndex, vaultReady } from '../../_lib/vault.js';
 
 export async function onRequestPost({ request, env }) {
   const admin = await requireAdmin(request, env);
   if (!admin) return unauthorized();
   if (!env.DB) return serverMisconfigured('the DB binding');
+
+  // Fails CLOSED, unlike the access-code vault, and for the opposite reason.
+  // A missing secret there costs a teacher the ability to re-read a code; here
+  // it would mean writing surnames the app cannot match on -- rows that look
+  // imported and then refuse every student who tries to register against them.
+  // Refusing the upload is recoverable; a silently unusable roster is not.
+  if (!vaultReady(env)) return serverMisconfigured('CODE_SECRET, which student names are sealed with');
 
   const url = new URL(request.url);
   const fallbackCourse = (url.searchParams.get('course') || '').trim();
@@ -47,7 +55,7 @@ export async function onRequestPost({ request, env }) {
   // part worth seeing before it happens, so the count is surfaced up front
   // rather than reported after the fact.
   if (url.searchParams.get('preview') === '1') {
-    return json(await previewPlan(env.DB, rows, fallbackCourse, admin, { skipped, warnings, delimiter }));
+    return json(await previewPlan(env.DB, rows, fallbackCourse, admin, { skipped, warnings, delimiter, env }));
   }
 
   const nowSec = Math.floor(Date.now() / 1000);
@@ -98,13 +106,20 @@ export async function onRequestPost({ request, env }) {
 
   for (const row of rows) {
     const cid = await courseId(row.course || fallbackCourse);
+    // Sealed for display, digested for matching. The digest is scoped by
+    // student ID so the same surname in two classes does not share one value;
+    // the ID is not a secret, it is a domain separator. Registration recomputes
+    // this from what the student types, so the normalisation inside blindIndex
+    // is the contract between the two.
+    const lastEnc = await seal(env, row.last);
+    const lastIdx = await blindIndex(env, row.last, row.student_ext_id);
     await env.DB.prepare(
-      `INSERT INTO roster (course_id, period, student_ext_id, first, last, parent_email, status, last_seen_import)
+      `INSERT INTO roster (course_id, period, student_ext_id, last_enc, last_idx, parent_email, status, last_seen_import)
        VALUES (?1, ?2, ?3, ?4, ?5, ?7, 'active', ?6)
        ON CONFLICT(course_id, student_ext_id) DO UPDATE SET
          period           = excluded.period,
-         first            = excluded.first,
-         last             = excluded.last,
+         last_enc         = excluded.last_enc,
+         last_idx         = excluded.last_idx,
          last_seen_import = excluded.last_seen_import,
          -- Keep the address already on file when a later export omits it,
          -- rather than blanking a contact that was working.
@@ -113,7 +128,7 @@ export async function onRequestPost({ request, env }) {
          -- signatures come with them.
          status           = 'active',
          dropped_at       = NULL`,
-    ).bind(cid, row.period, row.student_ext_id, row.first, row.last, importId, row.parent_email).run();
+    ).bind(cid, row.period, row.student_ext_id, lastEnc, lastIdx, importId, row.parent_email).run();
     // Key is opaque; the values below are what the drop sweep actually uses.
     scopes.set(JSON.stringify([cid, row.period ?? null]), { cid, period: row.period });
   }
@@ -188,11 +203,16 @@ async function previewPlan(db, rows, fallbackCourse, admin, extra) {
   for (const { courseId, period, present } of scopes.values()) {
     if (!courseId) continue;
     const { results } = await db.prepare(
-      `SELECT student_ext_id, first, last FROM roster
+      `SELECT student_ext_id, last_enc FROM roster
         WHERE course_id = ?1 AND (period IS ?2 OR period = ?2) AND status = 'active'`,
     ).bind(courseId, period).all();
     for (const r of results ?? []) {
-      if (!present.has(r.student_ext_id)) wouldDrop.push(`${r.last}, ${r.first} (${r.student_ext_id})`);
+      if (present.has(r.student_ext_id)) continue;
+      // Falls back to the ID alone when the name will not open -- a preview of
+      // who is about to be dropped is too important to blank out over a row
+      // sealed under a rotated secret.
+      const name = await open(extra.env, r.last_enc);
+      wouldDrop.push(name ? `${name} (${r.student_ext_id})` : r.student_ext_id);
     }
   }
 

@@ -33,7 +33,7 @@ const forStudent = (email) => ({ student_ext_id: '904511', last: 'Alvarez', emai
 test('with no address on file anywhere, no mail goes and nothing is written', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: null });
+    await seedStudent(env, { parentEmail: null });
     await register({ request: jsonRequest('https://x/api/register', { student_ext_id: '904511', last: 'Alvarez' }), env });
 
     const res = await ask(env, forStudent('whoever@example.com'));
@@ -52,7 +52,7 @@ test('a first request can no longer claim the family contact', async () => {
   // the address for good.
   const { env, sent, restore } = mailEnv();
   try {
-    seedStudent(env._raw, { parentEmail: null });
+    await seedStudent(env, { parentEmail: null });
     await register({ request: jsonRequest('https://x/api/register', { student_ext_id: '904511', last: 'Alvarez' }), env });
 
     await ask(env, forStudent('stranger@example.com'));
@@ -70,7 +70,7 @@ test('a teacher can clear an override and the roster address applies again', asy
   try {
     // The state a typo used to leave behind: an override nobody can shift,
     // with the correct address sitting on the roster being ignored.
-    const { rosterId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+    const { rosterId } = await seedStudent(env, { parentEmail: 'family@example.com' });
     const { accountId } = await seedAccount(env._raw, rosterId, { parentEmail: 'parnet@gmial.com' });
 
     assert.equal((await ask(env, forStudent('family@example.com'))).status, 400,
@@ -93,7 +93,7 @@ test('a teacher can clear an override and the roster address applies again', asy
 test('a teacher can set an address for a student who has none', async () => {
   const { env, sent, restore } = mailEnv();
   try {
-    const { rosterId } = seedStudent(env._raw, { parentEmail: null });
+    const { rosterId } = await seedStudent(env, { parentEmail: null });
     const { accountId } = await seedAccount(env._raw, rosterId, { parentEmail: null });
 
     assert.equal((await ask(env, forStudent('mum@example.com'))).status, 400, 'nothing on file yet');
@@ -110,7 +110,7 @@ test('a teacher can set an address for a student who has none', async () => {
 
 test('the address the teacher sets is the only one accepted', async () => {
   const env = freshEnv({ CODE_SECRET: 'test-code-secret-at-least-16-chars' });
-  const { rosterId } = seedStudent(env._raw, { parentEmail: null });
+  const { rosterId } = await seedStudent(env, { parentEmail: null });
   const { accountId } = await seedAccount(env._raw, rosterId, { parentEmail: null });
   await setEmail(env, { account_id: accountId, parent_email: 'mum@example.com' });
 
@@ -121,7 +121,7 @@ test('the address the teacher sets is the only one accepted', async () => {
 
 test('a malformed address is refused', async () => {
   const env = freshEnv();
-  const { rosterId } = seedStudent(env._raw, { parentEmail: null });
+  const { rosterId } = await seedStudent(env, { parentEmail: null });
   const { accountId } = await seedAccount(env._raw, rosterId, { parentEmail: null });
   const res = await setEmail(env, { account_id: accountId, parent_email: 'not-an-email' });
   assert.equal(res.status, 400);
@@ -131,10 +131,10 @@ test('a malformed address is refused', async () => {
 
 test('a teacher cannot touch another teacher\'s student', async () => {
   const env = freshEnv();
-  const mine = seedSchoolRoster(env._raw, {
+  const mine = await seedSchoolRoster(env, {
     school: 'Northside High', course: 'Algebra I', extId: '111111', first: 'A', last: 'One',
   });
-  const theirs = seedSchoolRoster(env._raw, {
+  const theirs = await seedSchoolRoster(env, {
     school: 'Southside High', course: 'Geometry', extId: '222222', first: 'B', last: 'Two',
   });
   const seat = await seedAccount(env._raw, theirs.rosterId, { parentEmail: 'their.family@example.com' });
@@ -157,7 +157,7 @@ test('a teacher cannot touch another teacher\'s student', async () => {
 
 test('signing in is required at all', async () => {
   const env = freshEnv();
-  const { rosterId } = seedStudent(env._raw, { parentEmail: null });
+  const { rosterId } = await seedStudent(env, { parentEmail: null });
   const { accountId } = await seedAccount(env._raw, rosterId, { parentEmail: null });
   const res = await patchEmail({
     request: jsonRequest('https://x/api/admin/credentials', { account_id: accountId, parent_email: 'x@example.com' }),
@@ -168,7 +168,7 @@ test('signing in is required at all', async () => {
 
 test('the codes page shows the change', async () => {
   const env = freshEnv({ CODE_SECRET: 'test-code-secret-at-least-16-chars' });
-  const { rosterId, courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { rosterId, courseId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   const { accountId } = await seedAccount(env._raw, rosterId, { parentEmail: 'typo@example.com' });
 
   await setEmail(env, { account_id: accountId, parent_email: '' });

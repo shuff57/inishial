@@ -19,7 +19,7 @@ const post = (env, body) => register({ request: jsonRequest('https://x/api/regis
 
 test('registration succeeds without an email when the roster has one', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   const body = await res.json();
@@ -36,7 +36,7 @@ test('registration succeeds without an email when the roster has one', async () 
 
 test('a student never sees a parent email address, in any form', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'jennifer.alvarez@example.com' });
+  await seedStudent(env, { parentEmail: 'jennifer.alvarez@example.com' });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   const text = await res.text();
@@ -57,7 +57,7 @@ test('a student never sees a parent email address, in any form', async () => {
 
 test('the username is auto-generated from the student ID', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: null });
+  await seedStudent(env, { parentEmail: null });
 
   const ok = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   assert.equal(ok.status, 201);
@@ -66,7 +66,7 @@ test('the username is auto-generated from the student ID', async () => {
 
 test('the address a student supplies is not echoed back either', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: null });
+  await seedStudent(env, { parentEmail: null });
 
   const res = await post(env, {
     student_ext_id: '904511', last: 'Alvarez', parent_email: 'mom@example.com',
@@ -76,7 +76,7 @@ test('the address a student supplies is not echoed back either', async () => {
 
 test('a student-supplied address overrides the roster one', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'old@example.com' });
+  await seedStudent(env, { parentEmail: 'old@example.com' });
 
   await post(env, { student_ext_id: '904511', last: 'Alvarez', parent_email: 'New@Example.com' });
   assert.equal(env._raw.prepare('SELECT si.parent_email FROM student_identities si JOIN accounts a ON a.identity_id = si.id').get().parent_email, 'New@Example.com');
@@ -89,7 +89,7 @@ test('a student-supplied address overrides the roster one', async () => {
 
 test('the roster address is used and labelled when the student adds nothing', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
   await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   const csv = await (await credentials({
@@ -100,7 +100,7 @@ test('the roster address is used and labelled when the student adds nothing', as
 
 test('a student with no contact anywhere is flagged, not blocked', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: null });
+  await seedStudent(env, { parentEmail: null });
 
   const body = await (await post(env, { student_ext_id: '904511', last: 'Alvarez' })).json();
   assert.match(body.message, /no parent email on file/);
@@ -113,7 +113,7 @@ test('a student with no contact anywhere is flagged, not blocked', async () => {
 
 test('a malformed address is refused rather than silently dropped', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', parent_email: 'not-an-email' });
   assert.equal(res.status, 400);
 });
@@ -128,7 +128,7 @@ const BLOCKS = [
 
 test('registering issues a student session, so the syllabus is reachable at once', async () => {
   const env = freshEnv();
-  const { courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { courseId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
@@ -143,7 +143,7 @@ test('registering issues a student session, so the syllabus is reachable at once
 
 test('a registration session cannot sign as the parent', async () => {
   const env = freshEnv();
-  const { courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { courseId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
   const cookie = cookieFrom(await post(env, { student_ext_id: '904511', last: 'Alvarez' }));
@@ -157,7 +157,7 @@ test('a registration session cannot sign as the parent', async () => {
 
 test('student and parent initials land on the same student, counted apart', async () => {
   const env = freshEnv();
-  const { courseId, rosterId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { courseId, rosterId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
   // The student registers and initials both sections themselves.
@@ -200,7 +200,7 @@ test('student and parent initials land on the same student, counted apart', asyn
 
 test('a student who already registered is sent to /sign/, not signed in', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
   await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
@@ -214,7 +214,7 @@ test('a student who already registered is sent to /sign/, not signed in', async 
 
 test('deleting the re-entry path strands nobody: the work is still reachable', async () => {
   const env = freshEnv();
-  const { courseId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { courseId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   seedSyllabus(env._raw, courseId, BLOCKS);
 
   const firstRes = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
@@ -243,7 +243,7 @@ test('deleting the re-entry path strands nobody: the work is still reachable', a
 
 test('re-entry does not create a second account or change the first', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
 
   await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   await post(env, { student_ext_id: '904511', last: 'Alvarez' });
@@ -255,7 +255,7 @@ test('re-entry does not create a second account or change the first', async () =
 
 test('a wrong last name is refused even once the account exists', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
   await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Wrong' });
@@ -265,7 +265,7 @@ test('a wrong last name is refused even once the account exists', async () => {
 
 test('re-entry does not reset the rate limiter', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
   await post(env, { student_ext_id: '904511', last: 'Alvarez' });
 
   // Holding one valid ID and last name must not buy an attacker a fresh budget
@@ -282,7 +282,7 @@ test('re-entry does not reset the rate limiter', async () => {
 
 test('no student-reachable endpoint ever returns an access code', async () => {
   const env = freshEnv();
-  const { rosterId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { rosterId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   const { code } = await seedAccount(env._raw, rosterId, { code: 'ZZZZ9999' });
 
   const responses = [
@@ -299,7 +299,7 @@ test('no student-reachable endpoint ever returns an access code', async () => {
 
 test('the credential export is the only place a plaintext code appears', async () => {
   const env = freshEnv();
-  const { rosterId } = seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  const { rosterId } = await seedStudent(env, { parentEmail: 'family@example.com' });
   await seedAccount(env._raw, rosterId, { code: 'ZZZZ9999' });
 
   const csv = await (await credentials({
@@ -324,7 +324,7 @@ test('the credential export is the only place a plaintext code appears', async (
 
 test('registering mints the student their own code, and it signs them in', async () => {
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
 
   const body = await (await post(env, {
     student_ext_id: '904511', last: 'Alvarez',
@@ -426,7 +426,7 @@ test('an ID and a last name never open an existing account', async () => {
   // of fields that opens one here any more -- signing in only happens at
   // /api/sign/login, which wants the access code.
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
   const reg = await (await post(env, {
     student_ext_id: '904511', last: 'Alvarez',
   })).json();
@@ -452,10 +452,10 @@ test('a shared student ID with a matching last name across two schools resolves 
   const env = freshEnv();
   // Two unrelated students happen to share both an ID and a last name across
   // two schools -- the coincidence that makes this endpoint's bug reachable.
-  const reyes = seedSchoolRoster(env._raw, {
+  const reyes = await seedSchoolRoster(env, {
     school: 'Northside High', course: 'Algebra I', extId: '123456', first: 'Ana', last: 'Reyes',
   });
-  const other = seedSchoolRoster(env._raw, {
+  const other = await seedSchoolRoster(env, {
     school: 'Southside High', course: 'Geometry', extId: '123456', first: 'Amelia', last: 'Reyes',
   });
 
@@ -464,7 +464,7 @@ test('a shared student ID with a matching last name across two schools resolves 
   });
   const body = await res.json();
   assert.equal(res.status, 201);
-  assert.equal(body.student, 'Amelia Reyes', 'the Southside student, not the Northside one');
+  assert.equal(body.student, 'Reyes', 'the Southside student, not the Northside one');
 
   // Exactly one account, tied to the Southside roster row.
   const accounts = env._raw.prepare('SELECT roster_id FROM accounts').all();
@@ -480,10 +480,10 @@ test('both students behind a shared ID number can register, and each signs in as
   // another student" -- about an address they never typed, with no way past it
   // ever. The school id in the username is what makes both reachable.
   const env = freshEnv();
-  const north = seedSchoolRoster(env._raw, {
+  const north = await seedSchoolRoster(env, {
     school: 'Northside High', course: 'Algebra I', extId: '123456', first: 'Ana', last: 'Reyes',
   });
-  const south = seedSchoolRoster(env._raw, {
+  const south = await seedSchoolRoster(env, {
     school: 'Southside High', course: 'Geometry', extId: '123456', first: 'Amelia', last: 'Reyes',
   });
 
@@ -502,7 +502,7 @@ test('both students behind a shared ID number can register, and each signs in as
   const mine = await login({ request: jsonRequest('https://x/api/sign/login',
     { username: ana.username, code: ana.student_code }), env });
   assert.equal(mine.status, 200);
-  assert.equal((await mine.json()).student, 'Ana Reyes');
+  assert.equal((await mine.json()).student, 'Reyes');
 
   const crossed = await login({ request: jsonRequest('https://x/api/sign/login',
     { username: amelia.username, code: ana.student_code }), env });
@@ -514,12 +514,12 @@ test('a second enrolment shows no access code, because there is no new one', asy
   // down" here: an identity that already exists is not issued a fresh code, and
   // the response said so with a null the page rendered as text.
   const env = freshEnv();
-  const a = seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '555555', first: 'Sam', last: 'Kim' });
+  const a = await seedSchoolRoster(env, { school: 'Northside High', course: 'Algebra I', extId: '555555', last: 'Kim' });
   const firstReg = await (await post(env, { student_ext_id: '555555', last: 'Kim', school_id: a.schoolId })).json();
   assert.match(firstReg.student_code, /^[2-9A-HJ-NP-Z]{8}$/);
 
   // Enrolled in a second class after registering, then back through the form.
-  seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Geometry', extId: '555555', first: 'Sam', last: 'Kim' });
+  await seedSchoolRoster(env, { school: 'Northside High', course: 'Geometry', extId: '555555', last: 'Kim' });
   const again = await post(env, { student_ext_id: '555555', last: 'Kim', school_id: a.schoolId });
   const body = await again.json();
 
@@ -544,7 +544,7 @@ test('a school that is not the roster row\'s is refused, not silently used', asy
   // it would then look up school 1, find no identity, and tell the family
   // their student had never registered.
   const env = freshEnv();
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });   // unowned course -> school 1
+  await seedStudent(env, { parentEmail: 'family@example.com' });   // unowned course -> school 1
   const other = Number(env._raw.prepare("INSERT INTO schools (name) VALUES ('Somewhere Else')").run().lastInsertRowid);
 
   const wrong = await post(env, { student_ext_id: '904511', last: 'Alvarez', school_id: other });
@@ -573,10 +573,10 @@ test('a student on an unowned course can still register once a second school exi
   // sign-up that triggered it -- so it has to be impossible, not documented.
   const env = freshEnv();
   // Two schools in use -> resolveSchoolScope starts scoping for everyone.
-  seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '111111', last: 'One' });
-  seedSchoolRoster(env._raw, { school: 'Southside High', course: 'Geometry', extId: '222222', last: 'Two' });
+  await seedSchoolRoster(env, { school: 'Northside High', course: 'Algebra I', extId: '111111', last: 'One' });
+  await seedSchoolRoster(env, { school: 'Southside High', course: 'Geometry', extId: '222222', last: 'Two' });
   // ...and a class that predates teacher accounts, so nobody owns it.
-  seedStudent(env._raw, { course: 'Legacy Science', extId: '904511', last: 'Alvarez' });
+  await seedStudent(env, { course: 'Legacy Science', extId: '904511', last: 'Alvarez' });
 
   assert.equal((await post(env, { student_ext_id: '904511', last: 'Alvarez' })).status, 400,
     'scoping is on, so a school must be given');
@@ -590,10 +590,10 @@ test('scoping still keeps two schools apart', async () => {
   // The fallback above must not become a skeleton key: a student at one school
   // still cannot register by naming another.
   const env = freshEnv();
-  const north = seedSchoolRoster(env._raw, {
+  const north = await seedSchoolRoster(env, {
     school: 'Northside High', course: 'Algebra I', extId: '123456', first: 'Ana', last: 'Reyes',
   });
-  const south = seedSchoolRoster(env._raw, {
+  const south = await seedSchoolRoster(env, {
     school: 'Southside High', course: 'Geometry', extId: '123456', first: 'Amelia', last: 'Reyes',
   });
 
@@ -602,14 +602,14 @@ test('scoping still keeps two schools apart', async () => {
 
   const mine = await post(env, { student_ext_id: '123456', last: 'Reyes', school_id: north.schoolId });
   assert.equal(mine.status, 201);
-  assert.equal((await mine.json()).student, 'Ana Reyes', 'the school picked is the student you get');
+  assert.equal((await mine.json()).student, 'Reyes', 'the school picked is the student you get');
   void south;
 });
 
 test('more than one school on the install requires a school_id', async () => {
   const env = freshEnv();
-  seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '904511', last: 'Alvarez' });
-  seedSchoolRoster(env._raw, { school: 'Southside High', course: 'Geometry', extId: '904512', last: 'Ortiz' });
+  await seedSchoolRoster(env, { school: 'Northside High', course: 'Algebra I', extId: '904511', last: 'Alvarez' });
+  await seedSchoolRoster(env, { school: 'Southside High', course: 'Geometry', extId: '904512', last: 'Ortiz' });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   assert.equal(res.status, 400);
@@ -620,13 +620,13 @@ test('a student enrolled in two courses at one school registers once and gets ac
   // The multi-class fix: a student with two active roster rows at one school
   // registers once and gets accounts for BOTH, sharing one identity_id.
   const env = freshEnv();
-  const a = seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '555555', first: 'Sam', last: 'Kim' });
-  seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Trigonometry', extId: '555555', first: 'Sam', last: 'Kim' });
+  const a = await seedSchoolRoster(env, { school: 'Northside High', course: 'Algebra I', extId: '555555', last: 'Kim' });
+  await seedSchoolRoster(env, { school: 'Northside High', course: 'Trigonometry', extId: '555555', last: 'Kim' });
 
   const res = await post(env, { student_ext_id: '555555', last: 'Kim', school_id: a.schoolId });
   const body = await res.json();
   assert.equal(res.status, 201);
-  assert.equal(body.student, 'Sam Kim');
+  assert.equal(body.student, 'Kim');
 
   // Both roster rows now have accounts sharing one identity_id.
   const accounts = env._raw.prepare('SELECT a.id, a.identity_id, a.roster_id FROM accounts a ORDER BY a.id').all();
@@ -643,7 +643,7 @@ test('a single-school install still registers a student behind an unowned legacy
   // -- every existing install is in this shape until a second school joins.
   const env = freshEnv();
   assert.equal(env._raw.prepare('SELECT COUNT(DISTINCT school_id) AS n FROM teachers').get().n, 0);
-  seedStudent(env._raw, { parentEmail: 'family@example.com' });
+  await seedStudent(env, { parentEmail: 'family@example.com' });
 
   const res = await post(env, { student_ext_id: '904511', last: 'Alvarez' });
   assert.equal(res.status, 201);

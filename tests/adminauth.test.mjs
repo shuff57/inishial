@@ -181,7 +181,7 @@ test('no credential at all is refused', async () => {
 
 test('a parent session is not an admin session', async () => {
   const env = await adminEnv();
-  const { rosterId } = seedStudent(env._raw);
+  const { rosterId } = await seedStudent(env);
   const { code } = await seedAccount(env._raw, rosterId);
 
   const cookie = cookieFrom(await signLogin({
@@ -243,7 +243,7 @@ test('ordinary values are untouched by the formula guard', async () => {
 test('a hostile student name cannot inject a formula into the credentials CSV', async () => {
   const env = await adminEnv();
   const { seedSyllabus } = await import('./helpers.mjs');
-  const { rosterId, courseId } = seedStudent(env._raw, { last: '=HYPERLINK("http://evil","Click")' });
+  const { rosterId, courseId } = await seedStudent(env, { last: '=HYPERLINK("http://evil","Click")' });
   await seedAccount(env._raw, rosterId);
   seedSyllabus(env._raw, courseId, [{ type: 'initial', html: 'I agree.', needs_initials: true }]);
 
@@ -276,7 +276,7 @@ async function teacherWithAClass(env, email = 'someone.else@school.edu') {
   const id = env._raw.prepare('SELECT id FROM teachers WHERE email = ?').get(email).id;
   const courseId = Number(env._raw.prepare('INSERT INTO courses (name, created_at, owner_id) VALUES (?,?,?)')
     .run('Their Biology', 1000, id).lastInsertRowid);
-  const { rosterId } = seedStudent(env._raw, { course: 'Their Biology', extId: '777777', last: 'Private' });
+  const { rosterId } = await seedStudent(env, { course: 'Their Biology', extId: '777777', last: 'Private' });
   env._raw.prepare('UPDATE roster SET course_id = ? WHERE id = ?').run(courseId, rosterId);
   return { id, courseId };
 }
