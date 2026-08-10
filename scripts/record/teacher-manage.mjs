@@ -48,12 +48,21 @@ writeFileSync(rosterFull, header + studentU + studentV + studentW);
 writeFileSync(rosterWithoutW, header + studentU + studentV);
 
 // ---- sign in (not a step of its own -- every clip below needs it done) --
+// Signing UP, not in: there is no shared admin password any more, and the
+// seeded database has no teacher in it. teacher@school.edu is the dev server's
+// ADMIN_EMAILS, so this first account adopts the seeded classes -- which are
+// imported without an owner and would otherwise be invisible to it, leaving
+// every clip below pointed at an empty page.
 await rec.scratch(async (page) => {
   await page.goto(server.base + '/');
-  await page.evaluate(() => fetch('/api/admin/login', {
+  await page.evaluate(() => fetch('/api/admin/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password: 'localdev' }),
+    body: JSON.stringify({
+      email: 'teacher@school.edu',
+      password: 'a recorder password',
+      school: 'Northside High',
+    }),
   }));
 });
 

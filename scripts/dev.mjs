@@ -428,10 +428,16 @@ const demoLines = (demo.added
 ).join('\n');
 
 // No shared admin password any more -- the credential was retired, so there is
-// nothing to seed here. Locally the admin side is reachable regardless: every
-// /api/admin/* request below is stamped with an Access identity, which is the
-// dev-only shortcut called out at the top of this file. To exercise a real
-// teacher account instead, sign one up at /admin/signup/.
+// nothing to seed here.
+//
+// Sign a teacher up at /admin/signup/ to reach the admin side. Use
+// teacher@school.edu (this file's ADMIN_EMAILS) and that first account adopts
+// the seeded classes, which are imported without an owner; any other address
+// signs in fine but starts with nothing to look at.
+//
+// DEV_FAKE_ACCESS=1 stamps a Cloudflare Access identity on /admin/* instead,
+// for exercising that gate. It is OFF by default, so the local run uses the
+// same credential production does.
 
 createServer(async (req, res) => {
   const path = req.url.split('?')[0];

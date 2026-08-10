@@ -20,6 +20,12 @@ import { startServer, open, tap, type, point, beat, park, reveal, writeSteps } f
 const PORT = 8803;
 const DB = '.dev-teacher-setup.sqlite';
 
+// The teacher this walkthrough is. Matches the dev server's ADMIN_EMAILS so the
+// account adopts the seeded, ownerless classes -- see the sign-up in the
+// scratch step below.
+const TEACHER_EMAIL = 'teacher@school.edu';
+const TEACHER_PASSWORD = 'a recorder password';
+
 // Resolved BY NAME from this recorder's own database, not hardcoded.
 //
 // They were 1 and 2, "confirmed against a running server rather than assumed"
@@ -171,13 +177,28 @@ await rec.scratch(async (page) => {
   // what a teacher who never opens Settings actually sees.
   await page.goto(server.base + '/');
   if (AI_MODEL) await page.evaluate((m) => localStorage.setItem('inishial:ollama-model', m), AI_MODEL);
+
+  // The account the whole walkthrough runs as. There is no shared admin
+  // password any more, and the seeded database has no teacher in it, so one has
+  // to exist before there is anything to sign in TO. teacher@school.edu is the
+  // dev server's ADMIN_EMAILS, so this first account adopts the seeded classes
+  // -- imported without an owner, and otherwise invisible to it.
+  await page.evaluate(([email, password]) => fetch('/api/admin/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, school: 'Northside High' }),
+  }), [TEACHER_EMAIL, TEACHER_PASSWORD]);
 });
 
 // ---- 1. sign in ----
 await rec.clip('signin', async (page) => {
+  // Signed in already by the sign-up above, so the cookie goes first -- the
+  // clip is meant to show someone arriving, not a form nobody needed.
+  await page.context().clearCookies();
   await page.goto(server.base + '/admin/login/');
   await beat(page, 900);
-  await type(page, '#password', 'localdev');
+  await type(page, '#email', TEACHER_EMAIL);
+  await type(page, '#password', TEACHER_PASSWORD);
   await tap(page, '#submit', { after: 900 });
   await beat(page, 700);
 });
