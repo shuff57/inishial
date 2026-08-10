@@ -43,6 +43,32 @@ const USING = [
 let session = null;
 let sessionInFlight = null;
 
+// ---- what the dry run is allowed to say ----
+//
+// MAIL_DRY_RUN exists so the flow can be walked without a mail server, and it
+// used to print the whole message's worth of secrets to do it: a parent's real
+// address, their access code, the student's code, and for a reset the link with
+// its live token in the query string. That is the one place this app writes PII
+// and working credentials into a log, and a log is read by whoever can see the
+// deployment -- which is the reading this masking is meant to close.
+//
+// Masked by default. `MAIL_DRY_RUN=verbose` prints everything, for the one case
+// that needs it: testing the flow locally, where you have to be able to type
+// the code the mail would have carried.
+//
+// Production sets no MAIL_DRY_RUN at all, so neither branch runs there. The
+// branch that matters is a PREVIEW deployment, which inherits the top-level
+// [vars] in wrangler.toml -- and that does set it.
+const HIDDEN = '(codes hidden — MAIL_DRY_RUN=verbose to show)';
+const loud = (env) => String(env.MAIL_DRY_RUN ?? '').toLowerCase() === 'verbose';
+
+/** j•••@example.com -- enough to tell which inbox, not enough to harvest. */
+function maskEmail(email) {
+  const [local, domain] = String(email ?? '').split('@');
+  if (!local || !domain) return '•••';
+  return `${local[0]}${'•'.repeat(Math.min(local.length - 1, 3))}@${domain}`;
+}
+
 function fail(code, message) {
   const err = new Error(message);
   err.code = code;
@@ -187,7 +213,9 @@ export async function sendPasswordReset(env, toEmail, token, minutes) {
     // The token is a credential: it is the whole content of the link. Logged
     // in dry-run because that is a local console with no mail server, and it
     // is the only way to exercise the flow without one.
-    dryRunLog: () => console.log('[mail:dry-run] reset to=%s url=%s', toEmail, url),
+    dryRunLog: () => (loud(env)
+      ? console.log('[mail:dry-run] reset to=%s url=%s', toEmail, url)
+      : console.log('[mail:dry-run] reset to=%s %s', maskEmail(toEmail), HIDDEN)),
   });
 }
 
@@ -294,10 +322,12 @@ export async function sendAccessCode(env, toEmail, studentName, creds) {
     subject: SUBJECT,
     text: textBody(studentName, signUrl(env), creds),
     html: htmlBody(studentName, signUrl(env), creds),
-    dryRunLog: () => console.log(
-      '[mail:dry-run] to=%s student=%s parentUser=%s code=%s studentUser=%s studentCode=%s',
-      toEmail, studentName, creds.parentUsername || '(none)', creds.parentCode,
-      creds.studentUsername || '(none)', creds.studentCode || '(none)'),
+    dryRunLog: () => (loud(env)
+      ? console.log('[mail:dry-run] to=%s student=%s parentUser=%s code=%s studentUser=%s studentCode=%s',
+        toEmail, studentName, creds.parentUsername || '(none)', creds.parentCode,
+        creds.studentUsername || '(none)', creds.studentCode || '(none)')
+      : console.log('[mail:dry-run] to=%s user=%s %s',
+        maskEmail(toEmail), creds.parentUsername || '(none)', HIDDEN)),
   });
 }
 

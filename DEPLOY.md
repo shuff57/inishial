@@ -55,9 +55,17 @@ npx wrangler pages deploy public --project-name inishial
 
 ### 5. Lock down admin — do this before uploading a real roster
 
-`/api/admin/*` fails closed today: without Cloudflare Access there is no
-identity header, so every admin request returns 401. That means the app is safe
-on deploy but the admin routes are also unusable until Access is configured.
+`requireAdmin` accepts EITHER of two independent credentials, so the admin side
+is reachable without Access:
+
+- a signed-up teacher's email + password (`/admin/signup/`, `/admin/login/`)
+- the shared `ADMIN_PASSWORD_HASH`
+
+It used to be true that admin "fails closed without Access" — that was written
+before teacher accounts existed and is no longer the case. Access is a second
+gate in front of those, not the only one. Configure it when you want the admin
+side unreachable to anyone who has not already passed an identity check at the
+edge, which is worth doing before a real roster is uploaded.
 
 1. **Zero Trust → Access → Applications → Add an application → Self-hosted**
 2. Domain: your Pages domain. Path: `/api/admin`
@@ -70,6 +78,41 @@ Then narrow it in code as well, so a loose Access policy is not the only gate:
 npx wrangler pages secret put ADMIN_EMAILS --project-name inishial
 # or set it as a plain var in wrangler.toml — it is not secret
 ```
+
+### 5a. What the operator can and cannot see
+
+Running this app does not make you able to read other people's students, and
+that is enforced rather than promised. Both operator credentials — the shared
+`ADMIN_PASSWORD_HASH` and a Cloudflare Access identity — resolve to
+`teacherId: null`, and `owns()` in `_lib/http.js` reads that as **unowned
+courses only**, never "everything":
+
+```js
+admin.teacherId == null ? ownerId == null : ownerId === admin.teacherId
+```
+
+So a course belonging to a signed-up teacher is invisible to both. Asking for
+one answers "No such course" — the same words as a course that does not exist,
+so the boundary cannot be used to enumerate what other teachers have.
+`tests/adminauth.test.mjs` pins all three cases (shared password, Access
+identity, and a teacher reaching for a colleague's class).
+
+Two things this does NOT cover, stated plainly because it would be easy to read
+the above as more than it is:
+
+- **Direct database access.** Anyone who can query D1 reads everything, and no
+  amount of in-app authorisation changes that. Names, student IDs and parent
+  addresses are stored in the clear; only access codes and passwords are hashed,
+  and the codes are additionally sealed under `CODE_SECRET` so the teacher can
+  read them back — which means whoever holds the database AND that secret can
+  read every code. Encrypting the PII columns would not close this either: the
+  Worker must decrypt to display, so the key has to be reachable from the same
+  account that can read the database.
+- **`adoptUnownedCourses`.** The first teacher to sign up (or any address in
+  `ADMIN_EMAILS`) absorbs every course with no owner. That is how legacy classes
+  find a home, but it does mean the first account can end up owning a class
+  somebody else imported under the shared password. Set `ADMIN_EMAILS` before
+  anyone else signs up.
 
 ### 5b. Who can sign themselves up
 

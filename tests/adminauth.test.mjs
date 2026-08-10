@@ -11,6 +11,7 @@ import { onRequestPost as adminLogin, onRequestDelete as adminLogout } from '../
 import { onRequestPost as signup } from '../functions/api/admin/signup.js';
 import { onRequestGet as rosterSummary } from '../functions/api/admin/roster.js';
 import { onRequestGet as progress } from '../functions/api/admin/progress.js';
+import { onRequestGet as credentials } from '../functions/api/admin/credentials.js';
 import { onRequestPost as signLogin } from '../functions/api/sign/login.js';
 import { onRequestGet as parentView } from '../functions/api/sign/syllabus.js';
 import { signSession } from '../functions/_lib/session.js';
@@ -231,4 +232,70 @@ test('a hostile student name cannot inject a formula into the credentials CSV', 
 
   assert.ok(!/(^|,)=HYPERLINK/m.test(csv), 'a live formula reached the spreadsheet');
   assert.match(csv, /"'=HYPERLINK/);
+});
+
+// ---- the operator is not above the boundary ----
+//
+// Stated requirement: whoever runs this app must not be able to read another
+// teacher's students through it. The two credentials the operator holds are the
+// shared ADMIN_PASSWORD_HASH and a Cloudflare Access identity, and both resolve
+// to teacherId null -- which owns() reads as "unowned courses only", NOT as
+// "everything". These pin that, because the difference is one `==` in owns()
+// and the failure would be silent and total.
+
+async function teacherWithAClass(env, email = 'someone.else@school.edu') {
+  await signup({
+    request: jsonRequest('https://x/api/admin/signup',
+      { email, password: 'correct horse battery', school: 'Southside High' }), env,
+  });
+  const id = env._raw.prepare('SELECT id FROM teachers WHERE email = ?').get(email).id;
+  const courseId = Number(env._raw.prepare('INSERT INTO courses (name, created_at, owner_id) VALUES (?,?,?)')
+    .run('Their Biology', 1000, id).lastInsertRowid);
+  const { rosterId } = seedStudent(env._raw, { course: 'Their Biology', extId: '777777', last: 'Private' });
+  env._raw.prepare('UPDATE roster SET course_id = ? WHERE id = ?').run(courseId, rosterId);
+  return { id, courseId };
+}
+
+const codesFor = (env, courseId, headers) => credentials({
+  request: new Request(`https://x/api/admin/credentials?course_id=${courseId}&format=json`, { headers }),
+  env,
+});
+
+test('the shared admin password cannot read another teacher\'s students', async () => {
+  const env = await adminEnv();
+  const theirs = await teacherWithAClass(env);
+  const cookie = cookieFrom(await login(env, PASSWORD));
+
+  const res = await codesFor(env, theirs.courseId, { Cookie: cookie });
+  assert.notEqual(res.status, 200, 'break-glass is not a skeleton key');
+  assert.match((await res.json()).error, /No such course/,
+    'and it does not distinguish "not yours" from "does not exist"');
+});
+
+test('a Cloudflare Access identity cannot read another teacher\'s students', async () => {
+  const env = await adminEnv();
+  const theirs = await teacherWithAClass(env);
+
+  const res = await codesFor(env, theirs.courseId, ADMIN_HEADERS);
+  assert.notEqual(res.status, 200, 'authenticating at the edge is not ownership');
+});
+
+test('a teacher reads their own class and no one else\'s', async () => {
+  const env = await adminEnv();
+  const theirs = await teacherWithAClass(env);
+  await signup({
+    request: jsonRequest('https://x/api/admin/signup',
+      { email: 'me@school.edu', password: 'a different long phrase', school: 'Northside High' }), env,
+  });
+  const mineId = env._raw.prepare("SELECT id FROM teachers WHERE email='me@school.edu'").get().id;
+  const mineCourse = Number(env._raw.prepare('INSERT INTO courses (name, created_at, owner_id) VALUES (?,?,?)')
+    .run('My Algebra', 1000, mineId).lastInsertRowid);
+
+  const cookie = cookieFrom(await adminLogin({
+    request: jsonRequest('https://x/api/admin/login',
+      { email: 'me@school.edu', password: 'a different long phrase' }), env,
+  }));
+
+  assert.equal((await codesFor(env, mineCourse, { Cookie: cookie })).status, 200, 'my own class');
+  assert.notEqual((await codesFor(env, theirs.courseId, { Cookie: cookie })).status, 200, 'never theirs');
 });
