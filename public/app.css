@@ -1042,7 +1042,15 @@ main :is(.flags, .filters, .tabs, .pages, .adders, .tools, .page-tools, .sec-too
    above is all wrappers, so a lone compact button -- a Reissue chip in a table
    row -- matched none of it and wore a torn strip. */
 main :is(button, .button).compact::before,
-main :is(button, .button).compact::after { content: none; }
+main :is(button, .button).compact::after,
+/* ...and a school result, for the same reason and by the same trick. A row in
+   the school picker is a button, so it wore a torn strip the width of the whole
+   dropdown -- name, town and badge under one piece of stationery, when the only
+   part that identifies a school is its name. The tape now sits behind the name
+   alone (.sr-name), and the row's own has to say no explicitly. Scored (0,2,2)
+   to match the rule it cancels; one line below it is what wins the tie. */
+main :is(button, .button).school-result::before,
+main :is(button, .button).school-result::after { content: none; }
 
 /* BMC's floating widget, pinned top-right and opened downward.
 
@@ -1352,15 +1360,53 @@ legend { font-weight: 600; font-size: 1.05rem; line-height: var(--rule); padding
   display: flex; flex-direction: column; gap: .35rem; margin: .4rem 0;
   max-height: 12rem; overflow-y: auto;
 }
+/* The row carries no box of its own. It used to be a filled, bordered block,
+   which put the emphasis on the whole line -- name, town and the "on this
+   install" badge alike -- when the only part that identifies a school is its
+   NAME. The tape goes behind that and nothing else; the rest of the row is
+   supporting text and reads as such. */
+/* Block, not flex. As a flex container the row blockified its children, so the
+   name stretched the full width and took the tape with it -- a strip the width
+   of the dropdown rather than the width of the school. Inline children flow on
+   one line and wrap on their own, and the tape hugs the words it is behind. */
 .school-result {
-  display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap;
-  text-align: left; width: 100%;
-  background: color-mix(in srgb, var(--paper) 92%, var(--ink));
-  border: 1px solid var(--ring); border-radius: var(--radius-sm);
-  padding: .4rem .6rem; font: inherit; color: var(--ink); cursor: pointer;
+  display: block; text-align: left; width: 100%;
+  background: none; border: 0; border-radius: var(--radius-sm);
+  padding: .3rem .2rem; font: inherit; color: var(--ink); cursor: pointer;
 }
-.school-result:hover { background: var(--sand); }
-.sr-name { font-weight: 600; }
+.school-result > * + * { margin-left: .6rem; }
+
+/* A torn strip behind the name, the same one .tape draws -- same colour, same
+   polygon, same slight rotation. Not the .tape class itself: that starts at
+   scaleX(0) and waits for .swiped to animate in, which suits a heading that
+   arrives once and is wrong for rows rebuilt on every keystroke. Here it is
+   simply there. */
+.sr-name {
+  font-weight: 600;
+  position: relative;
+  isolation: isolate;
+  display: inline-block;
+  transform: rotate(-.6deg);
+}
+.sr-name::before {
+  content: ''; position: absolute; z-index: -1;
+  inset: -.06em -.5em;
+  background: var(--tape);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .13);
+  clip-path: polygon(1.5% 6%, 98% 0%, 100% 94%, 2% 100%);
+}
+/* Hover and keyboard focus lift the strip rather than repainting the row, so
+   the thing that responds is the thing that would be chosen. */
+.school-result:hover .sr-name::before,
+.school-result:focus-visible .sr-name::before {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+}
+.school-result:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* The student and parent pickers' own list. The teacher page wraps its results
+   in a panel of its own (#schoolSearch); this is the same rows without that
+   chrome, sitting directly under the field on the ruled paper. */
+.school-list { display: flex; flex-direction: column; gap: .15rem; margin: .1rem 0 .35rem; }
 .sr-place { color: var(--ink-stone); font-size: .85rem; }
 .sr-already {
   font-size: .78rem; color: var(--tab-1);

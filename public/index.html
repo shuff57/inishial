@@ -148,9 +148,14 @@
            for those two and never for these. -->
       <label for="reg-school-name" id="reg-school-label" hidden>School
         <span class="hint">Start typing and pick yours from the list.</span></label>
-      <input id="reg-school-name" list="reg-school-list" type="text" autocomplete="off"
+      <input id="reg-school-name" type="text" autocomplete="off" role="combobox"
+             aria-expanded="false" aria-autocomplete="list" aria-controls="reg-school-list"
              spellcheck="false" placeholder="Start typing your school" hidden>
-      <datalist id="reg-school-list"></datalist>
+      <!-- Our own list rather than a native <datalist>: the results carry the
+           same torn-tape name the teacher picker uses, and a datalist renders
+           as whatever the browser feels like. Rows are buttons, so keyboard
+           and screen-reader users get the same list. -->
+      <div id="reg-school-list" class="school-list" role="listbox" aria-label="Matching schools" hidden></div>
       <input type="hidden" id="reg-school" name="school_id">
 
       <label for="reg-sid">Student ID number
@@ -237,9 +242,10 @@
     <form id="requestCodeForm" class="card plain" novalidate>
       <label for="rc-school-name" id="rc-school-label" hidden>School
         <span class="hint">Start typing and pick your student's school from the list.</span></label>
-      <input id="rc-school-name" list="rc-school-list" type="text" autocomplete="off"
+      <input id="rc-school-name" type="text" autocomplete="off" role="combobox"
+             aria-expanded="false" aria-autocomplete="list" aria-controls="rc-school-list"
              spellcheck="false" placeholder="Start typing the school" hidden>
-      <datalist id="rc-school-list"></datalist>
+      <div id="rc-school-list" class="school-list" role="listbox" aria-label="Matching schools" hidden></div>
       <input type="hidden" id="rc-school" name="school_id">
 
       <label for="rc-sid">Student ID number

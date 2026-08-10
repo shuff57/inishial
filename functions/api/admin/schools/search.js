@@ -160,8 +160,8 @@ export async function onRequestGet({ request, env }) {
       return {
         name: existing ? existing.name : name,
         existing_id: existing ? existing.id : null,
-        district: String(r.display_name).split(',').slice(2).find((p) => /county|district/i.test(p))?.trim() ?? '',
-        place: String(r.display_name).split(',').slice(1, 3).join(',').trim(),
+        district: districtOf(r),
+        place: placeOf(r),
       };
     })
     // Dedupe by name, keeping the first (which is also the one joined to an
@@ -169,6 +169,43 @@ export async function onRequestGet({ request, env }) {
     .filter((s, i, arr) => arr.findIndex((x) => x.name === s.name) === i);
 
   return json({ schools, attribution: ATTRIBUTION });
+}
+
+/**
+ * "Sacramento, CA" -- the one line that tells a teacher whether this is their
+ * school.
+ *
+ * It matters more than it looks now that the search is nationwide. The top hit
+ * for "Sacramento school" is Sacramento Elementary School in PORTLAND, OREGON
+ * -- a school named after the city rather than one in it. Without the place on
+ * the row, the two are indistinguishable and picking the wrong one attaches a
+ * teacher's classes to another state's school.
+ *
+ * OSM tags the settlement under whichever of these keys fits the place, so all
+ * of them are tried before giving up; `suburb` is last because it is a district
+ * WITHIN a city and only worth showing when nothing better exists.
+ *
+ * The state is the two-letter code from ISO3166-2-lvl4 ("US-CA" -> "CA"), which
+ * keeps the line short enough to sit under the name in a dropdown row.
+ */
+function placeOf(r) {
+  const a = r.address || {};
+  const city = a.city || a.town || a.village || a.hamlet || a.municipality || a.suburb || '';
+  const state = String(a['ISO3166-2-lvl4'] || '').split('-')[1] || a.state || '';
+  const line = [city, state].filter(Boolean).join(', ');
+  // No address details (an older response shape, or a result OSM has barely
+  // tagged): fall back to the display_name segments rather than showing an
+  // empty row.
+  return line || String(r.display_name ?? '').split(',').slice(1, 3).join(',').trim();
+}
+
+/** The county, which is how districts are named around here. Unused by the
+ *  picker today; kept accurate for whatever reads the endpoint next. */
+function districtOf(r) {
+  const a = r.address || {};
+  return a.county
+    || String(r.display_name ?? '').split(',').slice(2).find((p) => /county|district/i.test(p))?.trim()
+    || '';
 }
 
 /**
@@ -186,6 +223,12 @@ async function askNominatim(q) {
     limit: '6',
     countrycodes: COUNTRY,
     viewbox: VIEWBOX,          // a preference, not a fence -- see the constant
+    // Structured address fields, so the city and state a result sits in are
+    // read off named keys instead of guessed from display_name's comma
+    // positions. Those positions are not stable -- a school with a house
+    // number pushes every later segment along by one -- which is how "place"
+    // came to read "Y Street, Med Center" for a school in Sacramento.
+    addressdetails: '1',
     'accept-language': 'en',
   });
   let res;

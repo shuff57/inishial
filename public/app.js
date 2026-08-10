@@ -185,18 +185,36 @@ let schools = [];
  *  student's roster row regardless (api/register.js).
  */
 function resolveSchool(f) {
-  const typed = $(f.input).value.trim();
-  const q = typed.toLowerCase();
-  const options = $(f.list);
+  const q = $(f.input).value.trim().toLowerCase();
+  const list = $(f.list);
 
-  options.innerHTML = q.length < SCHOOL_MIN_CHARS ? '' : schools
-    .filter((s) => s.name.toLowerCase().includes(q))
-    .slice(0, SCHOOL_MAX_OPTIONS)
-    .map((s) => `<option value="${escAttr(s.name)}"></option>`)
-    .join('');
-
+  // Resolve first: the id is what the form submits, and it is set by an exact
+  // name whether that name was typed out or clicked from the list.
   const match = schools.find((s) => s.name.toLowerCase() === q);
   $(f.hidden).value = match ? match.id : '';
+
+  // Nothing to choose once the name is exact -- keeping the list open would
+  // cover the next field with one row repeating what is already in the box.
+  const hits = q.length < SCHOOL_MIN_CHARS || match
+    ? []
+    : schools.filter((s) => s.name.toLowerCase().includes(q)).slice(0, SCHOOL_MAX_OPTIONS);
+
+  list.innerHTML = hits
+    .map((s) => `<button type="button" class="school-result" role="option" data-id="${s.id}">`
+      + `<span class="sr-name">${escAttr(s.name)}</span></button>`)
+    .join('');
+  list.hidden = !hits.length;
+  $(f.input).setAttribute('aria-expanded', String(!!hits.length));
+}
+
+/** Take a row: fill the visible name, keep the id, put the list away. */
+function pickSchool(f, id) {
+  const school = schools.find((s) => String(s.id) === String(id));
+  if (!school) return;
+  $(f.input).value = school.name;
+  $(f.hidden).value = school.id;
+  $(f.list).hidden = true;
+  $(f.input).setAttribute('aria-expanded', 'false');
 }
 
 const escAttr = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -208,6 +226,35 @@ const schoolFieldOk = (f) => $(f.input).hidden || !!$(f.hidden).value;
 
 for (const f of SCHOOL_FIELDS) {
   $(f.input).addEventListener('input', () => resolveSchool(f));
+
+  // pointerdown, not click: a click on a row blurs the input first, and the
+  // blur handler below hides the list before the click can land on it.
+  $(f.list).addEventListener('pointerdown', (event) => {
+    const row = event.target.closest('[data-id]');
+    if (!row) return;
+    event.preventDefault();
+    pickSchool(f, row.dataset.id);
+  });
+
+  // Keyboard: the rows are real buttons, so Tab reaches them and Enter fires
+  // this. Escape puts the list away without choosing.
+  $(f.list).addEventListener('click', (event) => {
+    const row = event.target.closest('[data-id]');
+    if (row) pickSchool(f, row.dataset.id);
+  });
+  $(f.input).addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') { $(f.list).hidden = true; $(f.input).setAttribute('aria-expanded', 'false'); }
+  });
+
+  // Leaving the field entirely closes the list -- but not when focus moved
+  // INTO the list, or picking with the keyboard would never get the chance.
+  $(f.input).addEventListener('blur', () => {
+    setTimeout(() => {
+      if ($(f.list).contains(document.activeElement)) return;
+      $(f.list).hidden = true;
+      $(f.input).setAttribute('aria-expanded', 'false');
+    }, 120);
+  });
 }
 
 (async () => {

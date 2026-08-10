@@ -561,6 +561,51 @@ test('a school that is not the roster row\'s is refused, not silently used', asy
   assert.equal(env._raw.prepare('SELECT school_id FROM student_identities').get().school_id, 1);
 });
 
+test('a student on an unowned course can still register once a second school exists', async () => {
+  // The lockout this closes. School scoping switches on the moment a second
+  // school has a teacher, and it resolved a roster row's school through the
+  // course's OWNER -- which an unowned course does not have. The scope filter
+  // produced NULL, NULL matches no id, and the student was left with no answer
+  // that worked: omitting the school got "Select your school", supplying the
+  // placeholder got "doesn't match our roster".
+  //
+  // It lands on students, who cannot fix it, some time after the teacher
+  // sign-up that triggered it -- so it has to be impossible, not documented.
+  const env = freshEnv();
+  // Two schools in use -> resolveSchoolScope starts scoping for everyone.
+  seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '111111', last: 'One' });
+  seedSchoolRoster(env._raw, { school: 'Southside High', course: 'Geometry', extId: '222222', last: 'Two' });
+  // ...and a class that predates teacher accounts, so nobody owns it.
+  seedStudent(env._raw, { course: 'Legacy Science', extId: '904511', last: 'Alvarez' });
+
+  assert.equal((await post(env, { student_ext_id: '904511', last: 'Alvarez' })).status, 400,
+    'scoping is on, so a school must be given');
+
+  const res = await post(env, { student_ext_id: '904511', last: 'Alvarez', school_id: 1 });
+  assert.equal(res.status, 201, 'and the placeholder school must be an answer that works');
+  assert.equal((await res.json()).username, '904511@s1');
+});
+
+test('scoping still keeps two schools apart', async () => {
+  // The fallback above must not become a skeleton key: a student at one school
+  // still cannot register by naming another.
+  const env = freshEnv();
+  const north = seedSchoolRoster(env._raw, {
+    school: 'Northside High', course: 'Algebra I', extId: '123456', first: 'Ana', last: 'Reyes',
+  });
+  const south = seedSchoolRoster(env._raw, {
+    school: 'Southside High', course: 'Geometry', extId: '123456', first: 'Amelia', last: 'Reyes',
+  });
+
+  const wrong = await post(env, { student_ext_id: '123456', last: 'Reyes', school_id: 99 });
+  assert.equal(wrong.status, 400, 'a school neither of them belongs to');
+
+  const mine = await post(env, { student_ext_id: '123456', last: 'Reyes', school_id: north.schoolId });
+  assert.equal(mine.status, 201);
+  assert.equal((await mine.json()).student, 'Ana Reyes', 'the school picked is the student you get');
+  void south;
+});
+
 test('more than one school on the install requires a school_id', async () => {
   const env = freshEnv();
   seedSchoolRoster(env._raw, { school: 'Northside High', course: 'Algebra I', extId: '904511', last: 'Alvarez' });

@@ -64,7 +64,24 @@ export async function resolveSchoolScope(db, requestedSchoolId) {
  *  continues from that alias rather than joining courses a second time.
  *  Pair with `AND (?n IS NULL OR sc.id = ?n)` in the caller's WHERE, binding
  *  `schoolIdFilter` at position n -- NULL makes the filter a no-op (the
- *  single-school case), a real id excludes rows behind an unowned course. */
+ *  single-school case), a real id scopes to that school.
+ *
+ *  COALESCE(t.school_id, 1) -- an UNOWNED course resolves to the placeholder
+ *  school, exactly as resolveIdentitySchool() in api/register.js already
+ *  resolves it when writing the identity. The two had disagreed: this join
+ *  produced NULL for an unowned course, and NULL matches no id, so the moment a
+ *  second school came into use every student on such a course became
+ *  unregisterable. Not theoretically -- there was no answer they could give:
+ *
+ *    no school_id  -> "Select your school."       (scoping now demands one)
+ *    school_id = 1 -> "...doesn't match our roster" (sc.id was NULL, never 1)
+ *
+ *  The header above called that an accepted gap on the grounds that such a
+ *  course would be adopted at sign-up. Adoption only fires for the FIRST
+ *  teacher or an ADMIN_EMAILS address, so a course can outlive its chance --
+ *  and the failure lands on students, who cannot fix it, long after the deploy
+ *  that caused it. Resolving to the placeholder costs nothing and means the
+ *  scope filter answers the same school the identity is written under. */
 export const SCHOOL_SCOPE_JOIN = `
      LEFT JOIN teachers t  ON t.id = c.owner_id
-     LEFT JOIN schools  sc ON sc.id = t.school_id`;
+     LEFT JOIN schools  sc ON sc.id = COALESCE(t.school_id, 1)`;
