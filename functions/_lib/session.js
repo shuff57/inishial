@@ -218,8 +218,10 @@ export async function teacherSessionGen(env, teacherId) {
  * not answer "someone else is in my account", which is what a reset is usually
  * for.
  *
- * `sub` 0 is the shared ADMIN_PASSWORD_HASH and has no row -- see
- * migrations/0016. Returns false rather than pretending it revoked something.
+ * Guarded on a real row id anyway. `sub` 0 was the shared ADMIN_PASSWORD_HASH,
+ * which no longer exists and whose tokens requireAdmin now refuses outright --
+ * but returning false rather than pretending to revoke is the right shape for
+ * anything else that turns up without a row behind it.
  */
 export async function revokeTeacher(env, teacherId) {
   if (!env.DB || !Number.isInteger(teacherId) || teacherId < 1) return false;

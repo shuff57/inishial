@@ -427,10 +427,11 @@ const demoLines = (demo.added
   : ['    already present — DEMO_RESET=1 npm run local  to rebuild it']
 ).join('\n');
 
-// Local admin password. Obvious on purpose -- production uses a generated one
-// held in the ADMIN_PASSWORD_HASH secret.
-const DEV_PASSWORD = process.env.DEV_PASSWORD || 'localdev';
-env.ADMIN_PASSWORD_HASH = await hashCode(DEV_PASSWORD);
+// No shared admin password any more -- the credential was retired, so there is
+// nothing to seed here. Locally the admin side is reachable regardless: every
+// /api/admin/* request below is stamped with an Access identity, which is the
+// dev-only shortcut called out at the top of this file. To exercise a real
+// teacher account instead, sign one up at /admin/signup/.
 
 createServer(async (req, res) => {
   const path = req.url.split('?')[0];
@@ -459,7 +460,7 @@ createServer(async (req, res) => {
   http://localhost:${PORT}/              landing
   http://localhost:${PORT}/register/     student sign-up   (D: ID 123459, last Student)
   http://localhost:${PORT}/sign/         parent or student (A: 123456@p1 + ${DEMO_CODE})
-  http://localhost:${PORT}/admin/login/  teacher sign-in   (password ${DEV_PASSWORD})
+  http://localhost:${PORT}/admin/login/  teacher sign-in   (sign one up first)
   http://localhost:${PORT}/admin/signup/ teacher sign-up   (any @school.edu address)
 
   Test students -- /sign/ takes a USERNAME and a code, nothing else.

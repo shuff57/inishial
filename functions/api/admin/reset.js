@@ -1,10 +1,12 @@
 // POST /api/admin/reset   -- ask for a reset link  { email }
 // PUT  /api/admin/reset   -- set a new password    { token, password }
 //
-// The way back into a teacher account. Before this there was none: nothing
-// emailed a teacher address, so a forgotten password ended the account, and
-// the class with it -- the shared ADMIN_PASSWORD_HASH is scoped to unowned
-// courses (owns() in _lib/http.js) and cannot reach a teacher's own.
+// The way back into a teacher account, and now the only one. Before this there
+// was none: nothing emailed a teacher address, so a forgotten password ended
+// the account and the class with it. The shared ADMIN_PASSWORD_HASH was kept as
+// break-glass for exactly that, and could not do it -- scoped to unowned
+// courses (owns() in _lib/http.js), it never reached a teacher's own. This
+// endpoint is what let that credential be retired.
 //
 // Both halves are public, which decides most of what follows.
 //

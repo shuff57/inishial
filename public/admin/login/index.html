@@ -34,8 +34,8 @@
 
   <form id="form" class="card plain" novalidate>
     <label for="email">School email address
-      <span class="hint">Leave blank if you're using the shared admin password.</span></label>
-    <input id="email" name="email" type="email" autocomplete="email" autofocus>
+      <span class="hint">The address you signed up with.</span></label>
+    <input id="email" name="email" type="email" autocomplete="email" required autofocus>
 
     <label for="password">Password</label>
     <input id="password" type="password" autocomplete="current-password" required>
@@ -76,10 +76,8 @@ form.addEventListener('submit', async (event) => {
     const res = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // An empty email means the shared admin password, which is a different
-      // credential entirely -- so it is omitted rather than sent blank.
       body: JSON.stringify({
-        email: document.getElementById('email').value.trim() || undefined,
+        email: document.getElementById('email').value.trim(),
         password: document.getElementById('password').value,
       }),
     });

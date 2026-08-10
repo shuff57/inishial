@@ -166,12 +166,16 @@ test('a wrong password is refused, and says nothing about which half was wrong',
     'a different message would enumerate which addresses have accounts');
 });
 
-test('the shared admin password still works alongside teacher accounts', async () => {
+test('the shared admin password no longer works alongside teacher accounts', async () => {
+  // It used to sign in on its own and open every unowned course. Retired: a
+  // teacher who loses their account resets it by email now (migrations/0015),
+  // which answers the same problem without leaving the operator a standing key
+  // to courses they do not own -- and without a session that cannot be revoked.
   const e = env({ ADMIN_PASSWORD_HASH: await hashCode('the-shared-one-9999') });
   await create(e, 'a@' + DOMAIN);
   const res = await login({ request: jsonRequest('https://x/api/admin/login', { password: 'the-shared-one-9999' }), env: e });
-  assert.equal(res.status, 200);
-  assert.equal((await courses({ request: get(e, 'https://x/api/admin/roster', cookieFrom(res)), env: e })).status, 200);
+  assert.equal(res.status, 400, 'even with the secret still set, there is no password-only path');
+  assert.equal((await courses({ request: get(e, 'https://x/api/admin/roster', ''), env: e })).status, 401);
 });
 
 // ---- course isolation ----

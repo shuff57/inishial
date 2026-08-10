@@ -54,9 +54,9 @@ export function readAdminEmail(request, env) {
  * `teacherId` is what scopes the data:
  *
  *   a number -- a teacher who signed up. Their own courses, and no others.
- *   null     -- the shared ADMIN_PASSWORD_HASH, or a Cloudflare Access
- *               identity. UNOWNED courses only: the ones imported before
- *               teacher accounts existed.
+ *   null     -- a Cloudflare Access identity. UNOWNED courses only: the ones
+ *               imported before teacher accounts existed. Authenticating at
+ *               the edge is not ownership.
  *
  * That second case used to mean "sees everything", which made the shared
  * password a skeleton key to every class in the school. A colleague's roster
@@ -79,10 +79,12 @@ export async function requireAdmin(request, env, nowSec = Math.floor(Date.now() 
   const claims = await currentSession(request, env, nowSec);
   if (claims?.role !== 'teacher') return null;
 
-  // sub 0 is the shared password: it says nothing about which person typed it,
-  // so the audit trail records the method rather than a name it cannot
-  // actually establish. Any other sub is a row in `teachers`.
-  if (!claims.sub) return { via: 'session', email: 'password-login', teacherId: null };
+  // sub 0 was the shared ADMIN_PASSWORD_HASH session. That credential is gone
+  // (see api/admin/login.js), and its tokens are refused rather than left to
+  // run out their two hours -- it was the one session here with no generation
+  // to bump, so expiry was otherwise the only thing that would have ended it.
+  // Removing a credential should end what it opened.
+  if (!claims.sub) return null;
 
   // Signed out since this token was minted? A teacher session reaches every
   // student record in their classes, so clearing the cookie and hoping was a

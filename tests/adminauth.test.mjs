@@ -17,20 +17,27 @@ import { onRequestGet as parentView } from '../functions/api/sign/syllabus.js';
 import { signSession } from '../functions/_lib/session.js';
 
 const PASSWORD = 'correct-horse-battery-staple';
+const EMAIL = 'owner@school.edu';
 
+/** An env with ONE signed-up teacher. There is no shared admin password any
+ *  more -- it was retired once teachers got a real password reset -- so every
+ *  admin session below belongs to an account. */
 async function adminEnv(extra = {}) {
   const env = freshEnv(extra);
-  env.ADMIN_PASSWORD_HASH = await hashCode(PASSWORD);
+  await signup({
+    request: jsonRequest('https://x/api/admin/signup',
+      { email: EMAIL, password: PASSWORD, school: 'Northside High' }), env,
+  });
   return env;
 }
 
-const login = (env, password) =>
-  adminLogin({ request: jsonRequest('https://x/api/admin/login', { password }), env });
+const login = (env, password, email = EMAIL) =>
+  adminLogin({ request: jsonRequest('https://x/api/admin/login', { email, password }), env });
 
 const summary = (env, headers = {}) =>
   rosterSummary({ request: new Request('https://x/api/admin/roster', { headers }), env });
 
-// ---- password login ----
+// ---- teacher password login ----
 
 test('the correct password issues an admin session', async () => {
   const env = await adminEnv();
@@ -69,12 +76,26 @@ test('admin login is rate limited harder than the parent flow', async () => {
     'guessing correctly after the limit must not be rescued');
 });
 
-test('a misconfigured server says so rather than letting everyone in', async () => {
-  const env = freshEnv();            // no ADMIN_PASSWORD_HASH
-  const res = await login(env, PASSWORD);
-  assert.equal(res.status, 503);
-  assert.match((await res.json()).error, /ADMIN_PASSWORD_HASH/);
+test('a password with no email is refused', async () => {
+  // This WAS the shared admin password: password alone, no account, and it
+  // opened every unowned course. Retired once migrations/0015 gave teachers a
+  // real reset, which answers "I lost my account" without leaving a standing
+  // key in the operator's hands. Submitting one now is an incomplete form.
+  const env = await adminEnv();
+  const res = await adminLogin({
+    request: jsonRequest('https://x/api/admin/login', { password: PASSWORD }), env,
+  });
+  assert.equal(res.status, 400);
   assert.equal((await summary(env)).status, 401, 'and the routes stay shut');
+});
+
+test('a token minted by the retired shared password is refused', async () => {
+  // sub 0 was its session, and the one session with no generation to bump --
+  // expiry was the only thing that ended one. Refusing it outright is what
+  // makes removing the credential actually remove the access.
+  const env = await adminEnv();
+  const stale = await signSession(env, 0, 'teacher', Math.floor(Date.now() / 1000));
+  assert.equal((await summary(env, { Cookie: `inishial_session=${stale}` })).status, 401);
 });
 
 test('signing out clears the cookie, even with no session to end', async () => {
@@ -115,10 +136,11 @@ test('a teacher cookie captured before a sign-out stops working', async () => {
   assert.equal((await summary(env, { Cookie: again })).status, 200);
 });
 
-test('the shared password session is cleared but cannot be revoked', async () => {
-  // Honest about the limit: sub 0 is not a row, so there is no counter to
-  // bump. Rotating ADMIN_PASSWORD_HASH is what ends those sessions. Asserted
-  // so the property is recorded rather than discovered.
+test('every admin session can now be revoked', async () => {
+  // The gap this closes. sub 0 had no row, so no generation to bump, so
+  // sign-out could clear the cookie and nothing more -- a captured
+  // shared-password token outlived its own sign-out and only rotating the
+  // secret ended it. Every admin session now belongs to a teachers row.
   const env = await adminEnv();
   const cookie = cookieFrom(await login(env, PASSWORD));
   assert.equal((await summary(env, { Cookie: cookie })).status, 200);
@@ -127,8 +149,8 @@ test('the shared password session is cleared but cannot be revoked', async () =>
     request: new Request('https://x/api/admin/login', { method: 'DELETE', headers: { Cookie: cookie } }), env,
   });
   assert.match(out.headers.get('Set-Cookie'), /Max-Age=0/, 'the browser is signed out');
-  assert.equal((await summary(env, { Cookie: cookie })).status, 200,
-    'but a captured shared-password token survives -- rotate the secret to end it');
+  assert.equal((await summary(env, { Cookie: cookie })).status, 401,
+    'and so is the token -- no admin session survives its own sign-out');
 });
 
 // ---- Cloudflare Access, independently ----
@@ -237,11 +259,14 @@ test('a hostile student name cannot inject a formula into the credentials CSV', 
 // ---- the operator is not above the boundary ----
 //
 // Stated requirement: whoever runs this app must not be able to read another
-// teacher's students through it. The two credentials the operator holds are the
-// shared ADMIN_PASSWORD_HASH and a Cloudflare Access identity, and both resolve
-// to teacherId null -- which owns() reads as "unowned courses only", NOT as
-// "everything". These pin that, because the difference is one `==` in owns()
-// and the failure would be silent and total.
+// teacher's students through it.
+//
+// The operator holds a teacher account like anyone else, plus possibly a
+// Cloudflare Access identity -- which resolves to teacherId null, and owns()
+// reads that as "unowned courses only", NOT as "everything". These pin it,
+// because the difference is one `==` in owns() and the failure would be silent
+// and total. The third credential, the shared password, was removed rather than
+// bounded.
 
 async function teacherWithAClass(env, email = 'someone.else@school.edu') {
   await signup({
@@ -261,13 +286,16 @@ const codesFor = (env, courseId, headers) => credentials({
   env,
 });
 
-test('the shared admin password cannot read another teacher\'s students', async () => {
+test('a signed-in teacher cannot read another teacher\'s students', async () => {
+  // The operator holds an account like anyone else now, so this IS the
+  // operator case: owning the deployment grants nothing that owning a course
+  // does not.
   const env = await adminEnv();
   const theirs = await teacherWithAClass(env);
   const cookie = cookieFrom(await login(env, PASSWORD));
 
   const res = await codesFor(env, theirs.courseId, { Cookie: cookie });
-  assert.notEqual(res.status, 200, 'break-glass is not a skeleton key');
+  assert.notEqual(res.status, 200, 'running the app is not a skeleton key');
   assert.match((await res.json()).error, /No such course/,
     'and it does not distinguish "not yours" from "does not exist"');
 });

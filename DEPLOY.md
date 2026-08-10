@@ -59,13 +59,27 @@ npx wrangler pages deploy public --project-name inishial
 is reachable without Access:
 
 - a signed-up teacher's email + password (`/admin/signup/`, `/admin/login/`)
-- the shared `ADMIN_PASSWORD_HASH`
+- a Cloudflare Access identity, which owns nothing — unowned courses only
 
 It used to be true that admin "fails closed without Access" — that was written
 before teacher accounts existed and is no longer the case. Access is a second
-gate in front of those, not the only one. Configure it when you want the admin
-side unreachable to anyone who has not already passed an identity check at the
-edge, which is worth doing before a real roster is uploaded.
+gate in front of teacher accounts, not the only one. Configure it when you want
+the admin side unreachable to anyone who has not already passed an identity
+check at the edge, which is worth doing before a real roster is uploaded.
+
+**`ADMIN_PASSWORD_HASH` is retired.** There was a third credential: a shared
+password that signed in with no account at all. It was break-glass for a teacher
+who had lost theirs — a problem it could not actually solve, since it was scoped
+to unowned courses and so could never reach the locked-out teacher's class. What
+it did do was hand whoever ran the deployment a standing key to courses they did
+not own, in a session that carried no account row and therefore could not be
+revoked. The password reset added in `migrations/0015` answers the real problem,
+so the shared password was removed. If the secret is still set on your project
+it now does nothing; delete it:
+
+```bash
+npx wrangler pages secret delete ADMIN_PASSWORD_HASH --project-name inishial
+```
 
 1. **Zero Trust → Access → Applications → Add an application → Self-hosted**
 2. Domain: your Pages domain. Path: `/api/admin`
@@ -82,20 +96,21 @@ npx wrangler pages secret put ADMIN_EMAILS --project-name inishial
 ### 5a. What the operator can and cannot see
 
 Running this app does not make you able to read other people's students, and
-that is enforced rather than promised. Both operator credentials — the shared
-`ADMIN_PASSWORD_HASH` and a Cloudflare Access identity — resolve to
-`teacherId: null`, and `owns()` in `_lib/http.js` reads that as **unowned
-courses only**, never "everything":
+that is enforced rather than promised. The one credential that is not a teacher
+account — a Cloudflare Access identity — resolves to `teacherId: null`, and
+`owns()` in `_lib/http.js` reads that as **unowned courses only**, never
+"everything":
 
 ```js
 admin.teacherId == null ? ownerId == null : ownerId === admin.teacherId
 ```
 
-So a course belonging to a signed-up teacher is invisible to both. Asking for
-one answers "No such course" — the same words as a course that does not exist,
-so the boundary cannot be used to enumerate what other teachers have.
-`tests/adminauth.test.mjs` pins all three cases (shared password, Access
-identity, and a teacher reaching for a colleague's class).
+So a course belonging to a signed-up teacher is invisible to it. Asking for one
+answers "No such course" — the same words as a course that does not exist, so
+the boundary cannot be used to enumerate what other teachers have. Sign in as
+yourself and you are a teacher like any other: your own courses, nobody else's.
+`tests/adminauth.test.mjs` pins all of it, including that a token minted by the
+retired shared password is refused rather than left to expire.
 
 Two things this does NOT cover, stated plainly because it would be easy to read
 the above as more than it is:
@@ -191,11 +206,12 @@ together here are not the same:
   to the deploy as you can, and do not roll the code back past it without
   reversing the rewrite.
 
-One thing that is NOT a migration and is worth knowing: rotating
-`ADMIN_PASSWORD_HASH` is the only way to end a shared-password admin session.
-Teacher accounts carry a session generation and can be signed out (0016), but
-the shared password is deliberately tied to no account, so there is no row to
-mark. Rotate the secret if you ever need those sessions gone.
+One thing that is NOT a migration and is worth knowing: every admin session can
+now be ended. Teacher accounts carry a session generation (0016), so signing out
+or resetting a password kills their tokens. The one session that could not be
+revoked belonged to the shared password, which no longer exists — and tokens
+minted under it are refused outright rather than left to run out their two
+hours.
 
 The tests cover the migrated schema only, since the suite applies every
 migration in `migrations/` before it runs. The half-migrated state is not

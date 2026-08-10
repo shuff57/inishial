@@ -2,10 +2,14 @@
 //
 // Before this there was none. Nothing emailed a teacher address, so forgetting
 // a password ended the account -- and the class with it, since the shared
-// ADMIN_PASSWORD_HASH is scoped to `owner_id IS NULL` and cannot reach a
-// signed-up teacher's own courses. That last part is asserted here, because it
-// is the reason this endpoint had to exist rather than pointing people at the
-// break-glass password.
+// ADMIN_PASSWORD_HASH was scoped to `owner_id IS NULL` and could not reach a
+// signed-up teacher's own courses. It was kept as break-glass for exactly the
+// problem it could not solve.
+//
+// This endpoint replaced it, and the shared password has since been retired
+// outright: it was a standing key in the operator's hands to courses they did
+// not own, and the one session in the app with no generation to bump, so it
+// could not be revoked. Asserted below that no password-only path remains.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -56,24 +60,19 @@ const tokenFrom = (mail) => new URL(mail.body.match(/https?:\/\/\S*?token=[^\s"<
 // ---- the whole errand ----
 
 test('a locked-out teacher resets and gets back into their own class', async () => {
-  const { env, sent, restore } = mailEnv({
-    APP_URL: 'https://x',
-    ADMIN_PASSWORD_HASH: await hashCode('the shared break-glass password'),
-  });
+  const { env, sent, restore } = mailEnv({ APP_URL: 'https://x' });
   try {
     const { id: teacherId, courseId } = await teacher(env);
 
-    // Locked out.
+    // Locked out, and this reset is now the ONLY way back. The shared
+    // break-glass password used to be the other one; it was retired precisely
+    // because this exists, and because it could not reach an owned class
+    // anyway -- it was scoped to unowned courses, so it never answered the
+    // problem it was being kept for.
     assert.equal((await signIn(env, EMAIL, 'whatever I guessed')).status, 401);
-
-    // And the shared break-glass password is NOT a way back to this class --
-    // it is scoped to unowned courses, and this one has an owner. That is the
-    // whole reason a reset had to exist.
-    const sharedCookie = cookieFrom(await adminLogin({
-      request: jsonRequest('https://x/api/admin/login', { password: 'the shared break-glass password' }), env,
-    }));
-    assert.notEqual((await reach(env, sharedCookie, courseId)).status, 200,
-      'the shared password must not reach a signed-up teacher\'s class');
+    assert.equal((await adminLogin({
+      request: jsonRequest('https://x/api/admin/login', { password: 'any shared password at all' }), env,
+    })).status, 400, 'there is no password-only path left');
 
     // 1. Ask.
     const res = await ask(env, EMAIL);
