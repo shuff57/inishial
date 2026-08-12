@@ -416,12 +416,96 @@ function resetPlan() {
 $('paste').addEventListener('input', resetPlan);
 $('course').addEventListener('input', resetPlan);
 
-async function send(text, course, preview) {
+async function send(text, course, preview, forced) {
   const qs = new URLSearchParams();
   if (course) qs.set('course', course);
   if (preview) qs.set('preview', '1');
+  // `forced` is a confirmed AI-guessed mapping (see runAiFix below): the same
+  // paste, parsed by an explicit column map instead of re-detecting a header.
+  if (forced) {
+    qs.set('columns', btoa(JSON.stringify(forced.columns)));
+    qs.set('has_header', forced.hasHeader ? '1' : '0');
+  }
   const res = await fetch('/api/admin/roster?' + qs, { method: 'POST', body: text });
   return { res, body: await res.json() };
+}
+
+// ---- AI fix, for when the paste's columns can't be auto-detected ----
+//
+// Offered only after the deterministic parser has already failed on this
+// exact text -- never on the happy path. Sends a few rows of the paste to
+// Ollama's cloud API to guess which column is which; the guess is shown in
+// plain language and does nothing until the teacher clicks "Use this
+// mapping". See functions/api/admin/roster-fix.js for what actually leaves
+// the server.
+
+const FIELD_LABELS = {
+  student_ext_id: 'Student ID', last: 'Last Name', first: 'First Name', fullname: 'Full Name',
+  period: 'Period', course: 'Course', parent_email: 'Parent Email', student_email: 'Student Email',
+};
+
+function looksLikeHeaderFailure(status, message) {
+  return status === 400 && /No (student ID|name) column/.test(message || '');
+}
+
+function offerAiFix(text, course) {
+  $('importMsg').insertAdjacentHTML('beforeend',
+    ' <button id="aiFixBtn" class="secondary" type="button">AI fix</button>'
+    + ' <span class="small muted">This sends a few rows of the pasted list to Ollama’s cloud API to help identify columns.</span>');
+  $('aiFixBtn').addEventListener('click', () => runAiFix(text, course));
+}
+
+async function runAiFix(text, course) {
+  const btn = $('aiFixBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/admin/roster-fix', { method: 'POST', body: text });
+    const body = await res.json();
+    if (!res.ok || body.available === false) {
+      notice($('importMsg'), body.reason || body.error || 'The AI fix could not read that paste either.', 'error');
+      return;
+    }
+    if (body.needed === false) return;   // parseRoster already worked; nothing to do here
+    renderAiFixMapping(body, text, course);
+  } catch {
+    notice($('importMsg'), 'Could not reach the server.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function renderAiFixMapping(body, text, course) {
+  const entries = Object.entries(body.columns || {}).sort((a, b) => a[1] - b[1]);
+  if (!entries.length) {
+    notice($('importMsg'), 'The AI could not confidently identify any columns in that paste.', 'error');
+    return;
+  }
+  const lines = entries.map(([field, idx]) => `Column ${idx + 1} → ${esc(FIELD_LABELS[field] || field)}`);
+  $('planBox').innerHTML = '<div class="notice ok"><b>AI-guessed column mapping'
+    + (body.has_header ? '' : ' (no header row found -- row 1 is treated as data)') + ':</b><br>'
+    + lines.join('<br>')
+    + '<br><br>This is a suggestion. Nothing is imported until you use it below.<br><br>'
+    + '<button id="useAiMappingBtn" class="secondary" type="button">Use this mapping</button></div>';
+  $('planBox').hidden = false;
+  $('useAiMappingBtn').addEventListener('click', () => applyAiMapping(text, course, body.columns, Boolean(body.has_header)));
+}
+
+async function applyAiMapping(text, course, columns, hasHeader) {
+  const btn = $('useAiMappingBtn');
+  if (btn) btn.disabled = true;
+  try {
+    const forced = { columns, hasHeader };
+    const { res, body } = await send(text, course, true, forced);
+    if (!res.ok) { notice($('importMsg'), body.error || 'Could not read that paste with this mapping.', 'error'); return; }
+    $('importMsg').hidden = true;
+    renderPlan(body);
+    pending = { text, course, forced };
+    $('confirmBtn').hidden = false;
+  } catch {
+    notice($('importMsg'), 'Could not reach the server.', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // One button, two ways in. With a roster it previews the import and waits for a
@@ -452,7 +536,11 @@ $('startBtn').addEventListener('click', async () => {
     }
 
     const { res, body } = await send(text, course, true);
-    if (!res.ok) { notice($('importMsg'), body.error || 'Could not read that file.', 'error'); return; }
+    if (!res.ok) {
+      notice($('importMsg'), body.error || 'Could not read that file.', 'error');
+      if (looksLikeHeaderFailure(res.status, body.error)) offerAiFix(text, course);
+      return;
+    }
     renderPlan(body);
     pending = { text, course };
     $('confirmBtn').hidden = false;
@@ -468,7 +556,7 @@ $('confirmBtn').addEventListener('click', async () => {
   if (!pending) return;
   $('confirmBtn').disabled = true;
   try {
-    const { res, body } = await send(pending.text, pending.course, false);
+    const { res, body } = await send(pending.text, pending.course, false, pending.forced);
     if (!res.ok) { notice($('importMsg'), body.error || 'Import failed.', 'error'); return; }
     notice($('importMsg'),
       `Imported ${body.imported} students: ${body.inserted} new, ${body.updated} updated, ${body.dropped} marked dropped.`, 'ok');

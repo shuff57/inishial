@@ -16,8 +16,42 @@
 // that is the mistake this guard exists to prevent.
 
 import { json, badRequest, unauthorized, serverMisconfigured, requireAdmin, ownerFilter } from '../../_lib/http.js';
-import { parseRoster } from '../../_lib/csv.js';
+import { parseRoster, parseRosterWithColumns, FIELDS } from '../../_lib/csv.js';
 import { seal, open, blindIndex, vaultReady } from '../../_lib/vault.js';
+
+const VALID_FIELDS = new Set(FIELDS);
+
+/**
+ * A forced column map from `?columns=<base64 JSON>`, or null.
+ *
+ * This is how the teacher's confirmed choice from the AI-fix flow
+ * (functions/api/admin/roster-fix.js) reaches the real parse: the UI
+ * base64-encodes the mapping the teacher clicked "Use this mapping" on and
+ * threads it through the query string, the same way `?course=` and
+ * `?preview=` already carry state on this raw-text-body endpoint.
+ *
+ * Whitelisted the same way roster-fix.js whitelists the model's own answer --
+ * a field name must be one of the eight real ones and an index must be a
+ * non-negative integer. Malformed input (bad base64, bad JSON, an empty
+ * result) is dropped rather than erroring the request: it just means no
+ * forced mapping was found, and parseRoster() runs as it always did.
+ */
+function forcedColumns(raw) {
+  if (!raw) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(atob(raw));
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const out = {};
+  for (const [field, value] of Object.entries(parsed)) {
+    const idx = Number(value);
+    if (VALID_FIELDS.has(field) && Number.isInteger(idx) && idx >= 0) out[field] = idx;
+  }
+  return Object.keys(out).length ? out : null;
+}
 
 export async function onRequestPost({ request, env }) {
   const admin = await requireAdmin(request, env);
@@ -37,9 +71,12 @@ export async function onRequestPost({ request, env }) {
   const text = await request.text();
   if (!text.trim()) return badRequest('The uploaded file was empty.');
 
+  const columns = forcedColumns(url.searchParams.get('columns'));
+  const hasHeader = url.searchParams.get('has_header') === '1';
+
   let parsed;
   try {
-    parsed = parseRoster(text);
+    parsed = columns ? parseRosterWithColumns(text, columns, hasHeader) : parseRoster(text);
   } catch (err) {
     return badRequest(err.message);
   }

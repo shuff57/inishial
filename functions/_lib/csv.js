@@ -91,6 +91,13 @@ const ALIASES = {
 // reported rather than guessed at.
 const AMBIGUOUS_EMAIL = ['email', 'e mail', 'email address', 'mail'];
 
+// The field names a column can be mapped to -- shared with anything that
+// builds or validates a `columns` map itself instead of getting one from
+// mapColumns(). functions/api/admin/roster-fix.js whitelists a model's
+// guesses against this; functions/api/admin/roster.js whitelists a forced
+// mapping passed in the query string against it too.
+export const FIELDS = Object.keys(ALIASES);
+
 function normalizeHeader(h) {
   return String(h)
     .replace(/^﻿/, '')
@@ -134,32 +141,23 @@ function splitName(value) {
 }
 
 /**
- * Parse roster CSV text into rows.
- * Returns { rows, skipped, warnings, columns }. `skipped` carries the 1-based
- * source line and a reason so the teacher can see which lines didn't import
- * rather than silently losing students; `warnings` carries file-level notes
- * such as an ambiguous email column.
+ * Turn already-CSV-parsed rows into roster rows, given a column map and
+ * where the data starts. This is the part parseRoster() and
+ * parseRosterWithColumns() share -- extraction, name-splitting, dedup, and
+ * the file-level warnings -- so it exists exactly once regardless of how the
+ * column map was produced (alias-matched header, or an AI/forced guess).
+ *
+ * `hasHeader` both picks where the loop starts and gates the ambiguous-email
+ * check, which reads `raw[0]` as header text -- meaningless to run against a
+ * row that is actually data.
  */
-export function parseRoster(text) {
-  const delimiter = detectDelimiter(text);
-  const raw = parseCsv(text, delimiter);
-  if (!raw.length) return { rows: [], skipped: [], warnings: [], columns: {}, delimiter };
-
-  const columns = mapColumns(raw[0]);
-  if (columns.student_ext_id === undefined) {
-    throw new Error('No student ID column found. Expected a header like "Student ID".');
-  }
-  const hasNames = columns.first !== undefined && columns.last !== undefined;
-  if (!hasNames && columns.fullname === undefined) {
-    throw new Error('No name columns found. Expected "First Name"/"Last Name" or "Student Name".');
-  }
-
+function extractRows(raw, columns, hasHeader) {
   const rows = [];
   const skipped = [];
   const warnings = [];
   const seen = new Set();
 
-  if (columns.parent_email === undefined) {
+  if (hasHeader && columns.parent_email === undefined) {
     const norm = raw[0].map(normalizeHeader);
     const bare = AMBIGUOUS_EMAIL.find((a) => norm.includes(a));
     if (bare) {
@@ -171,7 +169,7 @@ export function parseRoster(text) {
     }
   }
 
-  for (let i = 1; i < raw.length; i++) {
+  for (let i = hasHeader ? 1 : 0; i < raw.length; i++) {
     const r = raw[i];
     const line = i + 1;
     const cell = (idx) => (idx === undefined ? '' : String(r[idx] ?? '').trim());
@@ -209,5 +207,51 @@ export function parseRoster(text) {
     warnings.push(`${rows.length - withEmail} of ${rows.length} students have no parent email in this file.`);
   }
 
+  return { rows, skipped, warnings };
+}
+
+/**
+ * Parse roster CSV text into rows.
+ * Returns { rows, skipped, warnings, columns }. `skipped` carries the 1-based
+ * source line and a reason so the teacher can see which lines didn't import
+ * rather than silently losing students; `warnings` carries file-level notes
+ * such as an ambiguous email column.
+ */
+export function parseRoster(text) {
+  const delimiter = detectDelimiter(text);
+  const raw = parseCsv(text, delimiter);
+  if (!raw.length) return { rows: [], skipped: [], warnings: [], columns: {}, delimiter };
+
+  const columns = mapColumns(raw[0]);
+  if (columns.student_ext_id === undefined) {
+    throw new Error('No student ID column found. Expected a header like "Student ID".');
+  }
+  const hasNames = columns.first !== undefined && columns.last !== undefined;
+  if (!hasNames && columns.fullname === undefined) {
+    throw new Error('No name columns found. Expected "First Name"/"Last Name" or "Student Name".');
+  }
+
+  const { rows, skipped, warnings } = extractRows(raw, columns, true);
   return { rows, skipped, warnings, columns, delimiter };
+}
+
+/**
+ * Parse roster CSV text using an explicit column map instead of matching a
+ * header by alias -- the path for when parseRoster() couldn't find one: an
+ * AI-guessed mapping (functions/api/admin/roster-fix.js) that the teacher
+ * has confirmed, or the same mapping replayed on the real import via
+ * `?columns=`/`?has_header=` on /api/admin/roster.
+ *
+ * `columns` is the same shape mapColumns() returns: { field: columnIndex }.
+ * No alias-matching and no ID/name-column requirement here -- a caller that
+ * hands in an empty or useless map gets rows that mostly skip for "missing
+ * student ID", not a thrown error; the caller decides whether that's usable.
+ */
+export function parseRosterWithColumns(text, columns, hasHeader) {
+  const delimiter = detectDelimiter(text);
+  const raw = parseCsv(text, delimiter);
+  if (!raw.length) return { rows: [], skipped: [], warnings: [], columns, delimiter };
+
+  const { rows, skipped, warnings } = extractRows(raw, columns || {}, Boolean(hasHeader));
+  return { rows, skipped, warnings, columns: columns || {}, delimiter };
 }

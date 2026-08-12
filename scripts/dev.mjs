@@ -297,6 +297,7 @@ const ROUTES = {
   '/api/sign/syllabus': () => import('../functions/api/sign/syllabus.js'),
   '/api/sign/initial': () => import('../functions/api/sign/initial.js'),
   '/api/admin/roster': () => import('../functions/api/admin/roster.js'),
+  '/api/admin/roster-fix': () => import('../functions/api/admin/roster-fix.js'),
   '/api/admin/courses': () => import('../functions/api/admin/courses.js'),
   '/api/admin/credentials': () => import('../functions/api/admin/credentials.js'),
   '/api/admin/syllabus': () => import('../functions/api/admin/syllabus.js'),

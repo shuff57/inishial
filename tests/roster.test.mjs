@@ -148,6 +148,36 @@ test('a file with no Course column and no ?course= is refused', async () => {
   assert.match((await res.json()).error, /Course column/);
 });
 
+// ---- forced column mapping: the AI-fix confirm step replays as this ----
+
+test('a forced column mapping bypasses header-detection and imports the paste', async () => {
+  const env = freshEnv();
+  const csv = '904511,Alvarez,Maria,3\n904512,Chen,Kevin,4\n'; // no header row, no recognisable labels
+  const columns = { student_ext_id: 0, last: 1, first: 2, period: 3 };
+  const qs = `course=${encodeURIComponent('Algebra I')}`
+    + `&columns=${encodeURIComponent(btoa(JSON.stringify(columns)))}&has_header=0`;
+  const res = await onRequestPost({
+    request: new Request(`https://x/api/admin/roster?${qs}`, { method: 'POST', headers: ADMIN, body: csv }),
+    env,
+  });
+  const body = await res.json();
+  assert.equal(res.status, 200);
+  assert.equal(body.inserted, 2);
+});
+
+test('a malformed forced mapping is dropped, falling back to the normal header parse', async () => {
+  const env = freshEnv();
+  const csv = roster(['1,Lee,Ann,3']);
+  const qs = `course=${encodeURIComponent('Algebra I')}&columns=${encodeURIComponent(btoa('not json'))}`;
+  const res = await onRequestPost({
+    request: new Request(`https://x/api/admin/roster?${qs}`, { method: 'POST', headers: ADMIN, body: csv }),
+    env,
+  });
+  const body = await res.json();
+  assert.equal(res.status, 200, 'a bad columns param is dropped, not an error');
+  assert.equal(body.inserted, 1);
+});
+
 test('the course summary counts active and dropped separately', async () => {
   const env = freshEnv();
   await onRequestPost({ request: upload(roster(['1,Lee,Ann,3', '2,Ray,Bob,3'])), env });
