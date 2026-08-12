@@ -55,6 +55,11 @@ export async function onRequestGet({ request, env }) {
   // student, which reads as "the other two are gone" rather than "the other
   // two have not signed up". There is nothing to hand out for them yet -- the
   // codes live on the account -- and that is the thing worth seeing.
+  // Not filtered to status = 'active': a dropped student must stay visible
+  // here too (with a Restore action), or the only way back from an accidental
+  // drop is re-uploading the whole roster. r.id rides along as `roster_id` --
+  // the single-student edit/drop/restore endpoint (roster-student.js) keys off
+  // the roster row's own id, which is not the same thing as `a.id` below.
   const { results } = await env.DB.prepare(
     `SELECT a.id, si.username, si.parent_username, si.code_hash, si.student_code_hash,
             si.code_enc, si.student_code_enc,
@@ -65,11 +70,11 @@ export async function onRequestGet({ request, env }) {
               WHEN r.parent_email IS NOT NULL THEN 'roster'
               ELSE 'missing'
             END AS email_source,
-            r.last_enc, r.period, r.student_ext_id
+            r.id AS roster_id, r.last_enc, r.period, r.student_ext_id, r.status
        FROM roster r
        LEFT JOIN accounts a ON a.roster_id = r.id
        LEFT JOIN student_identities si ON si.id = a.identity_id
-      WHERE r.course_id = ?1 AND r.status = 'active'
+      WHERE r.course_id = ?1
       -- Alphabetical by surname is what a teacher wants and SQL can no longer
       -- do it: the name is ciphertext, which sorts by its random IV. Ordered
       -- by ID here to keep the result stable, then re-sorted below once the
@@ -117,6 +122,10 @@ export async function onRequestGet({ request, env }) {
   for (const row of results ?? []) {
     students.push({
       account_id: row.id,
+      // The roster row's own id -- distinct from account_id above, and what
+      // roster-student.js's PATCH keys off for edit/drop/restore.
+      roster_id: row.roster_id,
+      status: row.status,
       // Surname only since migration 0017. A row whose name will not open is
       // still listed -- the teacher needs the codes either way -- with the ID
       // standing in for the name rather than an empty cell.
@@ -163,7 +172,10 @@ export async function onRequestGet({ request, env }) {
     'Parent username', 'Parent access code',
     'Student username', 'Student access code', 'Link',
   ])];
-  for (const s of students) {
+  // The mail-merge source stays active-only, same as before dropped rows
+  // became visible on the page -- a dropped student is not who a mail-merge
+  // to current families should include.
+  for (const s of students.filter((st) => st.status === 'active')) {
     lines.push(csvRow([
       s.student, s.student_ext_id, s.period, s.email, s.email_source,
       s.parent_username ?? '', s.parent.code ?? '',

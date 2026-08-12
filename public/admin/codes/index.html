@@ -75,6 +75,23 @@
   /* A code just minted, so the eye can find the one that changed in a class of
      thirty. Marker band, the same one everything else uses for "this one". */
   tr.fresh .code { background: var(--mark); border-radius: 2px 5px 3px 6px; padding: 0 .3rem; }
+
+  /* Per-row actions share a cell -- Reissue, Edit name, Drop -- so they wrap
+     as a group rather than each claiming its own column on a narrow screen. */
+  td.act .row { justify-content: flex-end; gap: .35rem; }
+  @media (max-width: 44rem) { td.act .row { justify-content: flex-start; } }
+
+  /* Dropped students, same collapsed-by-default treatment admin/index.html
+     gives previous years' classes: present, but not competing with the
+     roster a teacher is actually working from today. */
+  #droppedWrap { margin-top: var(--rule); }
+  #droppedWrap summary { cursor: pointer; color: var(--ink-stone); font-size: .85rem; }
+  #droppedWrap table { margin-top: var(--rule); }
+
+  #addWrap { margin-bottom: var(--rule); }
+  #addForm { display: flex; flex-wrap: wrap; gap: 0 1rem; align-items: flex-end; }
+  #addForm label { flex: 1 1 9rem; }
+  #addForm p.row { flex-basis: 100%; }
 </style>
 </head>
 <body>
@@ -110,6 +127,18 @@
     <a id="edit" class="button secondary" href="#">Edit syllabus</a>
   </p>
 
+  <!-- The single-student remedy for "one student is missing" -- everything
+       else on this page assumes a roster upload already happened. -->
+  <div id="addWrap">
+    <form id="addForm">
+      <label for="addExtId">Student ID<input id="addExtId" type="text" required autocomplete="off"></label>
+      <label for="addLast">Last name<input id="addLast" type="text" required autocomplete="off"></label>
+      <label for="addEmail">Parent email <span class="hint">(optional)</span><input id="addEmail" type="email" autocomplete="off"></label>
+      <label for="addPeriod">Period <span class="hint">(optional)</span><input id="addPeriod" type="text" autocomplete="off"></label>
+      <p class="row"><button type="submit" class="secondary compact">Add student</button></p>
+    </form>
+  </div>
+
   <table>
     <thead><tr>
       <th>Student</th><th>Per.</th><th>Parent email</th>
@@ -118,6 +147,14 @@
     <tbody id="rows"></tbody>
   </table>
   <p id="empty" class="muted small" hidden>No active students on this roster.</p>
+
+  <details id="droppedWrap" hidden>
+    <summary id="droppedSummary"></summary>
+    <table>
+      <thead><tr><th>Student</th><th>Per.</th><th>Parent email</th><th></th></tr></thead>
+      <tbody id="droppedRows"></tbody>
+    </table>
+  </details>
 </main>
 
 <script>
@@ -156,9 +193,17 @@ function credCell(username, c) {
 }
 
 function render() {
-  const registered = data.students.filter((s) => s.account_id).length;
-  $('sub').textContent = `${data.course} · ${registered} of ${data.students.length} registered`;
-  $('rows').innerHTML = data.students.map((s) => `<tr data-id="${s.account_id ?? ''}">
+  // Dropped students stay on this page rather than vanishing -- a teacher who
+  // drops the wrong one by mistake needs Restore, not a re-upload of the
+  // whole roster. They get their own (collapsed) table below the live one.
+  const active = data.students.filter((s) => s.status !== 'dropped');
+  const dropped = data.students.filter((s) => s.status === 'dropped');
+
+  const registered = active.filter((s) => s.account_id).length;
+  $('sub').textContent = `${data.course} · ${registered} of ${active.length} registered`
+    + (dropped.length ? ` · ${dropped.length} dropped` : '');
+
+  $('rows').innerHTML = active.map((s) => `<tr data-id="${s.account_id ?? ''}" data-roster="${s.roster_id}">
       <td class="name">${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
       <td data-label="Per.">${esc(s.period)}</td>
       <td class="small" data-label="Parent email">${s.account_id
@@ -166,16 +211,82 @@ function render() {
         : esc(s.email || '—')}</td>
       <td data-label="Parent sign-in">${credCell(s.parent_username, s.parent)}</td>
       <td data-label="Student sign-in">${credCell(s.username, s.student_code)}</td>
-      <td class="act">${s.account_id
+      <td class="act"><span class="row">${s.account_id
         ? `<button class="compact" data-reissue="${s.account_id}">Reissue both</button>`
-        : '<span class="muted" style="font-size:.78rem">not registered yet</span>'}</td>
+        : '<span class="muted" style="font-size:.78rem">not registered yet</span>'}
+        <button class="compact" data-edit-name="${s.roster_id}">Edit name</button>
+        <button class="compact danger" data-drop="${s.roster_id}">Drop</button>
+      </span></td>
     </tr>`).join('');
-  $('empty').hidden = data.students.length > 0;
+  $('empty').hidden = active.length > 0;
+
+  $('droppedRows').innerHTML = dropped.map((s) => `<tr data-roster="${s.roster_id}">
+      <td class="name">${esc(s.student)}<br><span class="muted" style="font-size:.8rem">${esc(s.student_ext_id)}</span></td>
+      <td data-label="Per.">${esc(s.period)}</td>
+      <td class="small" data-label="Parent email">${esc(s.email || '—')}</td>
+      <td class="act"><button class="compact" data-restore="${s.roster_id}">Restore</button></td>
+    </tr>`).join('');
+  $('droppedWrap').hidden = dropped.length === 0;
+  $('droppedSummary').textContent = `Dropped (${dropped.length})`;
 
   if (!data.vault) {
     notice('CODE_SECRET is not set on this deployment, so codes cannot be read back. '
       + 'only ones issued from this page in this request are visible. Set the secret and reissue.', 'error');
   }
+}
+
+/** Reload the table from the server. Every write below goes through this
+ *  rather than patching a row by hand, the same reasoning editEmail already
+ *  follows: a drop/restore/name-edit can change more than the one field that
+ *  was sent (status clears dropped_at, a name change moves which section a
+ *  row is in), so the safe thing is to ask the server what is true now. */
+async function reload() {
+  const fresh = await fetch(`/api/admin/credentials?course_id=${courseId}&format=json`);
+  if (fresh.ok) { data = await fresh.json(); render(); }
+}
+
+/** PATCH one roster row and reload. Shared by edit name, drop, and restore --
+ *  they differ only in which fields they send and what the notice says. */
+async function patchRoster(body, okMessage) {
+  try {
+    const res = await fetch('/api/admin/roster-student', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const resBody = await res.json();
+    if (!res.ok) { notice(resBody.error || 'Could not save that change.', 'error'); return; }
+    await reload();
+    document.querySelector(`tr[data-roster="${body.id}"]`)?.classList.add('fresh');
+    notice(okMessage, 'ok');
+  } catch {
+    notice('Could not reach the server.', 'error');
+  }
+}
+
+/** Fix a wrong surname on the roster -- same prompt() pattern as editEmail
+ *  below, on the roster row instead of the account, since a student who has
+ *  never registered still has a roster row and still needs this. */
+async function editName(rosterId, who) {
+  const next = prompt(`Last name for ${who}.`, who);
+  if (next === null) return;                    // cancelled
+  const trimmed = next.trim();
+  if (!trimmed || trimmed === who) return;       // unchanged
+  await patchRoster({ id: rosterId, last: trimmed }, `Name updated to ${trimmed}.`);
+}
+
+// Reversible, but still changes what is visibly on the roster -- asked
+// plainly first, same as reissue.
+async function dropStudent(rosterId, who) {
+  if (!confirm(`Drop ${who} from this roster?\n\n`
+    + 'They stay listed below, under Dropped, and Restore brings them back.')) return;
+  await patchRoster({ id: rosterId, status: 'dropped' }, `${who} dropped.`);
+}
+
+// The undo for a wrong drop. Not asked to confirm -- there is nothing here a
+// second click needs protecting against.
+async function restoreStudent(rosterId, who) {
+  await patchRoster({ id: rosterId, status: 'active' }, `${who} restored.`);
 }
 
 // Reissuing is destructive: the code in a parent's inbox stops working the
@@ -228,8 +339,7 @@ async function editEmail(accountId, who, current) {
     // Reload rather than patching the row by hand: clearing an override falls
     // back to the roster address, so the value that comes back is not the one
     // that was typed and the source label changes with it.
-    const fresh = await fetch(`/api/admin/credentials?course_id=${courseId}&format=json`);
-    if (fresh.ok) { data = await fresh.json(); render(); }
+    await reload();
     document.querySelector(`tr[data-id="${accountId}"]`)?.classList.add('fresh');
     notice(body.email
       ? `Contact address for ${body.student} is now ${body.email} (${body.email_source}).`
@@ -247,10 +357,62 @@ $('rows').addEventListener('click', (e) => {
     editEmail(id, row.student, row.email || '');
     return;
   }
-  const btn = e.target.closest('[data-reissue]');
+  const reissueBtn = e.target.closest('[data-reissue]');
+  if (reissueBtn) {
+    const id = Number(reissueBtn.dataset.reissue);
+    reissue(id, data.students.find((s) => s.account_id === id)?.student ?? 'this student');
+    return;
+  }
+  const editBtn = e.target.closest('[data-edit-name]');
+  if (editBtn) {
+    const id = Number(editBtn.dataset.editName);
+    const row = data.students.find((s) => s.roster_id === id);
+    editName(id, row?.student ?? '');
+    return;
+  }
+  const dropBtn = e.target.closest('[data-drop]');
+  if (!dropBtn) return;
+  const id = Number(dropBtn.dataset.drop);
+  dropStudent(id, data.students.find((s) => s.roster_id === id)?.student ?? 'this student');
+});
+
+$('droppedRows').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-restore]');
   if (!btn) return;
-  const id = Number(btn.dataset.reissue);
-  reissue(id, data.students.find((s) => s.account_id === id)?.student ?? 'this student');
+  const id = Number(btn.dataset.restore);
+  restoreStudent(id, data.students.find((s) => s.roster_id === id)?.student ?? 'this student');
+});
+
+// The single-student remedy for "one is missing". POSTs, reloads, and clears
+// the form on success so adding a second student right after is one click
+// back into the first field rather than a fight with stale values.
+$('addForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const student_ext_id = $('addExtId').value.trim();
+  const last = $('addLast').value.trim();
+  if (!student_ext_id || !last) return;
+
+  try {
+    const res = await fetch('/api/admin/roster-student', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        course_id: courseId,
+        student_ext_id,
+        last,
+        parent_email: $('addEmail').value.trim(),
+        period: $('addPeriod').value.trim(),
+      }),
+    });
+    const body = await res.json();
+    if (!res.ok) { notice(body.error || 'Could not add that student.', 'error'); return; }
+    await reload();
+    document.querySelector(`tr[data-roster="${body.id}"]`)?.classList.add('fresh');
+    notice(`${body.last} added.`, 'ok');
+    e.target.reset();
+  } catch {
+    notice('Could not reach the server.', 'error');
+  }
 });
 
 (async function load() {
