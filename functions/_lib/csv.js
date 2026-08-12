@@ -189,12 +189,15 @@ function extractRows(raw, columns, hasHeader) {
     if (seen.has(studentExtId)) { skipped.push({ line, reason: `duplicate student ID ${studentExtId}` }); continue; }
     seen.add(studentExtId);
 
-    // `first` is parsed but deliberately NOT returned. It is still read above
-    // because it is how a "Last, First" cell gets split and how an unparseable
-    // name is detected -- but nothing downstream stores it. See migration 0017:
-    // the given name was only ever displayed, so the app stopped keeping it.
+    // `first` rides along for display ONLY -- the import preview table shows
+    // it so a teacher can tell "Doyle, Robert" from "Doyle, Roberta" while
+    // reviewing a paste. Nothing downstream stores it: roster.js's INSERT
+    // never references row.first, and the roster table has no column for it.
+    // See migration 0017 -- the given name was only ever displayed, and this
+    // does not undo the decision to stop keeping it in the database.
     rows.push({
       student_ext_id: studentExtId,
+      first,
       last,
       period: cell(columns.period) || null,
       course: cell(columns.course) || null,

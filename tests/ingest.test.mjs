@@ -34,8 +34,7 @@ test('a comma file is still read as comma-separated', () => {
 
 test('a semicolon export is handled', () => {
   const { rows } = parseRoster('Student ID;Last Name;First Name\n1;Lee;Ann\n');
-  assert.deepEqual([rows[0].student_ext_id, rows[0].last], ['1', 'Lee']);
-  assert.equal(rows[0].first, undefined, 'given names are parsed but never returned');
+  assert.deepEqual([rows[0].student_ext_id, rows[0].last, rows[0].first], ['1', 'Lee', 'Ann']);
 });
 
 test('a comma inside a quoted name does not fool tab detection', () => {
@@ -43,10 +42,12 @@ test('a comma inside a quoted name does not fool tab detection', () => {
   assert.equal(detectDelimiter(pasted), '\t',
     'separators inside quotes must not be counted');
   const { rows } = parseRoster(pasted);
-  // The given name still has to be PARSED -- it is how "Doyle, Robert" is
-  // split -- it just does not survive into the row that gets stored.
+  // The given name is parsed for display in the import preview -- it is how
+  // "Doyle, Robert" gets split -- but it never reaches the database: the
+  // roster table has no column for it, and roster.js's INSERT never
+  // references row.first. See migration 0017.
   assert.equal(rows[0].last, 'Doyle');
-  assert.equal(rows[0].first, undefined);
+  assert.equal(rows[0].first, 'Robert');
 });
 
 test('a single-column file falls back to comma rather than throwing', () => {
