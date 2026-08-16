@@ -1,0 +1,90 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Introduction to Statistics: Quick Reference</title><style>
+@page { size: letter; margin: 0; }
+:root {
+  --wedgwood: #4e6e8e; --wedgwood-deep: #3d5a80;
+  --parchment: #f5f4ed; --ivory: #faf9f5; --warm-sand: #e8e6dc;
+  --ink: #141413; --charcoal: #3d3d3a; --olive: #504e49; --stone: #6b6a64;
+  --border-cream: #f0eee6; --border-warm: #e8e6dc; --ring-warm: #d1cfc5;
+  --serif: "Source Serif 4", "Source Serif Pro", Charter, Georgia, "Times New Roman", serif;
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body { font: 10.5pt/1.55 var(--sans); color: var(--ink);
+       background: var(--parchment); margin: 0 auto; padding: 0.45in; max-width: 8.5in;
+       -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+h1 { font: 500 25pt/1.1 var(--serif); margin: 0 0 3pt; letter-spacing: -0.4px; }
+.sub { font-size: 10pt; color: var(--olive); margin: 0 0 10pt;
+       padding-bottom: 7pt; border-bottom: 1px solid var(--wedgwood); }
+.cols { column-count: 2; column-gap: 26pt; counter-reset: sec; }
+/* Sections never split across the column boundary: a rule you are scanning for
+   should be whole and under its own heading, not continued overleaf. That makes
+   section length the thing that has to be managed. Keep each one to roughly
+   four or five bullets and the columns pack evenly on their own. One nine-item
+   section cannot pack, and it is the section that wants dividing anyway. */
+section { break-inside: avoid; margin: 0 0 10pt; counter-increment: sec; }
+h2 { font: 500 13pt/1.2 var(--serif); color: var(--ink); margin: 0 0 5pt;
+     padding-bottom: 3pt; border-bottom: 1px solid var(--border-warm);
+     break-after: avoid; break-inside: avoid; }
+h2::before { content: counter(sec, decimal-leading-zero);
+             font: 500 9pt/1.4 var(--serif); color: var(--wedgwood);
+             letter-spacing: 0.5px; margin-right: 6pt; }
+p { margin: 0 0 5pt; color: var(--charcoal); }
+ul { margin: 0; padding: 0; list-style: none; }
+li { position: relative; padding-left: 13pt; margin-bottom: 2.5pt;
+     color: var(--charcoal); break-inside: avoid; }
+table, tr { break-inside: avoid; }
+svg.fig { display: block; width: 100%; height: auto; margin: 3pt 0 5pt;
+          break-inside: avoid; }
+li::before { content: "\2013"; position: absolute; left: 0;
+             color: var(--wedgwood); }
+table { border-collapse: collapse; width: 100%; margin: 2pt 0 4pt;
+        font-variant-numeric: tabular-nums; }
+th { text-align: left; font: 500 8pt/1.4 var(--sans); text-transform: uppercase;
+     letter-spacing: 1.2px; color: var(--charcoal); background: var(--warm-sand);
+     padding: 2pt 6pt; }
+td { padding: 2pt 6pt; border-bottom: 1px solid var(--border-cream);
+     color: var(--charcoal); }
+strong { font-weight: 600; color: var(--ink); }
+a { color: var(--wedgwood-deep); text-decoration: none; }
+.note { column-span: all; margin-top: 6pt; padding-top: 5pt;
+        border-top: 1px solid var(--border-warm); font-size: 9pt;
+        color: var(--stone); }
+/* The who/where/when strip is emitted as one span per '·' segment so grid-based
+   themes can render it as spec cells. This theme keeps it as running text, so
+   the separators have to come back. */
+.sub span + span::before { content: "\00b7"; margin: 0 6pt; color: var(--ring-warm); }
+.sub em { font-style: normal; color: var(--stone); margin-right: 4pt; }
+.head { display: block; }
+.sticky { display: none; }   /* no hand in this theme; the note has nowhere to go */
+/* The three hand marks, held to this theme's one accent rather than a marker set. */
+.hi { background: #f3e7c0; padding: 0 .18em; border-radius: 2px; color: var(--ink);
+      font-weight: 600; }
+.circ { border: 1px solid var(--wedgwood); border-radius: 10px; padding: 0 5pt;
+        color: var(--wedgwood-deep); font-weight: 600; }
+.hand { font-style: italic; color: var(--wedgwood-deep); }
+@media print { .note { page-break-inside: avoid; } }
+
+/* The button rides on the closing note's own line, so it needs no rule or
+   spacing of its own and cannot add height to the sheet. Each theme already
+   styles .note; only the layout is added here. */
+.note { display: flex; align-items: center; justify-content: space-between;
+        gap: 12pt; }
+.export-btn {
+  font: 600 8pt/1 var(--sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+  letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+  color: var(--ink, #1a1a1a); background: var(--white, #fff);
+  border: 1px solid var(--ink, #1a1a1a); border-radius: 3px;
+  padding: 6pt 11pt; cursor: pointer; flex: 0 0 auto;
+}
+.export-btn:hover { background: var(--ink, #1a1a1a); color: var(--white, #fff); }
+.export-btn:focus-visible { outline: 2px solid var(--wedgwood, #4e6e8e);
+                            outline-offset: 2px; }
+/* The button is not part of the handout. */
+@media print { .export-btn { display: none !important; } }
+</style></head><body><header class="head"><div class="headline"><h1>Introduction to Statistics: Quick Reference</h1><p class="sub"><span><em>Instructor</em>Steven Huff</span><span><em>Contact</em>shuff@chicousd.org</span><span><em>Periods</em>3, 4, 7</span><span><em>Reply within</em>48 hours</span></p></div><div class="sticky"><b>Read this first</b>the syllabus is longer. this is the part you need.</div></header><div class="cols"><section><h2>Contact</h2><ul><li><strong>Email:</strong> shuff@chicousd.org, I reply within <span class="hi">48 hours</span></li><li><strong>No reply by then:</strong> send a follow-up</li><li><strong>Current grade:</strong> MyOpenMath, more current than Aeries <span class="hand">check here first</span></li><li><strong>Official grade:</strong> Aeries, reported by semester</li></ul></section><section><h2>Your grade</h2><svg class="fig" viewBox="0 0 300 65.50" preserveAspectRatio="xMinYMin meet" role="img" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, sans-serif"><rect x="0.00" y="0" width="225.00" height="22" fill="var(--wedgwood)"/><text x="112.50" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--parchment)">75%</text><rect x="225.00" y="0" width="45.00" height="22" fill="var(--warm-sand)"/><text x="247.50" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">15%</text><rect x="270.00" y="0" width="30.00" height="22" fill="var(--border-cream)"/><rect x="0" y="0" width="300" height="22" fill="none" stroke="var(--ring-warm)"/><rect x="0" y="28.5" width="7" height="7" fill="var(--wedgwood)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="35" font-size="8.5" fill="var(--charcoal)">Individual Assessments</text><text x="300" y="35" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">75%</text><rect x="0" y="40" width="7" height="7" fill="var(--warm-sand)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="46.5" font-size="8.5" fill="var(--charcoal)">Daily Homework/Classwork</text><text x="300" y="46.5" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">15%</text><rect x="0" y="51.5" width="7" height="7" fill="var(--border-cream)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="58" font-size="8.5" fill="var(--charcoal)">Group Assessments</text><text x="300" y="58" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">10%</text></svg><p>Scale: A 90+ · B 80+ · C 70+ · D 60+</p></section><section><h2>Turning work in late</h2><ul><li><strong>Late passes:</strong> <span class="hi">10 per semester</span>, one extra day each</li><li>Use a pass the day you miss the due date, they do not stack</li><li>Passes work on daily classwork and homework only, never on tests</li><li><strong>Working ahead:</strong> finish more than twenty-four hours early and MyOpenMath adds <span class="hi">2%</span> automatically</li></ul></section><section><h2>When you are absent</h2><ul><li><strong>Excused:</strong> the same number of days you were out, counted from the day you return</li><li><strong>Unexcused:</strong> no extension, the work is still due on its original date</li><li><strong>Planned ahead:</strong> arrange it before you leave, or a missed test stays missed</li></ul></section><section><h2>Tests</h2><ul><li><span class="circ">No retakes</span> on Group Tests or Individual Tests, and no corrections</li><li><strong>Practice Tests:</strong> redo as many times as you want, they are homework</li><li>Cannot do the Practice Test without help? You are not ready</li></ul></section><section><h2>In the room</h2><ul><li><strong>Phones:</strong> collected at the start of every period, returned at the end</li><li>Earbuds, smart watches and smart glasses go with them</li><li><strong>Bring:</strong> charged Chromebook, notebook with lined and graph paper</li><li><strong>AI:</strong> unauthorized use is cheating, edited or not</li></ul></section><section><h2>For parents</h2><ul><li>This is Butte College STAT C1000, 4 units, on a <span class="hi">permanent college transcript</span></li><li>Butte receives one grade for the year, the average of both semester percentages</li><li>Butte uses flat letters, so 89.9% is a B there, not a B+</li><li><strong>Check grades:</strong> MyOpenMath, for anything missing, late or open</li></ul></section></div><p class="note"><span>The full syllabus has the complete policies. This page is the short version.</span><button type="button" id="export-pdf" class="export-btn">Save as PDF</button></p>
+<script>
+document.getElementById("export-pdf").addEventListener("click", function () {
+  window.print();
+});
+</script>
+</body></html>

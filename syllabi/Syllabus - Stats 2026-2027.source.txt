@@ -1,0 +1,436 @@
+Introduction to Statistics
+Pleasant Valley High School, Math Department, 2026-2027
+
+Butte College Course Information
+This course is offered for dual enrollment credit through Butte College as STAT C1000, Introduction to Statistics (4 units), formerly MATH 18.
+Students in this course earn both Pleasant Valley High School credit and Butte College credit at no cost. The grade earned becomes part of a permanent Butte College transcript and follows the student to any college they transfer to.
+
+Course Description and Objectives
+This course is an introduction to statistical thinking and processes, including methods and concepts for discovery and decision-making using data. Topics include descriptive statistics; probability and sampling distributions; statistical inference; correlation and linear regression; analysis of variance, chi-squared, and t-tests; and application of technology for statistical analysis including the interpretation of the relevance of the statistical findings. Students apply methods and processes to applications using data from a broad range of disciplines. (C-ID MATH 110)
+Upon successful completion of this course, the student should be able to:
+Evaluate ethical issues in statistical practice.
+Identify appropriate statistical techniques and use technology-based statistical analysis to describe, interpret, and communicate results.
+Demonstrate an understanding of, and ability to use, basic ideas of statistical processes, including hypothesis tests and confidence interval estimation.
+Describe and apply probability concepts and distributions.
+Identify appropriate graphs and summary statistics for variables and relationships between them and correctly interpret information from graphs and summary statistics.
+Assess how data were collected and recognize how data collection affects what conclusions can be drawn from the data.
+
+Course Content
+These are the required topics for STAT C1000, totaling 68 lecture hours. We will move through them in roughly this order. Specific due dates live in MyOpenMath.
+Introduction to statistical thinking and processes
+Technology-based statistical analysis
+Applications using data from four or more of the following disciplines: administration of justice, business, economics, education, health science, information technology, life science, physical science, political science, psychology, and social science
+Units (subjects/cases) and variables in a data set, including multivariable data sets
+Categorical and quantitative variables
+Sampling methods, concerns, and limitations, including bias and random variability
+Observational studies and experiments
+Data summaries, visualizations, and descriptive statistics
+Probability concepts
+Probability distributions (e.g., binomial, normal)
+Sampling distributions and the Central Limit Theorem
+Estimation and confidence intervals
+Hypothesis testing, including t-tests for one and two populations, Chi-squared test(s), and ANOVA; and interpretations of results
+Regression, including correlation and linear regression equations
+
+Required Texts & Materials
+Introduction to Statistics on bookSHelf. This is the course book, used for all readings, lessons, and practice. It is free and no account is required. Every section can be downloaded as an offline PDF or HTML.
+rāSHio is the online statistics calculator for this course.
+Notebook or binder with both lined and graph paper
+District-issued Chromebook, charged and brought to class daily. No personal devices are allowed during assessments, so use your school-provided Chromebook for everyday work and be familiar with how it behaves before test day.
+Access Details
+There is no textbook to purchase for this course. All readings and practice come from bookSHelf, and all graded work is in MyOpenMath.
+bookSHelf:  (open the link, no sign-in)
+MyOpenMath: 
+rāSHio: 
+
+Computer and Internet Required for the Course
+A computer with internet access is required for this course. The district is one-to-one with Chromebooks, so every student has a device, and internet access is available on campus throughout the school day.
+Off campus, it is your responsibility to find or provide internet access. Assignments are completed and submitted in MyOpenMath, which is a web-based system. It has no offline mode, and answers cannot be submitted without a connection. If you know you will be offline, download your assignment as a PDF first and work the questions on paper, then enter your answers in MyOpenMath once you regain access.
+Course materials are a different matter. Readings, lessons, and practice problems are in bookSHelf, which is fully offline compatible. It is your responsibility to click the offline section PDF or HTML and download it to your device so that you can review it at a later time. The calculator we use in this course is also offline accessible. If you know your internet access will be limited, download what you need in advance.
+Limited or unavailable internet access at home is not considered an excuse for late or missed work.
+
+Course Usage of Aeries and MyOpenMath
+Aeries is the Learning Management System used by Chico Unified School District, and it is where grades are officially reported to students and parents. Google Classroom is the district’s other adopted platform, but I do not use it for this class.
+All coursework for this class runs through MyOpenMath. MyOpenMath holds your student’s most current grade, even when I have not yet finished entering everything into Aeries. Parents/Guardians are encouraged to check MyOpenMath for missing, late, or otherwise open assignments. It is the fastest and most accurate picture of where your student stands. I’ll do my best to keep Aeries updated as quickly as possible.
+Technology Support
+Butte College Student Technical Support is available to you as a dual enrollment student, for your Butte account, the MyBC Portal, and Canvas.
+Phone: (530) 895-2925
+Email: studenttechsupport@butte.edu
+Office: ITS Room 103, 3536 Butte Campus Drive, Oroville
+Hours (fall/spring): Monday to Thursday, 7:30 AM to 5:00 PM; Friday, 8:00 AM to Noon
+Google Chrome is the only supported web browser for this course.
+
+Instructor’s Preferred Methods of Contact
+If you need to reach me you can email me. I receive an enormous number of emails daily but I should respond within 48 hours of receiving your email. If your email isn’t responded to within that time frame, please send a follow up email.
+Please familiarize yourself with proper email etiquette when sending emails to me, if they are not properly formal I may not respond.
+Parent/Guardian Communication
+This course awards both high school and college credit. I may communicate with parents or guardians regarding a student’s high school grade, attendance, classroom performance, missing assignments, and progress. However, a student’s college educational records, including official college grades, are protected under the Family Educational Rights and Privacy Act (FERPA). Unless the student has authorized disclosure through the DualEnroll FERPA Consent or another FERPA exception applies, I cannot discuss college educational records with parents or guardians.
+
+Disability Support and Accommodations
+Students with a current IEP or 504 plan are encouraged to come speak with me during the first week of the semester so that we can set up your supports early. You are not required to discuss anything you would rather not; I receive your accommodations either way, and they will be honored whether or not we talk.
+
+What You Can Expect from the Instructor
+Video and written explanation lessons of the main topics, delivered in class.
+Periodic announcements with due date reminders and other important information.
+The following response times for questions and grades:
+
+Obligation(s) of the Student
+To be successful in this class, it is highly recommended that you do the following:
+Complete all assignments and turn them in on time. Assignments are always due at the start of the class period on the due date, but can be turned in early. Partial credit can be earned for incomplete assignments.
+Ask questions if you do not understand a particular point.
+Participate in class discussions. This will contribute to the overall learning of the class. No student will be allowed to be disruptive in any class discussion. After one warning they will be asked to exit the discussion immediately.
+Attend class regularly. Each new lesson or unit in statistics is built upon what has come before. Therefore, it is required that students attend and participate starting on the first day of class. Continual participation and completion of assignments is necessary for success.
+Tell me before you are gone, not after. When you know in advance that you will miss class, whether for an athletic event, an authorized field trip, or a preplanned family trip, it is your responsibility to check the due dates of assignments and tests, come to me ahead of the absence, and arrange a time to complete the work or take the assessment. For an athletic event or authorized field trip you will not be counted absent, and when possible arrangements will be made for you to complete the work early. If you say nothing until you are back, the work falls under the Late Work policy and a missed assessment stays missed.
+Keep track of your own grade. Check MyOpenMath regularly for anything missing, late, or still open. No one is going to chase you down about it.
+As a Dual Enrollment Student
+You are a Butte College student, not just a high school student in a math class. That comes with obligations that are yours alone:
+Your college records are yours. Once you enroll at a college, your college educational records are protected under FERPA regardless of your age. Your high school grade and classroom performance I can discuss with your parents as usual, but your college records I cannot, unless you authorized it through the DualEnroll FERPA Consent during registration. See Parent/Guardian Communication above.
+Check your Butte College email and MyBC portal. That is where anything official from the college will arrive, and “I didn’t see it” will not undo a drop or a hold.
+Watch your own college deadlines. The census and withdrawal dates for this course are listed under Dropping the Butte College Course below. They are not the same as the high school calendar, and no one at the college will remind you.
+Expect real work outside of class. This is a 4-unit college course running on a high school bell schedule, and the time you spend on it outside of class is part of the course, not extra.
+
+Instructor’s Cell Phone Policy
+This course follows the Chico Unified School District and Pleasant Valley High School mobile device policies, adopted under California’s Phone-Free Schools Act (AB 3216), which takes effect for the 2026-2027 school year.
+CUSD Mobile Communication Device Policy: Mobile Communication Devices
+In this classroom, cell phones are collected at the beginning of every class period. Phones are returned at the end of the class period, or when a student is released from class with a note.
+This applies to all personal devices, not just phones. Wireless or wired earbuds, smart glasses, and smart watches must be removed and either placed with the phones or put away in a backpack for the duration of the period.
+Case by case exemptions will be made based on individual student needs.
+
+Attendance and Participation
+If you are not in your seat by the time I take roll, you will be marked tardy and assigned a 30 minute detention by the office.
+You will learn more if you are actively participating and trying to engage in the content being presented. It will also be expected that you will engage in varying amounts of group work and discourse.
+Excessive absenteeism is defined as not participating in the course for one week or more. Participation in the course involves completing course activities. Simply logging in to MyOpenMath does not count as participation.
+If a student stops attending this course at any point in the semester, I am required to report their last date of attendance to Butte College.
+Dropping the Butte College Course
+This class runs on the high school schedule, but the Butte College deadlines are separate and are not waived. Two deadlines matter:
+These two dates are specific to this section and are not the same as the main Butte College academic calendar. Both are listed in your Butte dual enrollment sign-up portal. Check there first, and check early, because the census date falls only a few weeks into the term. Once Butte confirms the exact dates for this section, I will post them in MyOpenMath and issue a revised syllabus.
+Students may drop themselves through the census date and may withdraw themselves through the 75% point. After the withdrawal deadline no drops are allowed and a grade must be issued.
+It is the student’s responsibility to drop the college course through Butte College. Dropping or changing the high school class is not the same as dropping the college class.
+Who to Contact
+Butte College’s Dual Enrollment program asks that all communication about dual enrollment classes and students go through their office. This keeps support consistent and makes sure anything that needs to happen actually happens on time. If you or your parent or guardian has a question about your college enrollment, your drop, or your withdrawal, contact the Dual Enrollment program rather than the general Butte College admissions line, and tell me as well so I know what is in motion.
+Alongside anything you do yourself, I am responsible for the following:
+Before the census date, I drop students who are no longer in the class.
+After the census date, I enter a student’s last date of attendance. Entered before the 75% point, that results in a withdrawal, which puts a “W” on the college transcript rather than a failing grade.
+Students in danger of failing will be withdrawn before the 75% point. A “W” is better for you than an F on a permanent college transcript, so if your grade is heading that direction, expect me to raise it with you well before that deadline. Do not wait for me to start that conversation, come see me.
+If you transfer schools, move, or move to independent study, that is handled case by case. Tell me as early as you can so I can notify the Dual Enrollment program and we can sort out the right action for your college credit.
+
+Grading Policy
+This course is taught through lecture, discussion, collaborative group work, and homework. You will see several kinds of assignments:
+Reading assignments. Sections of Introduction to Stats on bookSHelf, read before or alongside the matching lesson.
+Practice problems. Problem sets in MyOpenMath tied to each section.
+Writing assignments. Explaining your reasoning in words, not just producing a number: describing how a standard deviation is found, or writing a sentence interpreting what a probability you just calculated actually means in context.
+Out-of-class assignments. Work that has to happen away from the classroom, including going out and collecting your own data for the Statistics Lab or for a question we are going to take up in class.
+Group work. Group tests at the end of each unit and a team Statistics Lab.
+Daily Classwork/Homework: Classwork will be assigned in MyOpenMath by section and will be due the next time class meets after the conclusion of the prior section (usually daily assignments).
+Any classwork or homework you do not finish in class becomes homework, and it is due at the start of the next class period. Time given in class to work is a head start on the assignment, not a separate assignment, so whatever is left when the period ends goes home with you. For Late Work see the Late Work section below.
+Reading, writing, and out-of-class assignments all count within Daily Classwork/Homework.
+Group Assessment: At the end of every unit there will be a Group Test.
+You will also complete a Statistics Lab. This is done over the course of a few days, working with an assigned team, to demonstrate your understanding of statistical concepts.
+Practice Test: Before each Individual Test you are assigned a Practice Test. It is not an exam, it is a homework assignment and a readiness check, it counts in the Daily Homework/Classwork category, and you may redo it as many times as you want. It is the clearest signal you will get of whether you are ready for the Individual Test, so use it that way. If you cannot do the Practice Test without help, you are not ready.
+Individual Assessment: At the end of each unit, after the Group Test and the Practice Test, students will take an Individual Test.
+There are no retakes or corrections on Group Tests or Individual Tests.
+Methods of Evaluation: The Butte College course outline of record for STAT C1000 states that methods of evaluation “could include but are not limited to quizzes, exams, laboratory work, field journals, projects, research demonstrations, etc.” and that “methods of evaluation are at the discretion of local faculty.” The assessment structure in this course, meaning daily classwork, practice tests, group tests, the Statistics Lab, and individual tests, is set under that authority, as is the no-retake, no-correction policy above.
+If you experience a technical problem that prevents you from completing your work, you need to contact me immediately (at the time of the event). Provide as much evidence as possible to support the case such as pictures or screenshots, so the situation can be evaluated and you may get an opportunity to complete the work. After this time it will no longer be possible to make up the work.
+Late Work
+Work is due on its original due date and is not eligible for an extension or a resubmission, except in the three cases below: an excused absence, a late pass, or a documented accommodation.
+Excused absences. If the school deems your absence excused, you have the same number of days you were absent, counted from the day you return, to complete the work you missed. Absent two days, you have two days from your return; absent one day, you have one day. It is your responsibility to check MyOpenMath for the assigned sections and homework while you are out.
+This covers absences you could not plan for, such as illness. An absence you knew about in advance, such as an athletic event, a field trip, or a preplanned family trip, has to be arranged before you leave, as described under Obligation(s) of the Student above. If you say nothing until you get back, this window does not apply and a missed assessment stays missed.
+Unexcused absences. An unexcused absence does not extend anything. The work is due on its original due date, and it is your responsibility to have it completed and submitted by then.
+Late passes. You get ten late passes per semester. One late pass extends a single daily classwork or homework assignment by one full day.
+Late passes apply to daily classwork and homework only. They cannot be used on group tests or individual tests.
+A late pass must be used on the day you miss the original due date. One pass per assignment and one extra day per pass. They do not stack.
+No retakes. There are no retakes and no corrections on Group Tests or Individual Tests. Late passes do not apply to them, and an excused absence does not create a second attempt. It only gives you time to take the assessment you missed.
+The Practice Test is the exception. It is a homework assignment and a readiness check, graded in the Daily Homework/Classwork category, and you may redo it as many times as you want.
+Grade disputes. If a graded assignment is two weeks past its submission date, it is not eligible for discussion or a grade change. It is your responsibility to check your grade frequently.
+Grade Weights
+Practice Tests are graded in Daily Homework/Classwork. The Statistics Lab is graded in Group Assessments alongside the Group Tests.
+Grading Scheme
+Your percentage in MyOpenMath produces two grades, reported to two places:
+Pleasant Valley receives the granular grade through Aeries, using PV’s plus/minus system. This is what appears on your high school transcript.
+Butte College receives a flat letter with no plus or minus. A B-, a B, and a B+ are all reported to Butte as a B.
+The work is the same, the percentage is the same, only the labeling differs. An 89.9% is a B on your college transcript, not a B+.
+Semester Grades and the College Grade
+Pleasant Valley grades by semester. You earn a semester grade in January and another in June, and both are posted to Aeries and appear on your high school transcript as two separate grades.
+Butte College does not work that way. This is a single college course, and we run it across a full school year rather than in one college term, so Butte receives one grade for the whole course. That grade is the average of your two semester percentages, converted to the flat letter described above and submitted to Butte at the end of the year.
+Both semesters carry equal weight in that average. A rough first semester is not permanent on your college transcript, because a strong second semester pulls the average up. The reverse is just as true: a strong first semester does not let you coast through the second, because the second half counts exactly as much as the first.
+Extra Credit
+There is one form of extra credit in this course, and it rewards working ahead rather than doing additional work.
+Finish an assignment more than twenty-four hours before it is due and you automatically earn a 2% bump on that assignment. No request is needed. MyOpenMath applies it based on when you complete the assignment.
+The assignment has to be genuinely finished, not merely started, at least twenty-four hours before the due date. Starting early and submitting at the deadline does not earn the bump. The bump applies to daily classwork and homework; there is no extra credit on Group Tests, Individual Tests, or the Statistics Lab, and no other extra credit is offered.
+
+Course Schedule
+The calendar below lists every assignment for both semesters, with the class-meeting date for each of the two rotations. Dates are approximate and may shift as we go. Where a date here and a due date in MyOpenMath disagree, the MyOpenMath date governs.
+Semester 1 - Chapters 1-5
+18 teaching weeks, 83 school days, 37 assignments.
+Semester 2 - Chapters 6-12
+21 teaching weeks, 97 school days, 43 assignments.
+Non-school days
+30 weekdays lost inside the school year. A closure does not advance the odd/even counter - it pushes the rotation, so the parity resumes where it left off.
+In session, but shortened
+Class meets. Plan for a compressed period.
+
+Academic Honesty / Dishonesty
+Neither cheating nor plagiarism will be tolerated. Because this course carries both high school and college credit, you are held to Pleasant Valley High School’s Academic Integrity Policy and to Butte College AP 5521 (Academic Integrity) at the same time.
+Definitions
+Cheating is obtaining or attempting to obtain credit for academic work through dishonesty, deception, or fraud. Examples include, but are not limited to:
+Using AI in any way I have not authorized is cheating. Asking an AI tool for an answer, a computation, a worked solution, or a written explanation and turning it in as your own is the same as copying it off another student, and it counts as cheating whether or not you edit the output afterward. What AI use is permitted in this course, and how you must cite it, is set out under Use of AI below. Uncited or unauthorized use is a violation.
+Copying any answers from another person or from an online source during an exam or on an independent assignment.
+Allowing another student to look at your work, or at a third person’s work, during an exam or quiz, or to complete an assignment. Providing the work is a violation, not just receiving it.
+Using any unauthorized materials, technological devices, or concealed information during an exam or on an independent assignment. This includes notes, phones, smartwatches, and any calculator not approved for that assessment.
+Submitting the same work for credit in more than one course without prior approval of all involved instructors.
+Altering or interfering with grade records, including altering corrections or scores on returned work.
+Sharing or asking about questions or answers to quizzes or exams.
+Misrepresenting your work to me. For example, claiming you submitted an assignment you did not submit, or overstating the time and effort you put into it.
+Taking shortcuts to bypass the steps to complete an assignment or assessment, such as locating answers without doing the computations.
+Missing class in order to avoid turning in an assignment or taking a test.
+Doing more or less than your share on a group project without teacher approval.
+Fabricating or altering data. In a statistics course that includes inventing, padding, or “adjusting” the data you collected for the Statistics Lab.
+Plagiarism is using work or ideas you did not independently generate without giving proper credit to the original author or generative source. Examples include, but are not limited to:
+Directly quoting, paraphrasing, or summarizing ideas, conclusions, words, or other intellectual property of another person or generative source without appropriate source attribution.
+Representing someone else’s work as your own, or doing work for another student.
+Copying media, including images and charts, from online or other sources and inserting them into your work without appropriate source attribution.
+Using generative artificial intelligence to produce class work, take exams or quizzes, write papers, or otherwise generate academic work products and claiming them as your own independent work, when not authorized by the instructor. See Use of AI below for what is authorized in this course.
+Submitting group or partnered work on an authorized collaborative project is not plagiarism, but the same principle applies to citing the author or source of that work.
+Your Responsibilities
+As a Butte College student you are obligated to:
+Bear full responsibility for the content and integrity of all academic work you submit.
+Know and understand the definitions above and the college’s policies on cheating and plagiarism.
+Understand my expectations regarding homework, tests, group work, reuse of material prepared for another class, and the use of generative AI.
+Participate in all stages of the appeal process if you wish to challenge a claim.
+My Responsibilities
+AP 5521 obligates me, when I accuse a student of academic dishonesty, to:
+Base the claim on a reasonable assessment of the facts and evidence.
+Tell you the basis for the claim and the consequence I am imposing.
+Impose only consequences within the scope of my authority.
+Give you a copy of AP 5521 and explain the appeal process. This syllabus links it below; ask me and I will walk you through it.
+Participate in the appeal process if you appeal.
+If I impose a consequence without telling you of the claim or its basis, that consequence is reversed on appeal.
+Consequences: High School
+Pleasant Valley’s academic integrity consequences are school-wide and cumulative for all the years you attend PVHS. When a violation is found, I may investigate, conference with the student, notify parents or guardians, and document the incident. The range of consequences includes:
+A zero on the assignment, with possible opportunity to redo it or complete an alternative assignment at teacher discretion.
+The high school course grade lowered one letter grade.
+Notification of the student’s current teachers, parents or guardians, and extracurricular and sport coaches.
+Denial of a letter of recommendation from teachers.
+A discipline referral to administration.
+Suspension from school and/or exclusion from extracurricular activities, including removal from ASB office and disqualification from California Scholastic Federation.
+Full policy: PVHS Academic Integrity
+Consequences: Butte College
+Under AP 5521, I may take any or all of the following steps:
+Issue a verbal or written warning.
+Require you to retake an exam, recreate the same or a similar assignment, or complete a substitute assignment.
+Lower the grade or reduce the points earned for the assignment, exam, or other academic work.
+Issue a failing grade or award no points for the assignment, exam, or other academic work.
+Refer you to Student Services, which may result in more severe consequences depending on the nature of the academic dishonesty, up to expulsion, as outlined in AP 5520.
+The maximum penalty I can impose on the college side is a failing grade on the assignment, exam, or other academic work, not a failing grade in the course. Anything beyond that goes through Student Services.
+Appeal Process
+The steps below are the AP 5521 appeal, and they govern the college-side consequence. High school discipline is appealed through PVHS administration under the CUSD process, not through Butte College.
+You have the right to challenge a claim of academic dishonesty. Submit an appeal in writing or by email to me stating why you disagree and providing any supporting evidence. You must begin the appeal within ten working days of being notified of the claim and its consequence. At every step the standard of proof is preponderance of the evidence. The claim stands only if it is shown to be more likely true than not, and that burden is mine, not yours.
+Meet with me within ten days of being notified of the claim. We clarify the basis for the claim and try to resolve the disputed facts. Either of us may request a demonstration of your skills or knowledge to validate or refute the claim. I will give you the outcome in writing within five working days of the meeting.
+Appeal to the administrator appointed by the Chief Instructional Officer, within ten days of receiving my written outcome. They review the evidence, interview both of us, and either uphold or reject the claim, in writing within five working days of the last interview. If they find in your favor, I accept that as final and grade the work without prejudice; if the disputed work already affected your final course grade, I regrade it and the grade is recalculated and formally corrected. If they uphold the claim, my consequence stands and you are referred to Student Services.
+Appeal to the Chief Instructional Officer within ten days of the administrator’s decision. The CIO follows the same procedure and responds in writing within ten working days of receiving the appeal. The CIO’s decision is final.
+If you are referred to Student Services and are later found not to have violated the policy, Student Services is notified and any negative information associated with the incident is removed from your record.
+Acknowledgment
+The PVHS Academic Integrity Policy is meant to be read and signed by a student and a parent or guardian. In this course that acknowledgment is collected through the signed syllabus agreement. Signing this syllabus is how you and your parent or guardian confirm you have read and understood this section, along with the rest of the course policies. There is no separate integrity form to return.
+Policies
+PVHS Academic Integrity
+AP 5521, Academic Integrity
+AP 5500, Standards of Student Conduct
+AP 5520, Student Discipline Procedures
+AP 5530, Student Rights and Grievances
+Butte College student academic policies
+Pleasant Valley High School student handbook, linked under Instructor’s Cell Phone Policy above
+
+Use of AI
+Artificial Intelligence (AI) tools (e.g., Gemini, AI-powered calculators, coding assistants) are increasingly present in education. To describe what is and is not allowed in this room, I use a Green / Yellow / Red framework.
+This is my policy for my classroom, not a Pleasant Valley High School policy. The school has not adopted this framework district-wide or campus-wide, and no other teacher is bound by it. I chose it because it states expectations plainly. Other classes at Pleasant Valley have their own AI rules, and it is your responsibility to follow the expectations of each course you take rather than assuming mine apply everywhere.
+For this course, the AI usage level is Yellow. AI use is permitted, but it must be cited.
+You may use AI programs (e.g., Gemini) to generate ideas, brainstorm, check your understanding of a concept, or work through an explanation. Note that material generated by these programs may be inaccurate, incomplete, or otherwise problematic. Statistics is a subject where these tools are confidently wrong on a regular basis, and the error becomes yours once you submit it.
+There is an AI tutor built into your bookSHelf textbook. It is there to help you with our course material, and I encourage you to use it. Because it is scoped to what we are actually studying, it is a better first stop than a general-purpose chatbot. Ask it to explain a concept you did not follow in class, walk you through a worked example, or tell you whether your reasoning on a problem holds up. Using it to understand the material requires no citation, the same as asking me or a classmate for help. The rules below still govern what you hand in.
+You may not submit work generated by an AI program as your own. If AI contributed to what you turn in, cite it the way you would cite any other source: name the tool and describe what it did for you. Violations of this policy are cheating and plagiarism under the Academic Honesty / Dishonesty section above, and carry the consequences listed there on both the high school and the college side.
+
+Notes
+Notification settings in Aeries and MyOpenMath should be set to receive alerts when I send out an announcement.
+Daily classwork and homework are due at the start of the class period on the due date. If work has not been manually submitted in MyOpenMath by then, it will be automatically submitted as it stands at that time.
+Dates are subject to change. In the event of a conflict, the due dates posted in MyOpenMath will govern.
+Disclaimer: This syllabus constitutes a contract between instructor and student. The instructor reserves the right to alter elements of this syllabus as appropriate, with written notice to the class posted in MyOpenMath. It will be the responsibility of the students to ensure they possess the latest version of the class syllabus.
+Instructor	Steven Huff
+Email	shuff@chicousd.org
+Courses and Time	Introduction to Statistics, Periods 3, 4, 7
+Prep Period(s)	Periods 1, 2
+Transfer Status	CSU/UC
+C-ID	MATH 110
+Cal-GETC	Area 2 (Mathematical Concepts and Quantitative Reasoning)
+Prerequisite	Placement as determined by the college’s multiple measures assessment process, or completion of a course taught at or above the level of intermediate algebra
+Hours	68 contact hours / 136 out-of-class hours / 204 total hours
+Term	2026-2027
+Email	within 48 hours
+Questions about an assignment or a score	within 48 hours
+Daily classwork and homework	scored immediately in MyOpenMath
+Group and Individual Assessments	graded within 48 hours
+Mobile Communication Devices	Consequences: Consequences
+Device not surrendered or put away at the start of the period	Warning; device surrendered immediately
+Repeated refusal to surrender a device	Parent contact; student sent to the office and issued a referral for Saturday school
+Device used during class after collection (second phone, earbuds, smart glasses, smart watch)	Confiscation and administrative referral
+Deadline	What it means
+Census date (determined after registration)	Last date to drop WITHOUT a “W” on the college transcript
+75% point (determined after registration)	Last date to withdraw WITH a “W” on the college transcript
+Category	Weight
+Daily Homework/Classwork	15%
+Group Assessments	10%
+Individual Assessments	75%
+Grade	Description	Range
+A	Excellent Work	90% to 100%
+B	Good Work	80% to 89.99%
+C	Satisfactory Work	70% to 79.99%
+D	Less than Satisfactory Work	60% to 69.99%
+F	Failing	0% to 59.99%
+#	Ch	Assignment	Odd-day class	Even-day class
+1		Orientation and Syllabus	Wk 1 · Fri Aug 14	Wk 2 · Mon Aug 17
+2	1	1.1 Definitions of Statistics, Probability, and Key Terms	Wk 2 · Tue Aug 18	Wk 2 · Wed Aug 19
+3	1	1.2 Data, Sampling, and Variation in Data and Sampling	Wk 2 · Thu Aug 20	Wk 2 · Fri Aug 21
+4	1	1.3 Frequency, Frequency Tables, and Levels of Measurement	Wk 3 · Mon Aug 24	Wk 3 · Tue Aug 25
+5	1	1.4 Experimental Design and Ethics	Wk 3 · Wed Aug 26	Wk 3 · Thu Aug 27
+6	1	1.5 Lab: Data Collection Experiment · Chapter 1 Practice Test assigned (homework)	Wk 3 · Fri Aug 28	Wk 4 · Mon Aug 31
+7	1	Chapter 1 Group Test	Wk 4 · Tue Sep 01	Wk 4 · Wed Sep 02
+8	1	Chapter 1 Individual Test · Chapter 1 Practice Test due	Wk 4 · Thu Sep 03	Wk 4 · Fri Sep 04
+		Labor Day - no school	Wk 5 · Mon Sep 07	Wk 5 · Mon Sep 07
+9	2	2.1 Stem-and-Leaf Graphs, Line Graphs, and Bar Graphs	Wk 5 · Tue Sep 08	Wk 5 · Wed Sep 09
+10	2	2.2 Histograms, Frequency Polygons, and Time Series Graphs	Wk 5 · Thu Sep 10	Wk 5 · Fri Sep 11
+11	2	2.3 Measures of the Location of the Data + 2.4 Box Plots	Wk 6 · Mon Sep 14	Wk 6 · Tue Sep 15
+12	2	2.5 Measures of the Center + 2.6 Skewness and the Mean, Median, Mode	Wk 6 · Wed Sep 16	Wk 6 · Thu Sep 17
+13	2	2.7 Measures of the Spread of the Data	Wk 6 · Fri Sep 18	Wk 7 · Mon Sep 21
+14	2	2.8 Lab: Descriptive Statistics · Chapter 2 Practice Test assigned (homework)	Wk 7 · Tue Sep 22	Wk 7 · Wed Sep 23
+15	2	Chapter 2 Group Test	Wk 7 · Thu Sep 24	Wk 7 · Fri Sep 25
+16	2	Chapter 2 Individual Test · Chapter 2 Practice Test due	Wk 8 · Mon Sep 28	Wk 8 · Tue Sep 29
+17	3	3.1 Terminology	Wk 8 · Wed Sep 30	Wk 8 · Thu Oct 01
+18	3	3.2 Independent and Mutually Exclusive Events	Wk 8 · Fri Oct 02	Wk 9 · Mon Oct 05
+19	3	3.3 Two Basic Rules of Probability	Wk 9 · Tue Oct 06	Wk 9 · Wed Oct 07
+20	3	3.4 Contingency Tables	Wk 9 · Thu Oct 08	Wk 9 · Fri Oct 09
+21	3	3.5 Tree and Venn Diagrams	Wk 10 · Mon Oct 12	Wk 10 · Tue Oct 13
+22	3	3.6 Lab: Probability Topics · Chapter 3 Practice Test assigned (homework)	Wk 10 · Wed Oct 14	Wk 10 · Thu Oct 15
+23	3	Chapter 3 Group Test	Wk 10 · Fri Oct 16	Wk 11 · Mon Oct 19
+24	3	Chapter 3 Individual Test · Chapter 3 Practice Test due	Wk 11 · Tue Oct 20	Wk 11 · Wed Oct 21
+25	4	4.1 Probability Distribution Function (PDF) for a Discrete Random Variable	Wk 11 · Thu Oct 22	Wk 11 · Fri Oct 23
+26	4	4.2 Mean or Expected Value and Standard Deviation	Wk 12 · Mon Oct 26	Wk 12 · Tue Oct 27
+27	4	4.3 Binomial Distribution	Wk 12 · Wed Oct 28	Wk 12 · Thu Oct 29
+28	4	4.4 Lab: Discrete Distribution (Playing Card Experiment)	Wk 12 · Fri Oct 30	Wk 13 · Mon Nov 02
+29	4	4.5 Continuous Probability Functions	Wk 13 · Tue Nov 03	Wk 13 · Wed Nov 04
+30	4	4.6 Lab: Continuous Distribution · Random Variables Practice Test assigned (homework)	Wk 13 · Thu Nov 05	Wk 13 · Fri Nov 06
+31	4	Random Variables Group Test	Wk 14 · Mon Nov 09	Wk 14 · Tue Nov 10
+		Veterans Day - no school	Wk 14 · Wed Nov 11	Wk 14 · Wed Nov 11
+32	4	Random Variables Individual Test · Random Variables Practice Test due	Wk 14 · Thu Nov 12	Wk 14 · Fri Nov 13
+33	5	5.1 The Standard Normal Distribution	Wk 15 · Mon Nov 16	Wk 15 · Tue Nov 17
+34	5	5.2 Using the Normal Distribution	Wk 15 · Wed Nov 18	Wk 15 · Thu Nov 19
+		Thanksgiving Recess - no school	Mon Nov 23 - Fri Nov 27	Mon Nov 23 - Fri Nov 27
+35	5	5.3 Lab: Normal Distribution (Lap Times) · Chapter 5 Practice Test assigned (homework)	Wk 15 · Fri Nov 20	Wk 16 · Mon Nov 30
+36	5	Chapter 5 Group Test	Wk 16 · Tue Dec 01	Wk 16 · Wed Dec 02
+37	5	Chapter 5 Individual Test · Chapter 5 Practice Test due	Wk 16 · Thu Dec 03	Wk 16 · Fri Dec 04
+		(open - buffer)	Wk 17 · Mon Dec 07	
+		Full Review 1 of 2	Wk 17 · Wed Dec 09	Wk 17 · Tue Dec 08
+		Full Review 2 of 2	Wk 17 · Fri Dec 11	Wk 17 · Thu Dec 10
+		Semester Final	Wk 18 · Tue Dec 15	Wk 18 · Mon Dec 14
+		Semester Final (cont.)	Wk 18 · Thu Dec 17	Wk 18 · Wed Dec 16
+		Secondary Pupil Free Day - no school	Wk 18 · Fri Dec 18	Wk 18 · Fri Dec 18
+#	Ch	Assignment	Odd-day class	Even-day class
+		Winter Recess - no school	Mon Dec 21 - Fri Jan 01	Mon Dec 21 - Fri Jan 01
+1	6	6.1 The Central Limit Theorem for Sample Means (Averages)	Wk 1 · Tue Jan 05	Wk 1 · Mon Jan 04
+2	6	6.2 The Central Limit Theorem for Sums	Wk 1 · Thu Jan 07	Wk 1 · Wed Jan 06
+3	6	6.3 Using the Central Limit Theorem	Wk 2 · Mon Jan 11	Wk 1 · Fri Jan 08
+4	6	6.4 Lab: Central Limit Theorem (Pocket Change) · Chapter 6 Practice Test assigned (homework)	Wk 2 · Wed Jan 13	Wk 2 · Tue Jan 12
+5	6	Chapter 6 Group Test	Wk 2 · Fri Jan 15	Wk 2 · Thu Jan 14
+		Martin Luther King, Jr. Day - no school	Wk 3 · Mon Jan 18	Wk 3 · Mon Jan 18
+6	6	Chapter 6 Individual Test · Chapter 6 Practice Test due	Wk 3 · Wed Jan 20	Wk 3 · Tue Jan 19
+7	7	7.1 A Single Population Mean Using the Normal Distribution	Wk 3 · Fri Jan 22	Wk 3 · Thu Jan 21
+8	7	7.2 A Single Population Mean Using the Student t-Distribution	Wk 4 · Tue Jan 26	Wk 4 · Mon Jan 25
+9	7	7.3 A Population Proportion	Wk 4 · Thu Jan 28	Wk 4 · Wed Jan 27
+10	7	7.4 Lab: Confidence Interval (Home Costs) · Chapter 7 Practice Test assigned (homework)	Wk 5 · Mon Feb 01	Wk 4 · Fri Jan 29
+11	7	Chapter 7 Group Test	Wk 5 · Wed Feb 03	Wk 5 · Tue Feb 02
+12	7	Chapter 7 Individual Test · Chapter 7 Practice Test due	Wk 5 · Fri Feb 05	Wk 5 · Thu Feb 04
+13	8	8.1 Null and Alternative Hypotheses	Wk 6 · Tue Feb 09	Wk 6 · Mon Feb 08
+14	8	8.2 Outcomes and the Type I and Type II Errors	Wk 6 · Thu Feb 11	Wk 6 · Wed Feb 10
+		Lincoln's Birthday - no school	Wk 6 · Fri Feb 12	Wk 6 · Fri Feb 12
+		Presidents' Day - no school	Wk 7 · Mon Feb 15	Wk 7 · Mon Feb 15
+15	8	8.3 Probability Distribution Needed for Hypothesis Testing	Wk 7 · Wed Feb 17	Wk 7 · Tue Feb 16
+16	8	8.4 Rare Events, the Sample, Decision and Conclusion + 8.5 Additional Information and Full Hypothesis Test Examples	Wk 7 · Fri Feb 19	Wk 7 · Thu Feb 18
+17	8	8.6 Lab: Hypothesis Testing of a Single Mean and Single Proportion · Chapter 8 Practice Test assigned (homework)	Wk 8 · Tue Feb 23	Wk 8 · Mon Feb 22
+18	8	Chapter 8 Group Test	Wk 8 · Thu Feb 25	Wk 8 · Wed Feb 24
+19	8	Chapter 8 Individual Test · Chapter 8 Practice Test due	Wk 9 · Mon Mar 01	Wk 8 · Fri Feb 26
+20	9	9.1 Two Population Means, Unknown SD + 9.2 Two Population Means, Known SD	Wk 9 · Wed Mar 03	Wk 9 · Tue Mar 02
+21	9	9.3 Comparing Two Independent Population Proportions	Wk 9 · Fri Mar 05	Wk 9 · Thu Mar 04
+22	9	9.4 Matched or Paired Samples	Wk 10 · Tue Mar 09	Wk 10 · Mon Mar 08
+23	9	9.5 Lab: Hypothesis Testing for Two Means and Two Proportions · Chapter 9 Practice Test assigned (homework)	Wk 10 · Thu Mar 11	Wk 10 · Wed Mar 10
+		Spring Recess - no school	Mon Mar 15 - Fri Mar 19	Mon Mar 15 - Fri Mar 19
+24	9	Chapter 9 Group Test	Wk 11 · Mon Mar 22	Wk 10 · Fri Mar 12
+25	9	Chapter 9 Individual Test · Chapter 9 Practice Test due	Wk 11 · Wed Mar 24	Wk 11 · Tue Mar 23
+		Spring Travel Day - no school	Wk 11 · Fri Mar 26	Wk 11 · Fri Mar 26
+		In Lieu Admission Day - no school	Wk 12 · Mon Mar 29	Wk 12 · Mon Mar 29
+26	10	10.1 Facts About the Chi-Square Distribution + 10.2 Goodness-of-Fit Test	Wk 12 · Tue Mar 30	Wk 11 · Thu Mar 25
+27	10	10.3 Test of Independence	Wk 12 · Thu Apr 01	Wk 12 · Wed Mar 31
+28	10	10.4 Test for Homogeneity + 10.5 Comparison of the Chi-Square Tests	Wk 13 · Mon Apr 05	Wk 12 · Fri Apr 02
+29	10	10.7 Lab: Chi-Square Goodness-of-Fit · Chapter 10 Practice Test assigned (homework)	Wk 13 · Wed Apr 07	Wk 13 · Tue Apr 06
+30	10	Chapter 10 Group Test	Wk 13 · Fri Apr 09	Wk 13 · Thu Apr 08
+31	10	Chapter 10 Individual Test · Chapter 10 Practice Test due	Wk 14 · Tue Apr 13	Wk 14 · Mon Apr 12
+32	11	11.1 Linear Equations + 11.2 Scatter Plots	Wk 14 · Thu Apr 15	Wk 14 · Wed Apr 14
+33	11	11.3 The Regression Equation	Wk 15 · Mon Apr 19	Wk 14 · Fri Apr 16
+34	11	11.4 Testing the Significance of the Correlation Coefficient	Wk 15 · Wed Apr 21	Wk 15 · Tue Apr 20
+35	11	11.5 Prediction + 11.6 Outliers	Wk 15 · Fri Apr 23	Wk 15 · Thu Apr 22
+		Nonwork day for employees under 12 months - no school	Wk 16 · Mon Apr 26	Wk 16 · Mon Apr 26
+36	11	11.7 Lab: Regression (Distance from School) · Chapter 11 Practice Test assigned (homework)	Wk 16 · Wed Apr 28	Wk 16 · Tue Apr 27
+37	11	Chapter 11 Group Test	Wk 16 · Fri Apr 30	Wk 16 · Thu Apr 29
+38	11	Chapter 11 Individual Test · Chapter 11 Practice Test due	Wk 17 · Tue May 04	Wk 17 · Mon May 03
+39	12	12.1 One-Way ANOVA	Wk 17 · Thu May 06	Wk 17 · Wed May 05
+40	12	12.2 The F Distribution and the F Ratio + 12.3 Facts About the F Distribution	Wk 18 · Mon May 10	Wk 17 · Fri May 07
+41	12	12.5 Lab: One-Way ANOVA · Chapter 12 Practice Test assigned (homework)	Wk 18 · Wed May 12	Wk 18 · Tue May 11
+42	12	Chapter 12 Group Test	Wk 18 · Fri May 14	Wk 18 · Thu May 13
+43	12	Chapter 12 Individual Test · Chapter 12 Practice Test due	Wk 19 · Tue May 18	Wk 19 · Mon May 17
+		Full Review 1 of 3	Wk 19 · Thu May 20	Wk 19 · Wed May 19
+		Full Review 2 of 3	Wk 20 · Mon May 24	Wk 19 · Fri May 21
+		Full Review 3 of 3	Wk 20 · Wed May 26	Wk 20 · Tue May 25
+		Semester Final	Wk 20 · Fri May 28	Wk 20 · Thu May 27
+		Memorial Day - no school	Wk 21 · Mon May 31	Wk 21 · Mon May 31
+		Semester Final (cont.)	Wk 21 · Wed Jun 02	Wk 21 · Tue Jun 01
+		Make-up / course close-out		Wk 21 · Thu Jun 03
+Date	Weekday	Reason	Part of
+Sep 07, 2026	Monday	Labor Day	-
+Nov 11, 2026	Wednesday	Veterans Day	-
+Nov 23, 2026	Monday	Thanksgiving Recess	-
+Nov 24, 2026	Tuesday	Thanksgiving Recess	-
+Nov 25, 2026	Wednesday	Thanksgiving Recess	-
+Nov 26, 2026	Thursday	Thanksgiving Day	Thanksgiving Recess
+Nov 27, 2026	Friday	Day after Thanksgiving	Thanksgiving Recess
+Dec 18, 2026	Friday	Secondary Pupil Free Day	-
+Dec 21, 2026	Monday	Winter Recess	-
+Dec 22, 2026	Tuesday	Winter Recess	-
+Dec 23, 2026	Wednesday	Winter Recess	-
+Dec 24, 2026	Thursday	Christmas Eve (observed)	Winter Recess
+Dec 25, 2026	Friday	Christmas Day	Winter Recess
+Dec 28, 2026	Monday	Winter Recess	-
+Dec 29, 2026	Tuesday	Winter Recess	-
+Dec 30, 2026	Wednesday	Winter Recess	-
+Dec 31, 2026	Thursday	New Year's Eve (observed)	Winter Recess
+Jan 01, 2027	Friday	New Year's Day	Winter Recess
+Jan 18, 2027	Monday	Martin Luther King, Jr. Day	-
+Feb 12, 2027	Friday	Lincoln's Birthday	-
+Feb 15, 2027	Monday	Presidents' Day	-
+Mar 15, 2027	Monday	Spring Recess	-
+Mar 16, 2027	Tuesday	Spring Recess	-
+Mar 17, 2027	Wednesday	Spring Recess	-
+Mar 18, 2027	Thursday	Spring Recess	-
+Mar 19, 2027	Friday	Spring Recess	-
+Mar 26, 2027	Friday	Spring Travel Day	-
+Mar 29, 2027	Monday	In Lieu Admission Day	-
+Apr 26, 2027	Monday	Nonwork day for employees under 12 months	-
+May 31, 2027	Monday	Memorial Day	-
+Date	Weekday	Note
+Oct 27, 2026	Tuesday	Staff development (minimum day)
+Dec 14, 2026	Monday	Finals week (minimum day)
+Dec 15, 2026	Tuesday	Finals week (minimum day)
+Dec 16, 2026	Wednesday	Finals week (minimum day)
+Dec 17, 2026	Thursday	Finals week (minimum day)
+Jan 26, 2027	Tuesday	Staff development (minimum day)
+Mar 02, 2027	Tuesday	Staff development (minimum day)
+May 27, 2027	Thursday	Finals week (minimum day)
+May 28, 2027	Friday	Finals week (minimum day)
+Jun 01, 2027	Tuesday	Finals week (minimum day)
+Jun 02, 2027	Wednesday	Finals week (minimum day)
+Jun 03, 2027	Thursday	Last day (minimum day)

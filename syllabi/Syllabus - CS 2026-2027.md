@@ -1,0 +1,735 @@
+# Introduction to Programming Concepts and Methodologies
+
+**Pleasant Valley High School, Career Technical Education, 2026-2027**
+
+| Instructor | Steven Huff |
+| :---- | :---- |
+| **Email** | shuff@chicousd.org |
+| **Courses and Time** | Introduction to Programming Concepts and Methodologies, Period 5 |
+| **Prep Period(s)** | Periods 1, 2 |
+
+---
+
+## Butte College Course Information
+
+This course is offered for dual enrollment credit through Butte College as CSCI 4, Introduction to Programming Concepts and Methodologies (3 units).
+
+| Transfer Status | CSU/UC |
+| :---- | :---- |
+| **C-ID** | COMP 112 |
+| **Prerequisite** | None |
+| **Hours** | 68 contact hours (42.5 lecture / 25.5 lab) / 85 out-of-class hours / 153 total hours |
+| **Term** | 2026-2027 |
+
+Students in this course earn both Pleasant Valley High School credit and Butte College credit at no cost. The grade earned becomes part of a permanent Butte College transcript and follows the student to any college they transfer to.
+
+---
+
+## Course Description and Objectives
+
+This course introduces students to the fundamental concepts of programming. Students will learn about the software development life-cycle, algorithms, and the design, implementation, and testing of programs using an object-oriented programming language. (C-ID COMP 112)
+
+The language for this course is **JavaScript**, and everything runs in a browser — there is nothing to install. We work in three environments over the year: the browser console and shCode’s editor for the fundamentals, **shplay** for game programming, and **JSCAD** for parametric 3D modeling, where your code is printed on one of the classroom’s 3D printers.
+
+Upon successful completion of this course, the student should be able to:
+
+1. Describe the software development life-cycle.
+
+2. Describe the principles of structured programming.
+
+3. Describe, design, implement, and test structured programs using currently accepted methodology.
+
+4. Explain what an algorithm is and its importance in computer programming.
+
+---
+
+## Course Content
+
+These are the required topics for CSCI 4, totaling 42.50 lecture hours, each paired with lab time toward the course’s 25.50 lab hours. We will move through them in roughly this order. Specific due dates live in shCode.
+
+| Topic | Lecture Hours |
+| :---- | ----: |
+| Software life-cycle | 2.50 |
+| Procedural versus object-oriented programming | 2.50 |
+| Program design tools and programming environments | 2.50 |
+| Documentation | 2.50 |
+| Coding conventions | 2.50 |
+| Data types, variables, expressions, sequential processing | 2.50 |
+| Arrays, including multiple-subscripted arrays | 6.25 |
+| Control structures: selective and repetitive | 5.00 |
+| Algorithms, including simple sorting and searching | 5.00 |
+| File I/O, including sequential access files | 2.50 |
+| Error handling | 1.25 |
+| Passing parameters by value and reference | 5.00 |
+| Principles of testing and designing test data | 2.50 |
+| **Total** | **42.50** |
+
+The official Butte College outline lists C++ and Python textbooks. This section teaches the same topics in **JavaScript**. The outcomes and topics are language-agnostic; what is assessed is your understanding of them, not the syntax of any one language.
+
+---
+
+## Required Texts & Materials
+
+* [Introduction to Programming Concepts and Methodologies](https://oerbookshelf.app/introduction-to-programming-concepts-and-methodologies/) on bookSHelf. This is the course book, used for all readings, lessons, and practice. It is free and no account is required. Every section can be downloaded as an offline PDF or HTML.
+
+* [shCode](https://shcode.pages.dev/) is where you write, run, and submit your code. Every lesson, lab, and project is completed there. It runs in the browser with nothing to install.
+
+* [CodeHS](https://codehs.com/) is used for supplemental practice activities and videos.
+
+* Notebook or binder for design sketches, pseudocode, and bill-of-materials planning
+
+* District-issued Chromebook, charged and brought to class daily. No personal devices are allowed during assessments, so use your school-provided Chromebook for everyday work and be familiar with how it behaves before test day.
+
+### Access Details
+
+There is no textbook to purchase for this course, and no software to buy or install. All readings and practice come from bookSHelf, and all graded work is in shCode.
+
+* bookSHelf: [https://oerbookshelf.app/introduction-to-programming-concepts-and-methodologies/](https://oerbookshelf.app/introduction-to-programming-concepts-and-methodologies/) (open the link, no sign-in)
+
+* shCode: [https://shcode.pages.dev/](https://shcode.pages.dev/) — lessons open to anyone, but to submit work you sign in with your district Google account (your `@chicousd.org` address). There is no separate code or password to enter.
+
+* CodeHS: [https://codehs.com/](https://codehs.com/) with Course ID \[ID\] and Enrollment Key \[KEY\]
+
+* JSCAD: [https://jscad.app/](https://jscad.app/) (used from Chapter 8 onward, no sign-in)
+
+---
+
+## Computer and Internet Required for the Course
+
+A computer with internet access is required for this course. The district is one-to-one with Chromebooks, so every student has a device, and internet access is available on campus throughout the school day.
+
+Off campus, it is your responsibility to find or provide internet access. Assignments are written and submitted in shCode, which is a web-based system. It has no offline mode, and code cannot be submitted without a connection. If you know you will be offline, read the matching bookSHelf section in advance and plan or sketch your program on paper, then enter and run the code in shCode once you regain access.
+
+Course materials are a different matter. Readings, lessons, and worked examples are in bookSHelf, which is fully offline compatible. It is your responsibility to click the offline section PDF or HTML and download it to your device so that you can review it at a later time. If you know your internet access will be limited, download what you need in advance.
+
+Limited or unavailable internet access at home is not considered an excuse for late or missed work.
+
+---
+
+## Course Usage of Aeries and shCode
+
+Aeries is the Learning Management System used by Chico Unified School District, and it is where grades are officially reported to students and parents. Google Classroom is the district’s other adopted platform, but I do not use it for this class.
+
+All coursework for this class runs through shCode. shCode holds your student’s most current grade, even when I have not yet finished entering everything into Aeries. Parents/Guardians are encouraged to check shCode for missing, late, or otherwise open assignments. It is the fastest and most accurate picture of where your student stands. I’ll do my best to keep Aeries updated as quickly as possible.
+
+### Technology Support
+
+Butte College Student Technical Support is available to you as a dual enrollment student, for your Butte account, the MyBC Portal, and Canvas.
+
+* Phone: (530) 895-2925
+
+* Email: studenttechsupport@butte.edu
+
+* Office: ITS Room 103, 3536 Butte Campus Drive, Oroville
+
+* Hours (fall/spring): Monday to Thursday, 7:30 AM to 5:00 PM; Friday, 8:00 AM to Noon
+
+Google Chrome is the only supported web browser for this course.
+
+---
+
+## Instructor’s Preferred Methods of Contact
+
+If you need to reach me you can email me. I receive an enormous number of emails daily but I should respond within 48 hours of receiving your email. If your email isn’t responded to within that time frame, please send a follow up email.
+
+Please familiarize yourself with [proper email etiquette](https://docs.google.com/document/d/1EBQ1nAocomZIwDE4CBaGbIQi2etn3hJnp0aqkEodjlc/edit?usp=sharing) when sending emails to me, if they are not properly formal I may not respond.
+
+### Parent/Guardian Communication
+
+This course awards both high school and college credit. I may communicate with parents or guardians regarding a student’s high school grade, attendance, classroom performance, missing assignments, and progress. However, a student’s college educational records, including official college grades, are protected under the Family Educational Rights and Privacy Act (FERPA). Unless the student has authorized disclosure through the DualEnroll FERPA Consent or another FERPA exception applies, I cannot discuss college educational records with parents or guardians.
+
+---
+
+## Disability Support and Accommodations
+
+Students with a current IEP or 504 plan are encouraged to come speak with me during the first week of the semester so that we can set up your supports early. You are not required to discuss anything you would rather not; I receive your accommodations either way, and they will be honored whether or not we talk.
+
+---
+
+## What You Can Expect from the Instructor
+
+* Video and written explanation lessons of the main topics, delivered in class.
+
+* Periodic announcements with due date reminders and other important information.
+
+* The following response times for questions and grades:
+
+| Email | within 48 hours |
+| :---- | :---- |
+| Questions about an assignment or a score | within 48 hours |
+| Daily homework and classwork | scored immediately in shCode |
+| Group and Individual Assessments | graded within 48 hours |
+
+---
+
+## Obligation(s) of the Student
+
+To be successful in this class, it is highly recommended that you do the following:
+
+* Complete all assignments and turn them in on time. Assignments are always due at the start of the class period on the due date, but can be turned in early. Partial credit can be earned for incomplete assignments.
+
+* Ask questions if you do not understand a particular point.
+
+* Participate in class discussions. This will contribute to the overall learning of the class. No student will be allowed to be disruptive in any class discussion. After one warning they will be asked to exit the discussion immediately.
+
+* Attend class regularly. Each new lesson or chapter in programming is built upon what has come before. Therefore, it is required that students attend and participate starting on the first day of class. Continual participation and completion of assignments is necessary for success.
+
+* Tell me before you are gone, not after. When you know in advance that you will miss class, whether for an athletic event, an authorized field trip, or a preplanned family trip, it is your responsibility to check the due dates of assignments and tests, come to me ahead of the absence, and arrange a time to complete the work or take the assessment. For an athletic event or authorized field trip you will not be counted absent, and when possible arrangements will be made for you to complete the work early. If you say nothing until you are back, the work falls under the Late Work policy and a missed assessment stays missed.
+
+* Keep track of your own grade. Check shCode regularly for anything missing, late, or still open. No one is going to chase you down about it.
+
+### As a Dual Enrollment Student
+
+You are a Butte College student, not just a high school student in a computer science class. That comes with obligations that are yours alone:
+
+* Your college records are yours. Once you enroll at a college, your college educational records are protected under FERPA regardless of your age. Your high school grade and classroom performance I can discuss with your parents as usual, but your college records I cannot, unless you authorized it through the DualEnroll FERPA Consent during registration. See Parent/Guardian Communication above.
+
+* Check your Butte College email and MyBC portal. That is where anything official from the college will arrive, and “I didn’t see it” will not undo a drop or a hold.
+
+* Watch your own college deadlines. The census and withdrawal dates for this course are listed under Dropping the Butte College Course below. They are not the same as the high school calendar, and no one at the college will remind you.
+
+* Expect real work outside of class. This is a 3-unit college course running on a high school bell schedule, and the time you spend on it outside of class is part of the course, not extra.
+
+---
+
+## Instructor’s Cell Phone Policy
+
+This course follows the Chico Unified School District and Pleasant Valley High School mobile device policies, adopted under California’s Phone-Free Schools Act (AB 3216), which takes effect for the 2026-2027 school year.
+
+* CUSD Mobile Communication Device Policy: [Mobile Communication Devices](https://drive.google.com/file/d/1FcgPr4C53hRwyduPtapK4PatCQjCs2VJ/view?usp=sharing)
+
+In this classroom, cell phones are collected at the beginning of every class period. Phones are returned at the end of the class period, or when a student is released from class with a note.
+
+This applies to all personal devices, not just phones. Wireless or wired earbuds, smart glasses, and smart watches must be removed and either placed with the phones or put away in a backpack for the duration of the period.
+
+| Mobile Communication Devices | Consequences: [Consequences](https://drive.google.com/file/d/1-4qwVzA7OiU5MsMnxynT5ANYubPeVYhk/view?usp=sharing) |
+| :---- | :---- |
+| Device not surrendered or put away at the start of the period | Warning; device surrendered immediately |
+| Repeated refusal to surrender a device | Parent contact; student sent to the office and issued a referral for Saturday school |
+| Device used during class after collection (second phone, earbuds, smart glasses, smart watch) | Confiscation and administrative referral |
+
+Case by case exemptions will be made based on individual student needs.
+
+---
+
+## Attendance and Participation
+
+If you are not in your seat by the time I take roll, you will be marked tardy and assigned a 30 minute detention by the office.
+
+You will learn more if you are actively participating and trying to engage in the content being presented. It will also be expected that you will engage in varying amounts of group work and discourse.
+
+Excessive absenteeism is defined as not participating in the course for one week or more. Participation in the course involves completing course activities. Simply logging in to shCode does not count as participation.
+
+If a student stops attending this course at any point in the semester, I am required to report their last date of attendance to Butte College.
+
+### Dropping the Butte College Course
+
+This class runs on the high school schedule, but the Butte College deadlines are separate and are not waived. Two deadlines matter:
+
+| Deadline | What it means |
+| :---- | :---- |
+| **Census date (determined after registration)** | Last date to drop WITHOUT a “W” on the college transcript |
+| **75% point (determined after registration)** | Last date to withdraw WITH a “W” on the college transcript |
+
+These two dates are specific to this section and are not the same as the main Butte College academic calendar. Both are listed in your Butte dual enrollment sign-up portal. Check there first, and check early, because the census date falls only a few weeks into the term. Once Butte confirms the exact dates for this section, I will post them in shCode and issue a revised syllabus.
+
+Students may drop themselves through the census date and may withdraw themselves through the 75% point. After the withdrawal deadline no drops are allowed and a grade must be issued.
+
+It is the student’s responsibility to drop the college course through Butte College. **Dropping or changing the high school class is not the same as dropping the college class.**
+
+#### Who to Contact
+
+Butte College’s Dual Enrollment program asks that all communication about dual enrollment classes and students go through their office. This keeps support consistent and makes sure anything that needs to happen actually happens on time. If you or your parent or guardian has a question about your college enrollment, your drop, or your withdrawal, contact the Dual Enrollment program rather than the general Butte College admissions line, and tell me as well so I know what is in motion.
+
+Alongside anything you do yourself, I am responsible for the following:
+
+* Before the census date, I drop students who are no longer in the class.
+
+* After the census date, I enter a student’s last date of attendance. Entered before the 75% point, that results in a withdrawal, which puts a “W” on the college transcript rather than a failing grade.
+
+* Students in danger of failing will be withdrawn before the 75% point. A “W” is better for you than an F on a permanent college transcript, so if your grade is heading that direction, expect me to raise it with you well before that deadline. Do not wait for me to start that conversation, come see me.
+
+* If you transfer schools, move, or move to independent study, that is handled case by case. Tell me as early as you can so I can notify the Dual Enrollment program and we can sort out the right action for your college credit.
+
+---
+
+## Grading Policy
+
+This course is taught through lecture, discussion, collaborative group work, and homework. You will see several kinds of assignments:
+
+* Reading assignments. Sections of *Introduction to Programming Concepts and Methodologies* on bookSHelf, read before or alongside the matching lesson.
+
+* Weekly lab assignments. Programs you write, run, and submit in shCode, tied to each section.
+
+* Written assignments. Explaining your reasoning in words, not just producing working code: describing the software life-cycle in your own words, comparing procedural and object-oriented approaches, or documenting why a design choice was made.
+
+* Quizzes. Short checks on vocabulary and concepts, scattered through the chapters.
+
+* Synthesis projects. Three larger builds — the Print Shop pricing tool, the Arcade Cabinet game, and the Mechanism capstone — each assessed individually even when built alongside a partner.
+
+* Group work. A paired performance assessment at the end of every content chapter, where you design, build, and demo a program with a partner.
+
+**Daily Homework/Classwork:** Labs and classwork will be assigned in shCode by section and will be due the next time class meets after the conclusion of the prior section.
+
+Any classwork or homework you do not finish in class becomes homework, and it is due at the start of the next class period. Time given in class to work is a head start on the assignment, not a separate assignment, so whatever is left when the period ends goes home with you. For Late Work see the Late Work section below.
+
+Reading assignments, written assignments, and daily practice all count within Daily Homework/Classwork.
+
+**Group Assessment:** At the end of every content chapter there is a one-day paired Group PA. Working with a partner, you design, build, and demo a program against a given brief.
+
+**Individual Assessment:** Every content chapter also ends with a one-day individual test, taken in class and closed book. These serve as the course’s distributed mid-term examinations. Quizzes, the synthesis projects, and the two semester finals are graded here as well.
+
+**Synthesis Projects:** Chapters 4, 7, 10, and 13 replace the test-and-PA pair with a project: the Print Shop pricing tool, the Arcade Cabinet game, the Fits-My-Stuff parametric organizer, and the Mechanism capstone with its presentation. A synthesis project counts in Individual Assessments even where you build it next to a partner.
+
+**Semester Finals:** There are two cumulative final exams, one at the end of each semester. Semester 1 covers Chapters 1–5; Semester 2 covers Chapters 6–13 and draws on your own capstone.
+
+There are no retakes or corrections on Group or Individual Assessments.
+
+**Methods of Evaluation:** The Butte College course outline of record for CSCI 4 lists four methods of evaluation: quizzes, homework, lab projects, and mid-term and final examinations. All four are represented in the grade weights below. The chapter tests serve as the distributed mid-term examinations, and the two cumulative semester finals are the final examinations. The no-retake, no-correction policy above is set under that same authority.
+
+If you experience a technical problem that prevents you from completing your work, you need to contact me immediately (at the time of the event). Provide as much evidence as possible to support the case such as pictures or screenshots, so the situation can be evaluated and you may get an opportunity to complete the work. After this time it will no longer be possible to make up the work.
+
+### Late Work
+
+Work is due on its original due date and is not eligible for an extension or a resubmission, except in the three cases below: an excused absence, a late pass, or a documented accommodation.
+
+**Excused absences.** If the school deems your absence excused, you have the same number of days you were absent, counted from the day you return, to complete the work you missed. Absent two days, you have two days from your return; absent one day, you have one day. It is your responsibility to check shCode for the assigned sections and labs while you are out.
+
+This covers absences you could not plan for, such as illness. An absence you knew about in advance, such as an athletic event, a field trip, or a preplanned family trip, has to be arranged before you leave, as described under Obligation(s) of the Student above. If you say nothing until you get back, this window does not apply and a missed assessment stays missed.
+
+**Unexcused absences.** An unexcused absence does not extend anything. The work is due on its original due date, and it is your responsibility to have it completed and submitted by then.
+
+**Late passes.** You get ten late passes per semester. One late pass extends a single daily classwork or homework assignment by one full day.
+
+* Late passes apply to Daily Homework/Classwork only. They cannot be used on Group or Individual Assessments.
+
+* **A late pass must be used on the day you miss the original due date.** One pass per assignment and one extra day per pass. They do not stack.
+
+**No retakes.** There are no retakes and no corrections on Group or Individual Assessments. Late passes do not apply to them, and an excused absence does not create a second attempt. It only gives you time to take the assessment you missed.
+
+Weekly labs are the exception. A lab that does not yet pass its requirements can be revised and resubmitted up until its due date as many times as you want — that is what running your code is for.
+
+**Grade disputes.** If a graded assignment is two weeks past its submission date, it is not eligible for discussion or a grade change. It is your responsibility to check your grade frequently.
+
+### Grade Weights
+
+| Category | Weight |
+| :---- | :---- |
+| Daily Homework/Classwork | 35% |
+| Group Assessments | 15% |
+| Individual Assessments | 50% |
+
+Everything you are assigned falls into one of those three:
+
+| Category | What counts in it |
+| :---- | :---- |
+| Daily Homework/Classwork | Weekly labs, reading assignments, daily practice, and written assignments |
+| Group Assessments | The paired Group PA at the end of every content chapter |
+| Individual Assessments | Quizzes, chapter tests, the four synthesis projects, and the two semester finals |
+
+### Grading Scheme
+
+| Grade | Description | Range |
+| :---- | :---- | :---- |
+| A | Excellent Work | 90% to 100% |
+| B | Good Work | 80% to 89.99% |
+| C | Satisfactory Work | 70% to 79.99% |
+| D | Less than Satisfactory Work | 60% to 69.99% |
+| F | Failing | 0% to 59.99% |
+
+Your percentage in shCode produces two grades, reported to two places:
+
+* Pleasant Valley receives the granular grade through Aeries, using PV’s plus/minus system. This is what appears on your high school transcript.
+
+* Butte College receives a flat letter with no plus or minus. A B-, a B, and a B+ are all reported to Butte as a B.
+
+The work is the same, the percentage is the same, only the labeling differs. An 89.9% is a B on your college transcript, not a B+.
+
+### Semester Grades and the College Grade
+
+Pleasant Valley grades by semester. You earn a semester grade in January and another in June, and both are posted to Aeries and appear on your high school transcript as two separate grades.
+
+Butte College does not work that way. This is a single college course, and we run it across a full school year rather than in one college term, so Butte receives **one** grade for the whole course. **That grade is the average of your two semester percentages**, converted to the flat letter described above and submitted to Butte at the end of the year.
+
+Both semesters carry equal weight in that average. A rough first semester is not permanent on your college transcript, because a strong second semester pulls the average up. The reverse is just as true: a strong first semester does not let you coast through the second, because the second half counts exactly as much as the first.
+
+### Extra Credit
+
+There is one form of extra credit in this course, and it rewards working ahead rather than doing additional work.
+
+**Finish an assignment more than twenty-four hours before it is due and you automatically earn a 2% bump on that assignment.** No request is needed. shCode applies it based on when you complete the assignment.
+
+The assignment has to be genuinely finished, not merely started, at least twenty-four hours before the due date. Starting early and submitting at the deadline does not earn the bump. The bump applies to Daily Homework/Classwork; there is no extra credit on Group or Individual Assessments, and no other extra credit is offered.
+
+---
+
+## Course Schedule
+
+**This course meets on odd days only**, so the calendar below is a single track of 89 class meetings, each with its date. Dates are approximate and may shift as we go. Where a date here and a due date in shCode disagree, the shCode date governs.
+
+_JavaScript + shplay + JSCAD. Numbering follows the book: Chapter N §N.S is section §N.S of Chapter N in your bookSHelf textbook._
+
+**89 meetings needed · 90 available · 2 spare.** Content ends **Tue Jun 01, 2027**, 2 days before the last day of school (Jun 03, 2027).
+
+**Assessment types**
+
+- **Ch N Test** — 1-day *individual* chapter test (in-class, closed book). Every content chapter; none on the synthesis chapters.
+- **Ch N Group PA** — 1-day *paired* performance assessment (design + build + demo). Every content chapter.
+- **Synthesis project** — Chapters 4, 7, 10 and 13. Assessed **individually**, and therefore not a substitute for a chapter's Group PA.
+- **Semester finals** are not rows below — S1 falls in the Dec 14–17 window (which collides with meetings 41–42); S2 goes in the spare meetings after the capstone.
+
+### Semester 1 — through Dec 18, 2026 (41 meetings)
+
+
+#### Chapter 1: Foundations
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 1 | Orientation and Syllabus + 1.1 Software Lifecycle | 1 | Fri Aug 14, 2026 |
+| 2 | §1.2 Variables and Data Types + §1.3 Documentation and Coding Conventions (day 1/2) | 2 | Tue Aug 18, 2026 |
+| 3 | §1.2 Variables and Data Types + §1.3 Documentation and Coding Conventions (day 2/2) | 2 | Thu Aug 20, 2026 |
+| 4 | §1.4 Programming Paradigms and Languages | 3 | Mon Aug 24, 2026 |
+| 5 | §1.5 Program Design Tools and Environments (day 1/2) | 3 | Wed Aug 26, 2026 |
+| 6 | §1.5 Program Design Tools and Environments (day 2/2) | 3 | Fri Aug 28, 2026 |
+| 7 | **Ch 1 Group PA** | 4 | Tue Sep 01, 2026 |
+| 8 | **Ch 1 Test** | 4 | Thu Sep 03, 2026 |
+
+#### Chapter 2: Control Flow
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| | _Labor Day — no school_ | | |
+| 9 | §2.1 Conditionals (day 1/2) | 5 | Tue Sep 08, 2026 |
+| 10 | §2.1 Conditionals (day 2/2) | 5 | Thu Sep 10, 2026 |
+| 11 | §2.2 Algorithms and Loops | 6 | Mon Sep 14, 2026 |
+| 12 | §2.3 The switch Statement | 6 | Wed Sep 16, 2026 |
+| 13 | §2.4 Loop Control and Nested Loops (day 1/2) | 6 | Fri Sep 18, 2026 |
+| 14 | §2.4 Loop Control and Nested Loops (day 2/2) | 7 | Tue Sep 22, 2026 |
+| 15 | §2.5 Handling Errors with try/catch | 7 | Thu Sep 24, 2026 |
+| 16 | **Ch 2 Group PA** | 8 | Mon Sep 28, 2026 |
+| 17 | **Ch 2 Test** | 8 | Wed Sep 30, 2026 |
+
+#### Chapter 3: Functions and Data
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 18 | §3.1 Functions: Definition and Calls | 8 | Fri Oct 02, 2026 |
+| | _No School for Students — no school_ | | |
+| 19 | §3.2 Parameters and Return Values (day 1/2) | 9 | Wed Oct 07, 2026 |
+| 20 | §3.2 Parameters and Return Values (day 2/2) | 9 | Fri Oct 09, 2026 |
+| 21 | §3.3 Arrays (day 1/2) | 10 | Tue Oct 13, 2026 |
+| 22 | §3.3 Arrays (day 2/2) | 10 | Thu Oct 15, 2026 |
+| 23 | §3.4 Function Expressions and Arrow Functions | 11 | Mon Oct 19, 2026 |
+| 24 | §3.5 Objects and Properties | 11 | Wed Oct 21, 2026 |
+| 25 | §3.6 Functions: Pass by Value/Reference | 11 | Fri Oct 23, 2026 |
+| 26 | §3.7 Array Methods | 12 | Tue Oct 27, 2026 — ⚠ **minimum day, shortened period** |
+| 27 | §3.8 Saving and Loading Data | 12 | Thu Oct 29, 2026 |
+| 28 | **Ch 3 Group PA** | 13 | Mon Nov 02, 2026 |
+| 29 | **Ch 3 Test** | 13 | Wed Nov 04, 2026 |
+
+#### Chapter 4: Synthesis — Print Shop
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 30 | **§4.1 Print Shop -- Q1 Synthesis (day 1/3)** | 13 | Fri Nov 06, 2026 |
+| 31 | **§4.1 Print Shop -- Q1 Synthesis (day 2/3)** | 14 | Tue Nov 10, 2026 |
+| | _Veterans Day — no school_ | | |
+| 32 | **§4.1 Print Shop -- Q1 Synthesis (day 3/3)** | 14 | Fri Nov 13, 2026 |
+
+#### Chapter 5: shPlay Foundations
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 33 | §5.1 Hello Sprite and Movement | 15 | Tue Nov 17, 2026 |
+| 34 | §5.2 Physics Feel | 15 | Thu Nov 19, 2026 |
+| | _Thanksgiving Recess — no school_ | | |
+| 35 | §5.3 Classes and Instances + §5.4 Writing Your Own Classes (day 1/2) | 16 | Mon Nov 30, 2026 |
+| 36 | §5.3 Classes and Instances + §5.4 Writing Your Own Classes (day 2/2) | 16 | Wed Dec 02, 2026 |
+| 37 | **Ch 5 Group PA** | 16 | Fri Dec 04, 2026 |
+| 38 | **Ch 5 Test** | 17 | Tue Dec 08, 2026 |
+
+#### Chapter S1: Semester 1 Close
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 39 | **Semester 1 Review Project (covers Ch 1-5) (day 1/2)** | 17 | Thu Dec 10, 2026 |
+| 40 | **Semester 1 Review Project (covers Ch 1-5) (day 2/2)** | 18 | Mon Dec 14, 2026 |
+| 41 | **SEMESTER 1 FINAL EXAM (Ch 1-5 cumulative)** | 18 | Wed Dec 16, 2026 |
+
+### Semester 2 — from Jan 04, 2027 (48 meetings)
+
+
+#### Chapter 6: Game Mechanics
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| | _Secondary Pupil Free Day — no school_ | | |
+| | _Winter Recess — no school_ | | |
+| 42 | §6.1 Groups + §6.2 Overlaps and Collisions (day 1/2) | 19 | Mon Jan 04, 2027 |
+| 43 | §6.1 Groups + §6.2 Overlaps and Collisions (day 2/2) | 19 | Wed Jan 06, 2027 |
+| 44 | §6.3 Physics Applications | 19 | Fri Jan 08, 2027 |
+| 45 | §6.4 Animated Sprites and Camera | 20 | Tue Jan 12, 2027 |
+| 46 | §6.5 Save and Load | 20 | Thu Jan 14, 2027 |
+| | _Martin Luther King, Jr. Day — no school_ | | |
+| 47 | §6.6 Game State Machines | 21 | Tue Jan 19, 2027 |
+| 48 | §6.7 Advanced Input + §6.8 Joints (day 1/2) | 21 | Thu Jan 21, 2027 |
+| 49 | §6.7 Advanced Input + §6.8 Joints (day 2/2) | 22 | Mon Jan 25, 2027 |
+| 50 | §6.9 Timing and Async | 22 | Wed Jan 27, 2027 |
+| 51 | **Ch 6 Group PA** | 22 | Fri Jan 29, 2027 |
+| 52 | **Ch 6 Test** | 23 | Tue Feb 02, 2027 |
+
+#### Chapter 7: Synthesis — Arcade Cabinet
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 53 | **§7.1 Arcade Cabinet -- Q2 Synthesis (day 1/3)** | 23 | Thu Feb 04, 2027 |
+| 54 | **§7.1 Arcade Cabinet -- Q2 Synthesis (day 2/3)** | 24 | Mon Feb 08, 2027 |
+| 55 | **§7.1 Arcade Cabinet -- Q2 Synthesis (day 3/3)** | 24 | Wed Feb 10, 2027 |
+
+#### Chapter 8: JSCAD Foundations
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| | _Lincoln's Birthday — no school_ | | |
+| | _Presidents' Day — no school_ | | |
+| 56 | §8.1 Libraries and JSCAD Introduction | 25 | Tue Feb 16, 2027 |
+| 57 | §8.2 2D Shapes and Transforms | 25 | Thu Feb 18, 2027 |
+| 58 | §8.3 Boolean Operations in 2D | 26 | Mon Feb 22, 2027 |
+| 59 | §8.4 Parameters and getParameterDefinitions | 26 | Wed Feb 24, 2027 |
+| 60 | §8.5 Arrays in JSCAD / Loops | 26 | Fri Feb 26, 2027 |
+| 61 | **Ch 8 Group PA (day 1/2)** | 27 | Tue Mar 02, 2027 — ⚠ **minimum day, shortened period** |
+| 62 | **Ch 8 Group PA (day 2/2)** | 27 | Thu Mar 04, 2027 |
+| 63 | **Ch 8 Test** | 28 | Mon Mar 08, 2027 |
+
+#### Chapter 9: 3D Modeling
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 64 | §9.1 First Extrusion: 2D to 3D | 28 | Wed Mar 10, 2027 |
+| 65 | §9.2 3D Primitives and Transforms | 28 | Fri Mar 12, 2027 |
+| | _Spring Recess — no school_ | | |
+| 66 | §9.3 Error Handling and Debugging | 29 | Tue Mar 23, 2027 |
+| 67 | §9.4 Testing Principles | 29 | Thu Mar 25, 2027 |
+| | _Spring Travel Day — no school_ | | |
+| | _In Lieu Admission Day — no school_ | | |
+| 68 | **Ch 9 Group PA** | 30 | Wed Mar 31, 2027 |
+| 69 | **Ch 9 Test** | 30 | Fri Apr 02, 2027 |
+
+#### Chapter 10: Synthesis — Fits-My-Stuff
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 70 | **§10.1 Fits-My-Stuff -- Q3 Synthesis (day 1/3)** | 31 | Tue Apr 06, 2027 |
+| 71 | **§10.1 Fits-My-Stuff -- Q3 Synthesis (day 2/3)** | 31 | Thu Apr 08, 2027 |
+| 72 | **§10.1 Fits-My-Stuff -- Q3 Synthesis (day 3/3)** | 32 | Mon Apr 12, 2027 |
+
+#### Chapter 11-12: Advanced Modeling and Production
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 73 | §11.1 Hulls and Advanced Extrusions | 32 | Wed Apr 14, 2027 |
+| 74 | §11.2 Measurements and Printability | 32 | Fri Apr 16, 2027 |
+| 75 | §11.3 Sorting and Searching on Geometry | 33 | Tue Apr 20, 2027 |
+| 76 | §12.1 Multi-File Projects and File I/O | 33 | Thu Apr 22, 2027 |
+| | _Nonwork day for employees under 12 months — no school_ | | |
+| 77 | §12.2 Colors, Text, and Export Formats | 34 | Tue Apr 27, 2027 |
+| 78 | **Ch 11-12 Group PA** | 34 | Thu Apr 29, 2027 |
+| 79 | **Ch 11-12 Test** | 35 | Mon May 03, 2027 |
+
+#### Chapter 13: Synthesis — Mechanism
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 80 | **§13.1 Capstone Design Phase (day 1/2)** | 35 | Wed May 05, 2027 |
+| 81 | **§13.1 Capstone Design Phase (day 2/2)** | 35 | Fri May 07, 2027 |
+| 82 | **§13.2 Capstone Build and Iterate (day 1/4)** | 36 | Tue May 11, 2027 |
+| 83 | **§13.2 Capstone Build and Iterate (day 2/4)** | 36 | Thu May 13, 2027 |
+| 84 | **§13.2 Capstone Build and Iterate (day 3/4)** | 37 | Mon May 17, 2027 |
+| 85 | **§13.2 Capstone Build and Iterate (day 4/4)** | 37 | Wed May 19, 2027 |
+| 86 | **§13.3 Presentations and Reflection (day 1/2)** | 37 | Fri May 21, 2027 |
+| 87 | **§13.3 Presentations and Reflection (day 2/2)** | 38 | Tue May 25, 2027 |
+
+#### Chapter --: Buffer
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| 88 | — buffer / catch-up — | 38 | Thu May 27, 2027 |
+
+#### Chapter S2: Semester 2 Close
+
+| # | Meeting | Wk | Date |
+|---:|---|---:|---|
+| | _Memorial Day — no school_ | | |
+| 89 | **SEMESTER 2 FINAL EXAM (Ch 6-13 cumulative)** | 39 | Tue Jun 01, 2027 |
+
+---
+
+## Academic Honesty / Dishonesty
+
+Neither cheating nor plagiarism will be tolerated. Because this course carries both high school and college credit, you are held to Pleasant Valley High School’s Academic Integrity Policy and to Butte College AP 5521 (Academic Integrity) at the same time.
+
+### Definitions
+
+**Cheating** is obtaining or attempting to obtain credit for academic work through dishonesty, deception, or fraud. Examples include, but are not limited to:
+
+* **Using AI in any way I have not authorized is cheating.** Asking an AI tool for an answer, a computation, a worked solution, or a written explanation and turning it in as your own is the same as copying it off another student, and it counts as cheating whether or not you edit the output afterward. What AI use is permitted in this course, and how you must cite it, is set out under Use of AI below. Uncited or unauthorized use is a violation.
+
+* Copying any answers from another person or from an online source during an exam or on an independent assignment.
+
+* Allowing another student to look at your work, or at a third person’s work, during an exam or quiz, or to complete an assignment. Providing the work is a violation, not just receiving it.
+
+* Using any unauthorized materials, technological devices, or concealed information during an exam or on an independent assignment. This includes notes, phones, smartwatches, and any AI coding assistant, code-completion tool, or reference not approved for that assessment.
+
+* Submitting the same work for credit in more than one course without prior approval of all involved instructors.
+
+* Altering or interfering with grade records, including altering corrections or scores on returned work.
+
+* Sharing or asking about questions or answers to quizzes or exams.
+
+* Misrepresenting your work to me. For example, claiming you submitted an assignment you did not submit, or overstating the time and effort you put into it.
+
+* Taking shortcuts to bypass the steps to complete an assignment or assessment, such as locating answers without doing the computations.
+
+* Missing class in order to avoid turning in an assignment or taking a test.
+
+* Doing more or less than your share on a group project without teacher approval.
+
+* Fabricating or altering results. In a programming course that includes claiming a program works when you have not run it, faking or hand-editing output to look like your code produced it, and writing a testing log for tests you never performed.
+
+**Plagiarism** is using work or ideas you did not independently generate without giving proper credit to the original author or generative source. Examples include, but are not limited to:
+
+* Directly quoting, paraphrasing, or summarizing ideas, conclusions, words, or other intellectual property of another person or generative source without appropriate source attribution.
+
+* Representing someone else’s work as your own, or doing work for another student.
+
+* Copying media, including images and charts, from online or other sources and inserting them into your work without appropriate source attribution.
+
+* Using generative artificial intelligence to produce class work, take exams or quizzes, write papers, or otherwise generate academic work products and claiming them as your own independent work, when not authorized by the instructor. See Use of AI below for what is authorized in this course.
+
+Submitting group or partnered work on an authorized collaborative project is not plagiarism, but the same principle applies to citing the author or source of that work.
+
+### Your Responsibilities
+
+As a Butte College student you are obligated to:
+
+* Bear full responsibility for the content and integrity of all academic work you submit.
+
+* Know and understand the definitions above and the college’s policies on cheating and plagiarism.
+
+* Understand my expectations regarding homework, tests, group work, reuse of material prepared for another class, and the use of generative AI.
+
+* Participate in all stages of the appeal process if you wish to challenge a claim.
+
+### My Responsibilities
+
+AP 5521 obligates me, when I accuse a student of academic dishonesty, to:
+
+* Base the claim on a reasonable assessment of the facts and evidence.
+
+* Tell you the basis for the claim and the consequence I am imposing.
+
+* Impose only consequences within the scope of my authority.
+
+* Give you a copy of AP 5521 and explain the appeal process. This syllabus links it below; ask me and I will walk you through it.
+
+* Participate in the appeal process if you appeal.
+
+**If I impose a consequence without telling you of the claim or its basis, that consequence is reversed on appeal.**
+
+### Consequences: High School
+
+Pleasant Valley’s academic integrity consequences are school-wide and cumulative for all the years you attend PVHS. When a violation is found, I may investigate, conference with the student, notify parents or guardians, and document the incident. The range of consequences includes:
+
+* A zero on the assignment, with possible opportunity to redo it or complete an alternative assignment at teacher discretion.
+
+* The high school course grade lowered one letter grade.
+
+* Notification of the student’s current teachers, parents or guardians, and extracurricular and sport coaches.
+
+* Denial of a letter of recommendation from teachers.
+
+* A discipline referral to administration.
+
+* Suspension from school and/or exclusion from extracurricular activities, including removal from ASB office and disqualification from California Scholastic Federation.
+
+Full policy: [PVHS Academic Integrity](https://pvhs.chicousd.org/documents/Home/Academic%20Integrity.pdf)
+
+### Consequences: Butte College
+
+Under AP 5521, I may take any or all of the following steps:
+
+* Issue a verbal or written warning.
+
+* Require you to retake an exam, recreate the same or a similar assignment, or complete a substitute assignment.
+
+* Lower the grade or reduce the points earned for the assignment, exam, or other academic work.
+
+* Issue a failing grade or award no points for the assignment, exam, or other academic work.
+
+* Refer you to Student Services, which may result in more severe consequences depending on the nature of the academic dishonesty, up to expulsion, as outlined in AP 5520\.
+
+The maximum penalty I can impose on the college side is a failing grade on the assignment, exam, or other academic work, not a failing grade in the course. Anything beyond that goes through Student Services.
+
+### Appeal Process
+
+The steps below are the AP 5521 appeal, and they govern the college-side consequence. High school discipline is appealed through PVHS administration under the CUSD process, not through Butte College.
+
+You have the right to challenge a claim of academic dishonesty. Submit an appeal in writing or by email to me stating why you disagree and providing any supporting evidence. **You must begin the appeal within ten working days of being notified of the claim and its consequence.** At every step the standard of proof is preponderance of the evidence. The claim stands only if it is shown to be more likely true than not, and that burden is mine, not yours.
+
+1. Meet with me within ten days of being notified of the claim. We clarify the basis for the claim and try to resolve the disputed facts. Either of us may request a demonstration of your skills or knowledge to validate or refute the claim. I will give you the outcome in writing within five working days of the meeting.
+
+2. Appeal to the administrator appointed by the Chief Instructional Officer, within ten days of receiving my written outcome. They review the evidence, interview both of us, and either uphold or reject the claim, in writing within five working days of the last interview. If they find in your favor, I accept that as final and grade the work without prejudice; if the disputed work already affected your final course grade, I regrade it and the grade is recalculated and formally corrected. If they uphold the claim, my consequence stands and you are referred to Student Services.
+
+3. Appeal to the Chief Instructional Officer within ten days of the administrator’s decision. The CIO follows the same procedure and responds in writing within ten working days of receiving the appeal. The CIO’s decision is final.
+
+If you are referred to Student Services and are later found not to have violated the policy, Student Services is notified and any negative information associated with the incident is removed from your record.
+
+### Acknowledgment
+
+The PVHS Academic Integrity Policy is meant to be read and signed by a student and a parent or guardian. In this course that acknowledgment is collected through the signed syllabus agreement. Signing this syllabus is how you and your parent or guardian confirm you have read and understood this section, along with the rest of the course policies. There is no separate integrity form to return.
+
+### Policies
+
+* [PVHS Academic Integrity](https://pvhs.chicousd.org/documents/Home/Academic%20Integrity.pdf)
+
+* [AP 5521, Academic Integrity](https://www.butte.edu/about/leadership/board-of-trustees/documents/policies-procedures/ap-5521-academic-integrity.pdf)
+
+* [AP 5500, Standards of Student Conduct](https://www.butte.edu/about/leadership/board-of-trustees/documents/policies-procedures/ap-5500-standards-of-student-conduct-dec-2024.pdf)
+
+* [AP 5520, Student Discipline Procedures](https://www.butte.edu/about/leadership/board-of-trustees/documents/policies-procedures/ap-5520-student-discipline-procedures.pdf)
+
+* [AP 5530, Student Rights and Grievances](https://www.butte.edu/about/leadership/board-of-trustees/documents/policies-procedures/ap-5530-student-rights-and-grievances.pdf)
+
+* [Butte College student academic policies](https://www.butte.edu/learning/student-policies.html)
+
+* Pleasant Valley High School student handbook, linked under Instructor’s Cell Phone Policy above
+
+---
+
+## Use of AI
+
+Artificial Intelligence (AI) tools (e.g., Gemini, ChatGPT, GitHub Copilot and other coding assistants) are increasingly present in education, and in programming more than anywhere else. To describe what is and is not allowed in this room, I use a Green / Yellow / Red framework.
+
+**This is my policy for my classroom, not a Pleasant Valley High School policy.** The school has not adopted this framework district-wide or campus-wide, and no other teacher is bound by it. I chose it because it states expectations plainly. Other classes at Pleasant Valley have their own AI rules, and it is your responsibility to follow the expectations of each course you take rather than assuming mine apply everywhere.
+
+**For this course, the AI usage level is Yellow.** AI use is permitted, but it must be cited.
+
+You may use AI programs (e.g., Gemini) to generate ideas, brainstorm, check your understanding of a concept, or work through an explanation. Note that material generated by these programs may be inaccurate, incomplete, or otherwise problematic. Programming is a subject where these tools are confidently wrong on a regular basis — they produce code that looks right, runs, and does the wrong thing — and the error becomes yours once you submit it.
+
+Be clear about what the line is here. Asking an AI to explain an error message, to tell you what a piece of syntax does, or to check whether your logic holds up is understanding the material, and needs no citation. Asking it to write the program for you is not, and it is cheating whether or not you retype the output. If you cannot explain every line of what you submit, and change it on request, you did not write it.
+
+There is an AI tutor built into your bookSHelf textbook. It is there to help you with our course material, and I encourage you to use it. Because it is scoped to what we are actually studying, it is a better first stop than a general-purpose chatbot. Ask it to explain a concept you did not follow in class, walk you through a worked example, or tell you whether your reasoning on a problem holds up. Using it to understand the material requires no citation, the same as asking me or a classmate for help. The rules below still govern what you hand in.
+
+**You may not submit work generated by an AI program as your own.** If AI contributed to what you turn in, cite it the way you would cite any other source: name the tool and describe what it did for you. Violations of this policy are cheating and plagiarism under the Academic Honesty / Dishonesty section above, and carry the consequences listed there on both the high school and the college side.
+
+---
+
+## Notes
+
+* Notification settings in Aeries and shCode should be set to receive alerts when I send out an announcement.
+
+* Daily homework and classwork are due at the start of the class period on the due date. If work has not been manually submitted in shCode by then, it will be automatically submitted as it stands at that time.
+
+* Dates are subject to change. In the event of a conflict, the due dates posted in shCode will govern.
+
+**Disclaimer:** This syllabus constitutes a contract between instructor and student. The instructor reserves the right to alter elements of this syllabus as appropriate, with written notice to the class posted in shCode. It will be the responsibility of the students to ensure they possess the latest version of the class syllabus.
