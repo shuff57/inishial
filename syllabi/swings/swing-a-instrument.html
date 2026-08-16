@@ -1,0 +1,322 @@
+<title>Stats Readout</title>
+<style>
+  :root{
+    --paper:#F1F4F0; --panel:#FAFBF9; --ink:#0F1619; --ink-2:#3D4A4E; --ink-3:#6B7A7E;
+    --grid:#D6DED8; --grid-2:#E7ECE7; --rule:#C2CCC5;
+    --plot:#0E6E78; --plot-soft:#0E6E7822; --amber:#B0641A; --amber-soft:#B0641A1A;
+    --shadow:0 1px 2px #10161904, 0 8px 24px -12px #1016191f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0A0F11; --panel:#111A1D; --ink:#E6EDEA; --ink-2:#A5B4B2; --ink-3:#71827F;
+      --grid:#1C282B; --grid-2:#152023; --rule:#243136;
+      --plot:#4FD1DC; --plot-soft:#4FD1DC1F; --amber:#E0A055; --amber-soft:#E0A05518;
+      --shadow:0 1px 2px #0000004d, 0 10px 30px -14px #000000a6;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0A0F11; --panel:#111A1D; --ink:#E6EDEA; --ink-2:#A5B4B2; --ink-3:#71827F;
+    --grid:#1C282B; --grid-2:#152023; --rule:#243136;
+    --plot:#4FD1DC; --plot-soft:#4FD1DC1F; --amber:#E0A055; --amber-soft:#E0A05518;
+    --shadow:0 1px 2px #0000004d, 0 10px 30px -14px #000000a6;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Inter var",system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:15px; line-height:1.55;
+    background-image:
+      linear-gradient(var(--grid-2) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-2) 1px, transparent 1px);
+    background-size:28px 28px, 28px 28px;
+  }
+  .sheet{max-width:1080px;margin:0 auto;padding:40px 28px 88px}
+
+  /* ---- masthead: the plot area ---- */
+  .masthead{
+    position:relative;background:var(--panel);border:1px solid var(--rule);
+    border-radius:2px;box-shadow:var(--shadow);overflow:hidden;
+    display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;
+    padding:34px 32px 28px;
+  }
+  .masthead::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:22px 22px, 22px 22px;
+    mask-image:linear-gradient(to top, #000 0%, transparent 78%);
+    -webkit-mask-image:linear-gradient(to top, #000 0%, transparent 78%);
+    opacity:.85;
+  }
+  .masthead > *{position:relative}
+  .eyebrow{
+    font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--plot);
+    display:flex;gap:10px;align-items:center;margin-bottom:14px;
+  }
+  .eyebrow::after{content:"";flex:1;height:1px;background:var(--rule)}
+  h1{
+    font-family:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    font-weight:500;font-size:clamp(34px,5.2vw,52px);line-height:1.02;margin:0 0 10px;
+    letter-spacing:-.015em;text-wrap:balance;
+  }
+  .sub{color:var(--ink-2);font-size:14.5px;margin:0}
+  .sub b{color:var(--ink);font-weight:600}
+  .curve{display:block;width:190px;height:76px;color:var(--plot);flex-shrink:0}
+
+  /* ---- axis rail layout ---- */
+  main{display:grid;grid-template-columns:64px 1fr;gap:0;margin-top:34px}
+  .axis{border-right:1px solid var(--rule);position:relative}
+  .series{padding:0 0 44px 28px;position:relative}
+  .series::before{
+    content:"";position:absolute;left:-1px;top:12px;width:17px;height:1px;background:var(--plot);
+  }
+  .tick{
+    position:absolute;left:-64px;top:4px;width:52px;text-align:right;
+    font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+    font-size:10.5px;letter-spacing:.1em;color:var(--ink-3);text-transform:uppercase;
+    font-variant-numeric:tabular-nums;
+  }
+  h2{
+    font-family:ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    font-weight:500;font-size:23px;margin:0 0 14px;letter-spacing:-.01em;
+  }
+
+  .card{
+    background:var(--panel);border:1px solid var(--rule);border-radius:2px;
+    padding:20px 22px;box-shadow:var(--shadow);
+  }
+  .grid2{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+
+  dl{margin:0;display:grid;gap:11px}
+  dt{
+    font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  }
+  dd{margin:2px 0 0;color:var(--ink)}
+  dd a{color:var(--plot);text-decoration-thickness:1px;text-underline-offset:3px}
+
+  ul{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+  li{display:grid;grid-template-columns:auto 1fr;gap:11px;align-items:baseline}
+  li::before{
+    content:"";width:5px;height:5px;background:var(--plot);
+    transform:translateY(-2px) rotate(45deg);
+  }
+
+  /* ---- the weight bar ---- */
+  .bar{display:flex;height:56px;border:1px solid var(--rule);border-radius:2px;overflow:hidden;background:var(--panel)}
+  .seg{
+    display:flex;flex-direction:column;justify-content:center;padding:0 14px;
+    border-right:1px solid var(--rule);position:relative;min-width:0;
+  }
+  .seg:last-child{border-right:0}
+  .seg.major{background:var(--plot);color:var(--paper)}
+  .seg.mid{background:var(--plot-soft)}
+  .seg .pct{
+    font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+    font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;
+  }
+  .seg .lab{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.8;margin-top:5px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .scale{
+    display:flex;gap:0;margin-top:14px;border:1px solid var(--rule);border-radius:2px;overflow:hidden;
+    font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;
+  }
+  .scale div{flex:1;padding:9px 6px;text-align:center;border-right:1px solid var(--rule);background:var(--panel);font-size:12.5px}
+  .scale div:last-child{border-right:0}
+  .scale b{display:block;font-size:15px;color:var(--plot);font-weight:600}
+
+  /* ---- rules table ---- */
+  .tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:2px;background:var(--panel)}
+  table{border-collapse:collapse;width:100%;min-width:440px;font-size:14px}
+  th{
+    text-align:left;font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+    padding:11px 16px;border-bottom:1px solid var(--rule);font-weight:400;
+  }
+  td{padding:12px 16px;border-bottom:1px solid var(--grid-2);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td:first-child{font-weight:600;white-space:nowrap}
+  .num{font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+  .flag{
+    display:inline-block;padding:2px 8px;border-radius:2px;font-size:10.5px;letter-spacing:.08em;
+    text-transform:uppercase;font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+  }
+  .flag.no{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber)}
+  .flag.yes{background:var(--plot-soft);color:var(--plot);border:1px solid var(--plot)}
+
+  .note{
+    margin-top:44px;padding:18px 22px;border-left:2px solid var(--plot);background:var(--panel);
+    color:var(--ink-2);font-size:13.5px;
+  }
+  a:focus-visible,*:focus-visible{outline:2px solid var(--plot);outline-offset:3px}
+  @media (max-width:640px){
+    main{grid-template-columns:1fr}
+    .axis{display:none}
+    .series{padding-left:0}
+    .series::before{display:none}
+    .tick{position:static;width:auto;text-align:left;display:block;margin-bottom:6px}
+    .masthead{grid-template-columns:1fr}
+    .curve{width:150px}
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">Butte College STAT C1000 &middot; 4 units &middot; C-ID MATH 110</div>
+      <h1>Introduction to Statistics</h1>
+      <p class="sub"><b>Steven Huff</b> &middot; Pleasant Valley High School, Math &middot; Periods 3, 4, 7 &middot; 2026&ndash;2027</p>
+    </div>
+    <svg class="curve" viewBox="0 0 190 76" aria-hidden="true">
+      <defs>
+        <linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="currentColor" stop-opacity=".26"/>
+          <stop offset="1" stop-color="currentColor" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M2 72 C 40 72, 52 8, 95 8 C 138 8, 150 72, 188 72 L188 74 L2 74 Z" fill="url(#fill)"/>
+      <path d="M2 72 C 40 72, 52 8, 95 8 C 138 8, 150 72, 188 72" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="95" y1="8" x2="95" y2="74" stroke="currentColor" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>
+    </svg>
+  </header>
+
+  <main>
+    <div class="axis"></div>
+    <div>
+
+      <section class="series">
+        <span class="tick">01 / Reach</span>
+        <h2>Contact</h2>
+        <div class="card grid2">
+          <dl>
+            <dt>Email</dt>
+            <dd><a href="mailto:shuff@chicousd.org">shuff@chicousd.org</a></dd>
+            <dt>Reply window</dt>
+            <dd>Within 48 hours. No answer by then, send a follow-up.</dd>
+          </dl>
+          <dl>
+            <dt>Current grade</dt>
+            <dd>MyOpenMath. It is more current than Aeries.</dd>
+            <dt>Official grade</dt>
+            <dd>Aeries, reported by semester.</dd>
+          </dl>
+        </div>
+      </section>
+
+      <section class="series">
+        <span class="tick">02 / Weight</span>
+        <h2>How the grade is built</h2>
+        <div class="bar">
+          <div class="seg" style="flex:15">
+            <span class="pct">15%</span><span class="lab">Daily work</span>
+          </div>
+          <div class="seg mid" style="flex:10">
+            <span class="pct">10%</span><span class="lab">Group</span>
+          </div>
+          <div class="seg major" style="flex:75">
+            <span class="pct">75%</span><span class="lab">Individual tests</span>
+          </div>
+        </div>
+        <div class="scale">
+          <div><b>A</b>90&ndash;100</div>
+          <div><b>B</b>80&ndash;89.99</div>
+          <div><b>C</b>70&ndash;79.99</div>
+          <div><b>D</b>60&ndash;69.99</div>
+          <div><b>F</b>0&ndash;59.99</div>
+        </div>
+      </section>
+
+      <section class="series">
+        <span class="tick">03 / Rules</span>
+        <h2>Late work, in one table</h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Situation</th><th>What you get</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Excused absence</td>
+                <td>The same number of days you were out, counted from the day you return.</td>
+              </tr>
+              <tr>
+                <td>Unexcused absence</td>
+                <td><span class="flag no">No extension</span> Work is still due on its original date.</td>
+              </tr>
+              <tr>
+                <td>Late pass</td>
+                <td><span class="num">10</span> per semester. One pass buys one extra day on one daily assignment. Use it the day you miss the deadline. They do not stack, and they do not work on tests.</td>
+              </tr>
+              <tr>
+                <td>Absence you knew about</td>
+                <td>Arrange it before you leave. Say nothing until you are back and a missed test stays missed.</td>
+              </tr>
+              <tr>
+                <td>Group or Individual Test</td>
+                <td><span class="flag no">No retakes</span> No corrections either.</td>
+              </tr>
+              <tr>
+                <td>Practice Test</td>
+                <td><span class="flag yes">Unlimited redos</span> It is homework and a readiness check.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="series">
+        <span class="tick">04 / Gain</span>
+        <h2>The one way to earn extra</h2>
+        <div class="card">
+          <ul>
+            <li>Finish an assignment more than <span class="num">24</span> hours before it is due and MyOpenMath adds <span class="num">2%</span> to it automatically. No request needed.</li>
+            <li>Genuinely finished, not merely started. Starting early and submitting at the deadline earns nothing.</li>
+            <li>Daily classwork and homework only. No extra credit on tests or the Statistics Lab.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="series">
+        <span class="tick">05 / Room</span>
+        <h2>In the room, every day</h2>
+        <div class="card grid2">
+          <ul>
+            <li>Chromebook, charged. Chrome is the only supported browser.</li>
+            <li>Notebook or binder with lined <em>and</em> graph paper.</li>
+            <li>bookSHelf for readings, r&#257;SHio to calculate, MyOpenMath for everything graded.</li>
+          </ul>
+          <ul>
+            <li>Phones are collected at the start of every period and returned at the end.</li>
+            <li>Earbuds, smart watches and smart glasses go with them or into a backpack.</li>
+            <li>Unauthorized AI use counts as cheating, edited or not.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="series">
+        <span class="tick">06 / Stakes</span>
+        <h2>For parents</h2>
+        <div class="card grid2">
+          <ul>
+            <li>This grade lands on a permanent Butte College transcript and follows your student to any college they transfer to.</li>
+            <li>Butte receives one grade for the year: the average of both semester percentages.</li>
+          </ul>
+          <ul>
+            <li>Butte gets a flat letter, so <span class="num">89.9%</span> is a B there, not a B+.</li>
+            <li>Check MyOpenMath for anything missing or still open. A grade goes final two weeks after submission.</li>
+          </ul>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <p class="note">The full syllabus carries the complete policies, the college drop and withdrawal dates, and the academic integrity procedure. This page is the short version.</p>
+
+</div>

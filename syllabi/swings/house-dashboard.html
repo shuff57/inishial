@@ -1,0 +1,305 @@
+<title>Statistics Course Dashboard</title>
+<style>
+  @page{ size: letter portrait; margin: 0.38in; }
+
+  :root{
+    --page:#EDEFF2; --surface:#FCFCFB; --panel:#FFFFFF; --sub:#F7F8FA;
+    --ink:#101828; --ink-2:#475467; --ink-3:#8B96A5;
+    --line:#E4E7EC; --line-2:#EFF1F4;
+
+    /* categorical — fixed order, validated on the light surface
+       (lightness band, chroma floor, CVD separation, normal-vision floor, contrast) */
+    --cat-1:#1D6FE0;   /* Individual Assessments */
+    --cat-2:#C2410C;   /* Daily Homework / Classwork */
+    --cat-3:#0E9384;   /* Group Assessments */
+
+    /* status — reserved, never reused as a series colour */
+    --good:#15803D; --good-bg:#EAF6EE;
+    --warn:#B54708; --warn-bg:#FDF3E7;
+    --crit:#B42318; --crit-bg:#FDECEA;
+
+    --font:"Inter","DM Sans","Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --page:#0E1116; } }
+  :root[data-theme="dark"]{ --page:#0E1116; }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--page); color:var(--ink); font-family:var(--font);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet{
+    width:8.5in; min-height:11in; margin:24px auto; padding:0.38in;
+    background:var(--surface); box-shadow:0 18px 60px -24px #0006;
+    font-size:8.8pt; line-height:1.44;
+    display:grid; gap:8pt; align-content:start;
+  }
+
+  /* ---- top bar ---- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:14pt;
+    padding-bottom:8pt; border-bottom:1.5pt solid var(--ink);
+  }
+  h1{font-size:17pt; line-height:1.1; margin:0 0 2.5pt; font-weight:700; letter-spacing:-.025em}
+  .who{margin:0; font-size:8pt; color:var(--ink-2)}
+  .who b{color:var(--ink); font-weight:600}
+  .chips{display:flex; gap:5pt; flex-wrap:wrap; justify-content:flex-end}
+  .chip{
+    font-size:6.4pt; letter-spacing:.09em; text-transform:uppercase; font-weight:700;
+    padding:2.5pt 6pt; border-radius:99pt; background:var(--sub);
+    border:.75pt solid var(--line); color:var(--ink-2); white-space:nowrap;
+  }
+  .chip.on{background:#EBF2FD; border-color:var(--cat-1); color:var(--cat-1)}
+
+  /* ---- KPI row ---- */
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:7pt}
+  .kpi{
+    background:var(--panel); border:.75pt solid var(--line); border-radius:5pt;
+    padding:8pt 9pt 9pt; position:relative; overflow:hidden;
+  }
+  .kpi::before{content:""; position:absolute; left:0; top:0; bottom:0; width:2.5pt; background:var(--k, var(--line))}
+  .kpi .k{font-size:6.4pt; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); font-weight:700}
+  .kpi .v{
+    font-size:22pt; font-weight:700; line-height:1.05; letter-spacing:-.035em;
+    font-variant-numeric:tabular-nums; margin-top:4pt; color:var(--ink);
+  }
+  .kpi .v small{font-size:10pt; font-weight:600; color:var(--ink-2); letter-spacing:0}
+  .kpi .u{font-size:7.4pt; color:var(--ink-2); margin-top:2.5pt; display:block}
+  /* ten pips — countable, because ten passes is a thing you count, not a magnitude */
+  .pips{display:flex; gap:2pt; margin-top:5pt}
+  .pips i{flex:1; height:5pt; border-radius:1.5pt; background:var(--cat-2)}
+
+  /* ---- panels ---- */
+  .row{display:grid; gap:8pt}
+  .row.two{grid-template-columns:1.05fr .95fr}
+  .row.two-b{grid-template-columns:1fr 1fr}
+  .panel{
+    background:var(--panel); border:.75pt solid var(--line); border-radius:5pt; overflow:hidden;
+    break-inside:avoid;
+  }
+  .panel > header{
+    padding:6pt 10pt; border-bottom:.75pt solid var(--line); background:var(--sub);
+    display:flex; align-items:center; justify-content:space-between; gap:10pt;
+  }
+  .panel > header h2{
+    margin:0; font-size:7.4pt; letter-spacing:.11em; text-transform:uppercase;
+    font-weight:700; color:var(--ink-2);
+  }
+  .panel > header .meta{font-size:6.8pt; color:var(--ink-3); font-family:var(--mono)}
+  .panel .body{padding:9pt 10pt 10pt}
+
+  /* ---- composition bar: one axis, 2pt surface gaps, rounded data-ends ---- */
+  .stack{display:flex; height:22pt; gap:2pt; margin-bottom:8pt}
+  .stack i{display:block; border-radius:1pt}
+  .stack i:first-child{border-radius:4pt 1pt 1pt 4pt}
+  .stack i:last-child{border-radius:1pt 4pt 4pt 1pt}
+  /* legend is always present for >= 2 series; values wear text tokens, never the series colour */
+  .legend{display:grid; gap:0}
+  .legend .r{
+    display:grid; grid-template-columns:auto 1fr auto; gap:7pt; align-items:center;
+    padding:4pt 0; border-bottom:.75pt solid var(--line-2);
+  }
+  .legend .r:last-child{border-bottom:0}
+  .legend .sw{width:8pt; height:8pt; border-radius:2pt}
+  .legend .nm{font-size:8.4pt; color:var(--ink-2)}
+  .legend .vl{font-size:9.6pt; font-weight:700; font-variant-numeric:tabular-nums; color:var(--ink)}
+
+  /* threshold scale */
+  .thresh{margin-top:8pt; padding-top:7pt; border-top:.75pt solid var(--line)}
+  .thresh .track{
+    display:flex; height:9pt; border-radius:2pt; overflow:hidden; border:.75pt solid var(--line);
+  }
+  .thresh .track i{display:block; border-right:.75pt solid var(--line)}
+  .thresh .track i:last-child{border-right:0}
+  .thresh .labs{
+    display:flex; margin-top:3pt; font-size:6.8pt; color:var(--ink-2);
+    font-variant-numeric:tabular-nums; font-family:var(--mono);
+  }
+  .thresh .labs span{text-align:left}
+  .thresh .labs b{color:var(--ink); font-family:var(--font)}
+
+  /* ---- rule rows ---- */
+  .rules{display:grid}
+  .rule{
+    display:grid; grid-template-columns:minmax(84pt,.8fr) 1.5fr; gap:9pt;
+    padding:5.5pt 10pt; border-bottom:.75pt solid var(--line-2); align-items:start;
+  }
+  .rule:last-child{border-bottom:0}
+  .rule .c{font-weight:700; font-size:8.4pt; color:var(--ink)}
+  .rule .o{color:var(--ink-2); font-size:8.4pt}
+  .rule .o b{color:var(--ink); font-weight:700}
+  .tag{
+    display:inline-flex; align-items:center; gap:3pt; padding:1.2pt 5pt; border-radius:3pt;
+    font-size:6.4pt; letter-spacing:.08em; text-transform:uppercase; font-weight:700;
+    margin-right:4pt; vertical-align:.5pt;
+  }
+  /* status ships with a word, never colour alone */
+  .tag.no{background:var(--crit-bg); color:var(--crit); border:.75pt solid var(--crit)}
+  .tag.yes{background:var(--good-bg); color:var(--good); border:.75pt solid var(--good)}
+  .tag.warn{background:var(--warn-bg); color:var(--warn); border:.75pt solid var(--warn)}
+
+  ul{margin:0; padding:0; list-style:none; display:grid; gap:3.4pt}
+  li{padding-left:9pt; position:relative; color:var(--ink-2); font-size:8.4pt}
+  li::before{content:""; position:absolute; left:0; top:.52em; width:3.4pt; height:3.4pt;
+             border-radius:50%; background:var(--ink-3)}
+  li b{color:var(--ink); font-weight:700}
+
+  .foot{
+    display:flex; justify-content:space-between; gap:14pt; font-size:7pt; color:var(--ink-3);
+    padding-top:6pt; border-top:.75pt solid var(--line);
+  }
+
+  @media print{
+    body{background:#fff}
+    .sheet{width:auto; min-height:0; margin:0; padding:0; box-shadow:none}
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="topbar">
+    <div>
+      <h1>Introduction to Statistics</h1>
+      <p class="who"><b>Steven Huff</b> &middot; Pleasant Valley High School &middot; Periods 3, 4, 7 &middot; 2026&ndash;2027</p>
+    </div>
+    <div class="chips">
+      <span class="chip on">Butte College STAT C1000</span>
+      <span class="chip">4 units</span>
+      <span class="chip">Dual enrollment</span>
+    </div>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi" style="--k:var(--cat-1)">
+      <span class="k">Tests are worth</span>
+      <span class="v">75%</span>
+      <span class="u">of the whole grade</span>
+    </div>
+    <div class="kpi" style="--k:var(--cat-2)">
+      <span class="k">Late passes</span>
+      <span class="v">10<small> / semester</small></span>
+      <span class="pips"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    </div>
+    <div class="kpi" style="--k:var(--good)">
+      <span class="k">Finish a day early</span>
+      <span class="v">+2%</span>
+      <span class="u">applied automatically</span>
+    </div>
+    <div class="kpi" style="--k:var(--ink-3)">
+      <span class="k">Email reply within</span>
+      <span class="v">48<small> hours</small></span>
+      <span class="u">shuff@chicousd.org</span>
+    </div>
+  </div>
+
+  <div class="row two">
+    <section class="panel">
+      <header><h2>Grade composition</h2><span class="meta">sums to 100%</span></header>
+      <div class="body">
+        <div class="stack">
+          <i style="flex:75; background:var(--cat-1)"></i>
+          <i style="flex:15; background:var(--cat-2)"></i>
+          <i style="flex:10; background:var(--cat-3)"></i>
+        </div>
+        <div class="legend">
+          <div class="r"><span class="sw" style="background:var(--cat-1)"></span><span class="nm">Individual Assessments</span><span class="vl">75%</span></div>
+          <div class="r"><span class="sw" style="background:var(--cat-2)"></span><span class="nm">Daily Homework / Classwork</span><span class="vl">15%</span></div>
+          <div class="r"><span class="sw" style="background:var(--cat-3)"></span><span class="nm">Group Assessments</span><span class="vl">10%</span></div>
+        </div>
+        <div class="thresh">
+          <div class="track">
+            <i style="flex:10; background:#FBE9E7"></i>
+            <i style="flex:10; background:#FDF0E3"></i>
+            <i style="flex:10; background:#F4F6E9"></i>
+            <i style="flex:10; background:#EAF6EE"></i>
+          </div>
+          <div class="labs">
+            <span style="flex:10"><b>D</b> 60+</span>
+            <span style="flex:10"><b>C</b> 70+</span>
+            <span style="flex:10"><b>B</b> 80+</span>
+            <span style="flex:10"><b>A</b> 90+</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header><h2>Late work</h2><span class="meta">condition &rarr; outcome</span></header>
+      <div class="rules">
+        <div class="rule">
+          <span class="c">Late pass</span>
+          <span class="o"><b>+1 day, one assignment.</b> Use it the day you miss the deadline. No stacking, daily work only.</span>
+        </div>
+        <div class="rule">
+          <span class="c">Group or Individual Test</span>
+          <span class="o"><span class="tag no">No retakes</span>No corrections either. Passes do not apply.</span>
+        </div>
+        <div class="rule">
+          <span class="c">Practice Test</span>
+          <span class="o"><span class="tag yes">Unlimited redos</span>It is homework and a readiness check.</span>
+        </div>
+        <div class="rule">
+          <span class="c">Working ahead</span>
+          <span class="o"><span class="tag yes">+2%</span>Finish more than twenty-four hours early. Daily work only.</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="row two-b">
+    <section class="panel">
+      <header><h2>Absence</h2></header>
+      <div class="rules">
+        <div class="rule">
+          <span class="c">Excused</span>
+          <span class="o"><b>Same number of days you were out</b>, counted from the day you return.</span>
+        </div>
+        <div class="rule">
+          <span class="c">Unexcused</span>
+          <span class="o"><span class="tag no">No extension</span>Still due on its original date.</span>
+        </div>
+        <div class="rule">
+          <span class="c">Knew about it</span>
+          <span class="o"><span class="tag warn">Arrange first</span>Tell me before you go, or a missed test stays missed.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header><h2>Room &amp; devices</h2></header>
+      <div class="body">
+        <ul>
+          <li><b>Phones</b> are collected at the start of every period, returned at the end.</li>
+          <li>Earbuds, smart watches and smart glasses go with them.</li>
+          <li><b>Bring:</b> charged Chromebook, notebook with lined and graph paper.</li>
+          <li><b>AI:</b> unauthorized use is cheating, edited or not.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <header><h2>For parents</h2><span class="meta">MyOpenMath is live &middot; Aeries is official</span></header>
+    <div class="rules">
+      <div class="rule">
+        <span class="c">Where to check</span>
+        <span class="o"><b>MyOpenMath</b> holds the current grade and everything missing, late or open. It is ahead of Aeries.</span>
+      </div>
+      <div class="rule">
+        <span class="c">Why it counts</span>
+        <span class="o">Four units on a <b>permanent Butte College transcript</b>, carried to any college your student transfers to.</span>
+      </div>
+      <div class="rule">
+        <span class="c">The year's grade</span>
+        <span class="o">Butte receives <b>one</b> grade: the average of both semester percentages, as a flat letter. 89.9% is a B there, not a B+.</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">
+    <span>The full syllabus has the complete policies. This page is the short version.</span>
+    <span>2026&ndash;2027</span>
+  </div>
+
+</div>

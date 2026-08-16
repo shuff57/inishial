@@ -1,0 +1,206 @@
+<title>Statistics Broadside</title>
+<style>
+  @page{ size: letter portrait; margin: 0.45in; }
+
+  :root{
+    --sheet:#FDFCF9; --ground:#D8D6D0;
+    --ink:#181D26; --ink-2:#454E5C; --ink-3:#7C8492;
+    --rule:#181D26; --hair:#CFD2CB;
+    --blood:#7A2626; --blood-tint:#7A26260F;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --ground:#101318; } }
+  :root[data-theme="dark"]{ --ground:#101318; }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:Charter,"Bitstream Charter","Iowan Old Style",Georgia,serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet{
+    width:8.5in; min-height:11in; margin:24px auto; padding:0.45in;
+    background:var(--sheet); box-shadow:0 18px 60px -24px #0006;
+    font-size:9.5pt; line-height:1.44;
+  }
+
+  /* masthead */
+  .head{ border-bottom:3pt solid var(--rule); padding-bottom:8pt; margin-bottom:4pt; }
+  .kicker{
+    display:flex; justify-content:space-between; align-items:baseline; gap:14pt;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-size:6.6pt; letter-spacing:.22em; text-transform:uppercase; color:var(--blood);
+    border-bottom:.75pt solid var(--hair); padding-bottom:5pt; margin-bottom:8pt;
+  }
+  .kicker span:last-child{color:var(--ink-3)}
+  h1{
+    font-family:"Playfair Display",Didot,"Bodoni MT","Iowan Old Style",Georgia,serif;
+    font-weight:400; font-size:38pt; line-height:.92; margin:0; letter-spacing:-.022em;
+  }
+  h1 em{font-style:italic; color:var(--blood)}
+  .who{
+    margin:7pt 0 0; padding-top:6pt; border-top:.75pt solid var(--hair);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif; font-size:8pt; color:var(--ink-2);
+    display:flex; flex-wrap:wrap; gap:3pt 16pt;
+  }
+  .who b{color:var(--ink); font-weight:650}
+
+  .cols{ column-count:2; column-gap:0.36in; margin-top:11pt; }
+  section{ break-inside:avoid; page-break-inside:avoid; margin:0 0 12pt; }
+
+  h2{
+    font-family:"Playfair Display",Didot,"Bodoni MT",Georgia,serif;
+    font-weight:400; font-size:15pt; line-height:1.05; margin:0 0 6pt;
+    border-bottom:1.5pt solid var(--rule); padding-bottom:4pt; letter-spacing:-.01em;
+  }
+  h2 small{
+    display:block; font-family:system-ui,sans-serif; font-size:6.4pt; letter-spacing:.2em;
+    text-transform:uppercase; color:var(--blood); margin-bottom:3pt; font-weight:600;
+  }
+
+  ul{margin:0; padding:0; list-style:none; display:grid; gap:4pt}
+  li{padding-left:11pt; position:relative; color:var(--ink-2)}
+  li::before{content:""; position:absolute; left:0; top:.66em; width:6.5pt; height:.9pt; background:var(--blood)}
+  li b{color:var(--ink); font-weight:650}
+
+  /* weights as ruled rows */
+  .w{display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:8pt; margin-bottom:5pt}
+  .w .n{font-size:9.5pt}
+  .w .v{font-family:"Playfair Display",Didot,Georgia,serif; font-size:16pt; line-height:1;
+        font-variant-numeric:tabular-nums}
+  .w.lead .v{color:var(--blood); font-size:25pt}
+  .w.lead .n{font-weight:650; color:var(--ink)}
+  .track{grid-column:1/-1; height:2pt; background:var(--hair); position:relative; margin-top:1pt}
+  .track i{position:absolute; left:0; top:0; bottom:0; background:var(--ink-3); display:block}
+  .w.lead .track{height:3.5pt}
+  .w.lead .track i{background:var(--blood)}
+  .scale{
+    margin-top:6pt; padding-top:5pt; border-top:.75pt solid var(--hair);
+    font-family:system-ui,sans-serif; font-size:7.6pt; color:var(--ink-2);
+    display:flex; flex-wrap:wrap; gap:10pt; font-variant-numeric:tabular-nums;
+  }
+  .scale b{font-family:"Playfair Display",Didot,Georgia,serif; font-size:10pt; color:var(--ink); margin-right:2pt}
+
+  .never{
+    font-family:system-ui,sans-serif; font-size:6.4pt; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--blood); border:.75pt solid var(--blood); padding:.5pt 3.5pt; margin-right:3pt;
+    display:inline-block;
+  }
+  .pull{
+    background:var(--blood-tint); border-left:2pt solid var(--blood);
+    padding:6pt 8pt; margin-top:6pt; font-style:italic; font-size:8.6pt; color:var(--ink-2);
+  }
+
+  .foot{
+    column-span:all; margin-top:4pt; padding-top:6pt; border-top:3pt solid var(--rule);
+    font-family:system-ui,sans-serif; font-size:7.2pt; color:var(--ink-3);
+    display:flex; justify-content:space-between; gap:12pt;
+  }
+
+  @media print{
+    body{background:#fff}
+    .sheet{width:auto; min-height:0; margin:0; padding:0; box-shadow:none}
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="head">
+    <div class="kicker">
+      <span>Butte College STAT C1000 &middot; Four units &middot; Dual enrollment</span>
+      <span>Quick reference</span>
+    </div>
+    <h1>Introduction to <em>Statistics</em></h1>
+    <div class="who">
+      <span><b>Steven Huff</b></span>
+      <span>Pleasant Valley High School, Mathematics</span>
+      <span>Periods 3, 4, 7</span>
+      <span>2026&ndash;2027</span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <section>
+      <h2><small>Article I</small>Contact</h2>
+      <ul>
+        <li><b>shuff@chicousd.org</b> &mdash; I reply within 48 hours.</li>
+        <li>No reply by then? Send a follow-up.</li>
+        <li><b>MyOpenMath</b> holds your current grade, ahead of Aeries.</li>
+        <li><b>Aeries</b> is the official report, by semester.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2><small>Article II</small>Your grade</h2>
+      <div class="w lead">
+        <span class="n">Individual Assessments</span><span class="v">75%</span>
+        <span class="track"><i style="width:75%"></i></span>
+      </div>
+      <div class="w">
+        <span class="n">Daily Homework / Classwork</span><span class="v">15%</span>
+        <span class="track"><i style="width:15%"></i></span>
+      </div>
+      <div class="w">
+        <span class="n">Group Assessments</span><span class="v">10%</span>
+        <span class="track"><i style="width:10%"></i></span>
+      </div>
+      <div class="scale">
+        <span><b>A</b>90+</span><span><b>B</b>80+</span><span><b>C</b>70+</span><span><b>D</b>60+</span>
+      </div>
+    </section>
+
+    <section>
+      <h2><small>Article III</small>Turning work in late</h2>
+      <ul>
+        <li><b>Late passes:</b> ten per semester, one extra day each.</li>
+        <li>Use a pass the day you miss the due date. They do not stack.</li>
+        <li>Daily classwork and homework only, never on tests.</li>
+        <li><b>Working ahead:</b> finish more than twenty-four hours early and MyOpenMath adds 2% automatically.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2><small>Article IV</small>When you are absent</h2>
+      <ul>
+        <li><b>Excused:</b> the same number of days you were out, counted from the day you return.</li>
+        <li><b>Unexcused:</b> no extension. Still due on its original date.</li>
+        <li><b>Planned ahead:</b> arrange it before you leave, or a missed test stays missed.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2><small>Article V</small>Tests</h2>
+      <ul>
+        <li><span class="never">No retakes</span>None on Group or Individual Tests, and no corrections.</li>
+        <li><b>Practice Tests:</b> redo them as many times as you want. They are homework.</li>
+        <li>Cannot do the Practice Test without help? You are not ready.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2><small>Article VI</small>In the room</h2>
+      <ul>
+        <li><b>Phones</b> are collected at the start of every period, returned at the end.</li>
+        <li>Earbuds, smart watches and smart glasses go with them.</li>
+        <li><b>Bring:</b> charged Chromebook, notebook with lined and graph paper.</li>
+        <li><b>AI:</b> unauthorized use is cheating, edited or not.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2><small>For parents and guardians</small>Why this one is permanent</h2>
+      <ul>
+        <li>This is Butte College STAT C1000, four units, on a permanent college transcript.</li>
+        <li>Butte receives one grade for the year, the average of both semester percentages.</li>
+        <li><b>Check MyOpenMath</b> for anything missing, late or open.</li>
+      </ul>
+      <p class="pull">Butte uses flat letters, so 89.9% is a B there, not a B+.</p>
+    </section>
+
+    <div class="foot">
+      <span>The full syllabus has the complete policies. This page is the short version.</span>
+      <span>PVHS Mathematics &middot; 2026&ndash;2027</span>
+    </div>
+
+  </div>
+</div>

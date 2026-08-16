@@ -1,0 +1,267 @@
+<title>Statistics Notebook Page</title>
+<style>
+  @page{ size: letter portrait; margin: 0.4in; }
+
+  /* Tokens lifted verbatim from public/app.css — the Syllabus house system. */
+  :root{
+    --paper:#f8f6f1; --ivory:#fdfcf9; --sand:#efece3;
+    --desk:#ded5c2; --desk-deep:#cdc2ab; --desk-ink:#3a3833;
+
+    --ink:#1a1a1a; --ink-charcoal:#3a3833; --ink-olive:#4d4a43;
+    --ink-stone:#6b6358; --ink-silver:#6e6b63;
+
+    --border-cream:#efece3; --border-warm:#e4e0d5; --ring:#d8d2c4;
+
+    --mark:#ffe08a; --mark-deep:#b98d24; --tape:#eee2c6;
+    --accent:#7a5c1f; --accent-deep:#5c451a; --accent-soft:#d8b45f;
+    --danger:#8d3346;
+
+    --tab-1:#98d4bb; --tab-2:#c7b8ea; --tab-3:#f4b8c5; --tab-4:#a8d8ea; --tab-5:#ffe6a7;
+
+    --font-display:"Bodoni Moda","Bodoni MT","Didot","Playfair Display",Georgia,serif;
+    --font-body:"DM Sans","Helvetica Neue","Segoe UI",Helvetica,Arial,system-ui,sans-serif;
+    --font-hand:"Caveat","Segoe Script","Bradley Hand",cursive;
+
+    /* The screen system's 32px rule, re-pitched for print and opened up.
+       EVERY block below consumes a whole number of these. */
+    --rule:17pt; --baseline:10.4pt; --sit:1.6pt; --hair:.75pt;
+
+    --shadow-paper:0 1px 2px rgba(0,0,0,.05), 0 12px 40px rgba(0,0,0,.16);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --desk:#141413; --desk-deep:#0e0e0d; }
+  }
+  :root[data-theme="dark"]{ --desk:#141413; --desk-deep:#0e0e0d; }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--desk); color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+
+  /* ---- the sheet ---- */
+  .sheet{
+    width:8.5in; min-height:11in; margin:24px auto;
+    /* padding in whole rules, so the first baseline lands on the grid */
+    padding:calc(var(--rule) * 2) 26pt calc(var(--rule) * 2) 44pt;
+    background-color:var(--paper);
+    background-image:repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(var(--rule) - .6pt),
+      color-mix(in srgb, var(--ring) 66%, transparent) calc(var(--rule) - .6pt),
+      color-mix(in srgb, var(--ring) 66%, transparent) var(--rule)
+    );
+    background-size:100% var(--rule);
+    background-position:0 calc(var(--baseline) + var(--sit));
+    border-radius:2px 6px 6px 2px;
+    box-shadow:var(--shadow-paper);
+    position:relative;
+    font-size:9.4pt; line-height:var(--rule);
+  }
+  .sheet::before{
+    content:""; position:absolute; top:0; bottom:0; left:34pt; width:var(--hair);
+    background:color-mix(in srgb, var(--danger) 40%, transparent);
+  }
+
+  /* ---- masthead: 3 rules for the title, 1 for the byline ---- */
+  .head{
+    margin:0 0 calc(var(--rule) - var(--hair));
+    border-bottom:var(--hair) solid var(--border-warm);
+  }
+  h1{
+    font-family:var(--font-display); font-weight:400; font-size:28pt;
+    letter-spacing:-.015em; margin:0;
+    /* box is 3 rules; the text's own line box is 1 rule and sits at the
+       bottom of it, so the baseline is ON a rule and the ascenders rise
+       into the two empty rules above. */
+    height:calc(var(--rule) * 3); display:flex; align-items:flex-end;
+    line-height:var(--rule);
+  }
+  .who{
+    margin:0; font-size:8.4pt; line-height:var(--rule); color:var(--ink-olive);
+    height:calc(var(--rule) * 2); display:flex; align-items:flex-end;
+  }
+  .who b{color:var(--ink); font-weight:700}
+
+  /* ---- columns ---- */
+  .cols{ column-count:2; column-gap:24pt; }
+  section{ break-inside:avoid; page-break-inside:avoid; margin:0 0 var(--rule); }
+
+  /* ---- the ripped tape subhead ----
+     2 rules tall: the strip occupies the upper one, the heading baseline
+     lands on the lower one. Costs no flow height beyond those two rules. */
+  h2{
+    margin:0; height:calc(var(--rule) * 2);
+    display:flex; align-items:flex-end;
+  }
+  h2 .strip{
+    position:relative; isolation:isolate; display:inline-block;
+    font-family:var(--font-display); font-weight:400; font-size:12.5pt;
+    line-height:var(--rule); color:var(--ink); letter-spacing:-.005em;
+    padding:0 2pt;
+  }
+  h2 .strip::before{
+    content:""; position:absolute; z-index:-1; inset:-5pt -9pt -3.5pt -9pt;
+    background:var(--strip, var(--tape));
+    box-shadow:0 1px 3px rgba(0,0,0,.13);
+    /* torn ends, same construction as .tape in app.css */
+    clip-path:polygon(1.5% 6%, 98% 0%, 100% 94%, 2% 100%);
+  }
+  /* colour-coded tape: the index-tab hue knocked back into masking-tape beige,
+     alternating tilt so seven strips do not read as a machine placed them */
+  .t1 h2 .strip{--strip:color-mix(in srgb, var(--tab-1) 52%, var(--tape)); transform:rotate(-.9deg)}
+  .t2 h2 .strip{--strip:color-mix(in srgb, var(--tab-2) 52%, var(--tape)); transform:rotate(.7deg)}
+  .t3 h2 .strip{--strip:color-mix(in srgb, var(--tab-3) 52%, var(--tape)); transform:rotate(-1.1deg)}
+  .t4 h2 .strip{--strip:color-mix(in srgb, var(--tab-4) 52%, var(--tape)); transform:rotate(.9deg)}
+  .t5 h2 .strip{--strip:color-mix(in srgb, var(--tab-5) 60%, var(--tape)); transform:rotate(-.6deg)}
+  .t3.alt h2 .strip{clip-path:polygon(0% 2%, 98.5% 7%, 99% 100%, 1.5% 95%)}
+  .t1.alt h2 .strip{clip-path:polygon(2% 0%, 99% 5%, 97.5% 96%, 0% 100%)}
+
+  /* ---- lists ride consecutive rules: no gaps, that is the whole point ---- */
+  ul{margin:0; padding:0; list-style:none}
+  /* hanging indent: wrapped lines align under the text, not under the dash,
+     and every wrapped line lands on the next rule because line-height IS the rule */
+  li{padding-left:11pt; position:relative; color:var(--ink-olive); line-height:var(--rule)}
+  li::before{content:"\2013"; position:absolute; left:0; top:0; color:var(--accent-soft); font-weight:700}
+  li b{color:var(--ink); font-weight:700}
+
+  /* the highlighter band, from app.css */
+  .mark{position:relative; isolation:isolate; padding:0 .18em; color:var(--ink)}
+  .mark::before{
+    content:""; position:absolute; z-index:-1;
+    left:0; right:0; top:.08em; bottom:.04em;
+    background:var(--mark); border-radius:2px 5px 3px 6px;
+    transform:rotate(-.5deg);
+  }
+
+  /* ---- weights: one rule per row, bar drawn as a background so it
+         costs zero vertical space and the text stays on the grid ---- */
+  .w{
+    display:grid; grid-template-columns:1fr auto; align-items:baseline;
+    line-height:var(--rule); color:var(--ink-olive);
+    background:linear-gradient(to right,
+      var(--bar, var(--accent-soft)) 0 var(--pct),
+      var(--border-warm) var(--pct) 100%) left bottom/100% 2.2pt no-repeat;
+  }
+  .w .v{font-family:var(--font-display); font-variant-numeric:tabular-nums; font-size:11.5pt}
+  .w.lead{--bar:var(--accent)}
+  .w.lead .n{font-weight:700; color:var(--ink)}
+  .w.lead .v{font-size:14.5pt; color:var(--accent-deep)}
+  .grade{margin:0; line-height:var(--rule); font-variant-numeric:tabular-nums; color:var(--ink-olive)}
+  .grade b{font-family:var(--font-display); color:var(--ink); font-size:11pt}
+
+  .hand{
+    font-family:var(--font-hand); font-size:11.5pt; line-height:var(--rule);
+    color:var(--accent-deep); transform:rotate(-1.4deg); display:inline-block;
+    position:relative; top:1px;
+  }
+  .no{
+    font-family:var(--font-body); font-size:6.6pt; letter-spacing:.1em;
+    text-transform:uppercase; font-weight:700; color:var(--danger);
+    border:var(--hair) solid var(--danger); padding:.4pt 3.5pt; margin-right:3.5pt;
+    border-radius:2px; display:inline-block; vertical-align:.5pt;
+  }
+
+  .foot{
+    column-span:all; line-height:var(--rule); font-size:7.6pt; color:var(--ink-stone);
+    border-top:var(--hair) solid var(--border-warm);
+    margin-top:calc(var(--rule) - var(--hair));
+    display:flex; justify-content:space-between; gap:14pt;
+  }
+
+  @media print{
+    body{background:#fff}
+    .sheet{width:auto; min-height:0; margin:0; box-shadow:none; border-radius:0}
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="head">
+    <h1>Introduction to Statistics</h1>
+    <p class="who"><b>Steven Huff</b> &nbsp;&middot;&nbsp; Pleasant Valley High School, Mathematics &nbsp;&middot;&nbsp; Periods 3, 4, 7 &nbsp;&middot;&nbsp; Butte College STAT C1000, 4 units &nbsp;&middot;&nbsp; 2026&ndash;2027</p>
+  </header>
+
+  <div class="cols">
+
+    <section class="t1">
+      <h2><span class="strip">Contact</span></h2>
+      <ul>
+        <li><b>shuff@chicousd.org</b> &mdash; I reply within <span class="mark">48 hours</span>.</li>
+        <li>No reply by then? Send a follow-up.</li>
+        <li><b>MyOpenMath</b> holds your current grade. <span class="hand">start here</span></li>
+        <li><b>Aeries</b> is the official report, by semester.</li>
+      </ul>
+    </section>
+
+    <section class="t3">
+      <h2><span class="strip">Your grade</span></h2>
+      <div class="w lead" style="--pct:75%">
+        <span class="n">Individual Assessments</span><span class="v">75%</span>
+      </div>
+      <div class="w" style="--pct:15%">
+        <span class="n">Daily Homework / Classwork</span><span class="v">15%</span>
+      </div>
+      <div class="w" style="--pct:10%">
+        <span class="n">Group Assessments</span><span class="v">10%</span>
+      </div>
+      <p class="grade"><b>A</b> 90+ &nbsp; <b>B</b> 80+ &nbsp; <b>C</b> 70+ &nbsp; <b>D</b> 60+</p>
+    </section>
+
+    <section class="t5">
+      <h2><span class="strip">Turning work in late</span></h2>
+      <ul>
+        <li><b>Late passes:</b> <span class="mark">ten per semester</span>, one extra day each.</li>
+        <li>Use a pass the day you miss the due date.</li>
+        <li>They do not stack, and never work on tests.</li>
+        <li><b>Working ahead:</b> finish more than twenty-four hours early and MyOpenMath adds <span class="mark">2%</span> automatically.</li>
+      </ul>
+    </section>
+
+    <section class="t4">
+      <h2><span class="strip">When you are absent</span></h2>
+      <ul>
+        <li><b>Excused:</b> the same number of days you were out, counted from the day you return.</li>
+        <li><b>Unexcused:</b> no extension. Still due on its original date.</li>
+        <li><b>Planned ahead:</b> arrange it before you leave, or a missed test stays missed.</li>
+      </ul>
+    </section>
+
+    <section class="t3 alt">
+      <h2><span class="strip">Tests</span></h2>
+      <ul>
+        <li><span class="no">No retakes</span>on Group or Individual Tests, and no corrections either.</li>
+        <li><b>Practice Tests</b> are homework. Redo them as many times as you want.</li>
+        <li>Cannot do one without help? You are not ready.</li>
+      </ul>
+    </section>
+
+    <section class="t2">
+      <h2><span class="strip">In the room</span></h2>
+      <ul>
+        <li><b>Phones</b> are collected at the start of every period, returned at the end.</li>
+        <li>Earbuds, smart watches and smart glasses go with them.</li>
+        <li><b>Bring:</b> charged Chromebook, notebook with lined and graph paper.</li>
+        <li><b>AI:</b> unauthorized use is cheating, edited or not.</li>
+      </ul>
+    </section>
+
+    <section class="t1 alt">
+      <h2><span class="strip">For parents</span></h2>
+      <ul>
+        <li>Four units on a <span class="mark">permanent college transcript</span>.</li>
+        <li>Butte gets one grade for the year, the average of both semester percentages.</li>
+        <li>Flat letters there, so 89.9% is a B, not a B+.</li>
+        <li><b>Check MyOpenMath</b> for anything missing, late or open.</li>
+      </ul>
+    </section>
+
+    <div class="foot">
+      <span>The full syllabus has the complete policies. This page is the short version.</span>
+      <span>2026&ndash;2027</span>
+    </div>
+
+  </div>
+</div>

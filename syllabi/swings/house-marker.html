@@ -1,0 +1,310 @@
+<title>Statistics Whiteboard</title>
+<style>
+  @page{ size: letter portrait; margin: 0.4in; }
+
+  :root{
+    /* clean white board, and the four pens actually sitting in the tray */
+    --board:#FDFDFB; --ground:#D5D2CA; --faint:#F2F2EE;
+    --ink:#1F1F1F;            /* black marker */
+    --pen:#2B4C9B;            /* blue ballpoint, for the small hand notes */
+    --blue:#1B5FAA;           /* blue marker */
+    --red:#C8322B;            /* red marker */
+    --green:#2E8B4F;          /* green marker */
+    --orange:#E0801F;         /* orange marker */
+    --body:#2A2A28;
+    --hi-yellow:#FFE86B; --hi-pink:#FFB9C6; --hi-green:#B9EFA8;
+
+    --font-hand:"Caveat","Segoe Script","Bradley Hand","Comic Sans MS",cursive;
+    --font-body:"DM Sans","Helvetica Neue","Segoe UI",Helvetica,Arial,system-ui,sans-serif;
+  }
+  /* One committed world: a whiteboard is white. Painted explicitly so it holds
+     on either host ground rather than borrowing one. */
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --ground:#191817; } }
+  :root[data-theme="dark"]{ --ground:#191817; }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--body);
+    font-family:var(--font-body);
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .defs{position:absolute; width:0; height:0; overflow:hidden}
+
+  .sheet{
+    width:8.5in; min-height:11in; margin:24px auto; padding:0.4in 0.42in;
+    background:var(--board); box-shadow:0 18px 60px -24px #0007;
+    font-size:9.5pt; line-height:1.46; position:relative;
+  }
+
+  /* ---- masthead: written on the board ----
+     The note used to be position:absolute over this block. Absolute means it
+     reserves no space, so its own text overflowed it and the whole thing sat
+     down on top of section 4's heading. It is a flex child now: it cannot
+     collide with anything, because it takes up room like everything else. */
+  .head{
+    margin-bottom:13pt;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16pt;
+  }
+  .headline{flex:1; min-width:0}
+  h1{
+    font-family:var(--font-hand); font-weight:700; color:var(--ink);
+    font-size:40pt; line-height:.94; margin:0 0 2pt; letter-spacing:.005em;
+  }
+  h1 span{color:var(--blue)}
+  /* the double underline a teacher always adds, overshooting both ends */
+  .rule2{display:block; margin:1pt 0 7pt; filter:url(#rough)}
+  .rule2 i{
+    display:block; height:3pt; background:var(--red); border-radius:2pt;
+    transform:rotate(-.35deg); transform-origin:left center;
+  }
+  .rule2 i+i{
+    height:1.8pt; width:72%; margin-top:2.6pt; transform:rotate(-.7deg);
+    background:var(--red); opacity:.75;
+  }
+  .who{
+    margin:0; font-size:8.6pt; color:var(--body);
+    display:flex; flex-wrap:wrap; gap:2pt 14pt;
+  }
+  .who b{color:var(--ink); font-weight:700}
+  .stickynote{
+    flex:0 0 auto; width:104pt; padding:7pt 9pt 8pt; margin-top:2pt;
+    background:var(--hi-yellow); transform:rotate(2.2deg);
+    box-shadow:2pt 3pt 6pt -2pt #00000030;
+    font-family:var(--font-hand); font-size:11pt; line-height:1.14; color:var(--ink);
+  }
+  .stickynote b{display:block; font-size:13.5pt; color:var(--red); margin-bottom:1pt}
+
+  /* ---- columns ---- */
+  /* column-fill stays at the default `balance`: `auto` needs a definite height,
+     and inside a min-height sheet it poured everything into one tall column and
+     pushed the print to a second page. */
+  .cols{ column-count:2; column-gap:20pt; }
+  section{
+    break-inside:avoid; page-break-inside:avoid;
+    margin:0 0 11pt; padding:9pt 11pt 10pt; position:relative;
+  }
+  /* the hand-drawn box: uneven radii do the wobble, the filter roughens the
+     stroke itself. Applied to a pseudo-element so the TEXT is never displaced. */
+  section::before{
+    content:""; position:absolute; inset:0; z-index:0;
+    border:2pt solid var(--c, var(--ink));
+    border-radius:255px 14px 225px 15px / 15px 225px 15px 255px;
+    filter:url(#rough);
+  }
+  section > *{position:relative; z-index:1}
+  .c-blue{--c:var(--blue)} .c-red{--c:var(--red)}
+  .c-green{--c:var(--green)} .c-orange{--c:var(--orange)} .c-ink{--c:var(--ink)}
+  /* alternate the wobble so seven boxes are not the same box */
+  section:nth-of-type(even)::before{border-radius:15px 225px 15px 255px / 255px 15px 225px 15px}
+
+  h2{
+    font-family:var(--font-hand); font-weight:700; font-size:19pt; line-height:1;
+    margin:0 0 6pt; color:var(--c, var(--ink));
+    display:flex; align-items:baseline; gap:6pt;
+  }
+  /* the marker swipe under a heading, translucent the way a real one is */
+  h2 .word{position:relative; isolation:isolate}
+  h2 .word::after{
+    content:""; position:absolute; z-index:-1; left:-2pt; right:-3pt; bottom:1pt; height:6.5pt;
+    background:var(--swipe, var(--hi-yellow)); mix-blend-mode:multiply;
+    border-radius:3pt 6pt 4pt 7pt; transform:rotate(-.6deg);
+  }
+  h2 .num{
+    font-size:11pt; color:var(--c); opacity:.7; flex-shrink:0;
+  }
+
+  ul{margin:0; padding:0; list-style:none; display:grid; gap:3.6pt}
+  li{padding-left:12pt; position:relative; color:var(--body)}
+  /* hand-checked boxes instead of bullets */
+  /* No filter at this size: even the fine one only muddies a 6pt box. The
+     uneven corner radii carry the hand-drawn read on their own. */
+  li::before{
+    content:""; position:absolute; left:0; top:.4em; width:6.4pt; height:6.4pt;
+    border:1pt solid var(--c, var(--ink)); border-radius:1px 4px 2px 5px;
+    transform:rotate(-1.5deg);
+  }
+  li b{color:var(--ink); font-weight:700}
+
+  /* highlighter, the way a marker actually lays down over ink */
+  .hi{position:relative; isolation:isolate; padding:0 .16em; color:var(--ink); font-weight:600}
+  .hi::before{
+    content:""; position:absolute; z-index:-1; left:0; right:0; top:.02em; bottom:.02em;
+    background:var(--hi-yellow); mix-blend-mode:multiply;
+    border-radius:2px 6px 3px 7px; transform:rotate(-.5deg);
+  }
+  .hi.p::before{background:var(--hi-pink)}
+  .hi.g::before{background:var(--hi-green)}
+
+  /* ---- the grade, sketched rather than charted ---- */
+  .bars{display:grid; gap:5pt; margin-bottom:6pt}
+  .b{display:grid; grid-template-columns:1fr auto; align-items:center; gap:7pt}
+  .b .n{font-size:8.8pt}
+  .b .v{font-family:var(--font-hand); font-size:16pt; color:var(--c); line-height:1}
+  .b.lead .v{font-size:23pt}
+  .b .drawn{grid-column:1/-1; height:9pt; position:relative; filter:url(#rough)}
+  .b .drawn::before{
+    content:""; position:absolute; inset:0; border:1.4pt solid var(--ink);
+    border-radius:3px 8px 4px 9px;
+  }
+  .b .drawn i{
+    position:absolute; top:1.4pt; bottom:1.4pt; left:1.4pt; display:block;
+    background:repeating-linear-gradient(58deg,
+      var(--c) 0 1.6pt, transparent 1.6pt 4.4pt);
+  }
+  .b.lead .drawn i{background:var(--c); opacity:.85}
+  .scale{
+    font-family:var(--font-hand); font-size:13.5pt; color:var(--ink);
+    display:flex; gap:11pt; margin:0;
+  }
+  .scale b{color:var(--red)}
+
+  .note{
+    font-family:var(--font-hand); font-size:12.5pt; line-height:1.1; color:var(--pen);
+    display:inline-block; transform:rotate(-1.6deg);
+  }
+  .circled{
+    font-family:var(--font-hand); font-size:12.5pt; color:var(--red); font-weight:700;
+    position:relative; padding:0 5pt; display:inline-block;
+  }
+  .circled::before{
+    content:""; position:absolute; inset:-3pt -2pt; border:1.4pt solid var(--red);
+    border-radius:50% 46% 52% 48% / 48% 52% 46% 54%; filter:url(#rough-fine);
+  }
+
+  /* out of the column flow entirely — it is the sheet's footer, not a column item */
+  .foot{
+    margin-top:5pt; padding-top:6pt; font-size:8pt; color:#6B6B66;
+    border-top:1.2pt dashed #C9C9C2;
+    display:flex; justify-content:space-between; gap:14pt;
+  }
+
+  @media print{
+    body{background:#fff}
+    .sheet{width:auto; min-height:0; margin:0; padding:0; box-shadow:none}
+  }
+</style>
+
+<svg class="defs" aria-hidden="true">
+  <defs>
+    <!-- the wobble: fractal noise displacing the stroke, so a drawn line is
+         never perfectly straight. Applied only to frames, never to text. -->
+    <filter id="rough">
+      <feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <!-- Displacement has to scale with the mark. At 2.4 the wobble is nearly as
+         wide as a 5.5pt checkbox, which shreds it into noise; big frames need
+         that much to read as hand-drawn at all. So: two filters, not one. -->
+    <filter id="rough-fine">
+      <feTurbulence type="fractalNoise" baseFrequency="0.055" numOctaves="2" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="0.7" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+
+<div class="sheet">
+
+  <header class="head">
+    <div class="headline">
+      <h1>Intro to <span>Statistics</span></h1>
+      <span class="rule2"><i></i><i></i></span>
+      <p class="who">
+        <span><b>Steven Huff</b></span>
+        <span>Pleasant Valley High School</span>
+        <span>Periods 3, 4, 7</span>
+        <span>Butte College STAT C1000, 4 units</span>
+        <span>2026&ndash;2027</span>
+      </p>
+    </div>
+    <div class="stickynote">
+      <b>Read this first</b>
+      the syllabus is longer. this is the part you need.
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <section class="c-blue">
+      <h2><span class="num">1</span><span class="word">Contact</span></h2>
+      <ul>
+        <li><b>shuff@chicousd.org</b> &mdash; I reply within <span class="hi">48 hours</span>.</li>
+        <li>No reply by then? Send a follow-up.</li>
+        <li><b>MyOpenMath</b> has your current grade. <span class="note">&larr; check here</span></li>
+        <li><b>Aeries</b> is the official report, by semester.</li>
+      </ul>
+    </section>
+
+    <section class="c-red">
+      <h2><span class="num">2</span><span class="word" style="--swipe:var(--hi-pink)">Your grade</span></h2>
+      <div class="bars">
+        <div class="b lead">
+          <span class="n">Individual Assessments</span><span class="v">75%</span>
+          <span class="drawn"><i style="width:calc(75% - 2.8pt)"></i></span>
+        </div>
+        <div class="b">
+          <span class="n">Daily Homework / Classwork</span><span class="v">15%</span>
+          <span class="drawn"><i style="width:calc(15% - 2.8pt)"></i></span>
+        </div>
+        <div class="b">
+          <span class="n">Group Assessments</span><span class="v">10%</span>
+          <span class="drawn"><i style="width:calc(10% - 2.8pt)"></i></span>
+        </div>
+      </div>
+      <p class="scale"><span><b>A</b> 90+</span><span><b>B</b> 80+</span><span><b>C</b> 70+</span><span><b>D</b> 60+</span></p>
+    </section>
+
+    <section class="c-orange">
+      <h2><span class="num">3</span><span class="word">Late work</span></h2>
+      <ul>
+        <li><b>Late passes:</b> <span class="hi">ten per semester</span>, one extra day each.</li>
+        <li>Use a pass the day you miss the due date.</li>
+        <li>They do not stack, and never work on tests.</li>
+        <li><b>Work ahead:</b> finish more than twenty-four hours early and MyOpenMath adds <span class="hi g">2%</span> on its own.</li>
+      </ul>
+    </section>
+
+    <section class="c-green">
+      <h2><span class="num">4</span><span class="word" style="--swipe:var(--hi-green)">When you are absent</span></h2>
+      <ul>
+        <li><b>Excused:</b> the same number of days you were out, counted from the day you return.</li>
+        <li><b>Unexcused:</b> no extension. Still due on its original date.</li>
+        <li><b>Planned ahead:</b> arrange it before you leave, or a missed test stays missed.</li>
+      </ul>
+    </section>
+
+    <section class="c-red">
+      <h2><span class="num">5</span><span class="word" style="--swipe:var(--hi-pink)">Tests</span></h2>
+      <ul>
+        <li><span class="circled">No retakes</span> on Group or Individual Tests, and no corrections.</li>
+        <li><b>Practice Tests</b> are homework. Redo them as many times as you want.</li>
+        <li>Cannot do one without help? You are not ready.</li>
+      </ul>
+    </section>
+
+    <section class="c-ink">
+      <h2><span class="num">6</span><span class="word">In the room</span></h2>
+      <ul>
+        <li><b>Phones</b> are collected at the start of every period, returned at the end.</li>
+        <li>Earbuds, smart watches and smart glasses go with them.</li>
+        <li><b>Bring:</b> charged Chromebook, notebook with lined and graph paper.</li>
+        <li><b>AI:</b> unauthorized use is cheating, edited or not.</li>
+      </ul>
+    </section>
+
+    <section class="c-blue">
+      <h2><span class="num">7</span><span class="word">For parents</span></h2>
+      <ul>
+        <li>Four units on a <span class="hi">permanent college transcript</span>.</li>
+        <li>Butte gets one grade for the year, the average of both semester percentages.</li>
+        <li>Flat letters there, so 89.9% is a B, not a B+.</li>
+        <li><b>Check MyOpenMath</b> for anything missing, late or open.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="foot">
+    <span>The full syllabus has the complete policies. This page is the short version.</span>
+    <span>2026&ndash;2027</span>
+  </div>
+</div>

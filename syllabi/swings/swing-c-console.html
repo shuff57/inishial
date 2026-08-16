@@ -1,0 +1,280 @@
+<title>Stats Course Console</title>
+<style>
+  /* Single-world design: a lit console. Committed dark, painted explicitly. */
+  :root{
+    --void:#080E11; --deck:#0E171B; --deck-2:#132126; --raise:#18292F;
+    --edge:#20353C; --edge-2:#2C464F;
+    --text:#DCE8E9; --text-2:#93AAAE; --text-3:#5F787E;
+    --signal:#FF6B4A; --signal-dim:#FF6B4A1F; --signal-glow:#FF6B4A44;
+    --sand:#E9CFA4; --sand-dim:#E9CFA41A;
+    --good:#4FD6A0; --good-dim:#4FD6A01A;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--void);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.55;
+    background-image:radial-gradient(1100px 620px at 78% -12%, #FF6B4A0F, transparent 62%),
+                     radial-gradient(900px 520px at 8% 4%, #4FD6A00A, transparent 60%);
+    background-attachment:fixed;
+  }
+  .app{max-width:1120px;margin:0 auto;padding:32px 22px 90px;display:grid;gap:20px}
+  .mono{font-family:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace}
+
+  /* ---- top bar ---- */
+  .topbar{
+    background:linear-gradient(var(--deck-2), var(--deck));
+    border:1px solid var(--edge);border-radius:14px;padding:26px 28px;
+    display:flex;flex-wrap:wrap;gap:22px;align-items:center;justify-content:space-between;
+    box-shadow:inset 0 1px 0 #ffffff0d, 0 20px 50px -30px #000;
+  }
+  .id h1{
+    margin:0;font-size:clamp(26px,4vw,38px);line-height:1.05;font-weight:650;
+    letter-spacing:-.025em;text-wrap:balance;
+  }
+  .id .meta{
+    margin:9px 0 0;color:var(--text-2);font-size:13.5px;
+    display:flex;flex-wrap:wrap;gap:5px 16px;
+  }
+  .pill{
+    display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:999px;
+    font-size:11px;letter-spacing:.11em;text-transform:uppercase;font-weight:600;
+    border:1px solid var(--edge-2);background:var(--raise);color:var(--text-2);
+  }
+  .pill.live{color:var(--signal);border-color:var(--signal);background:var(--signal-dim);
+    box-shadow:0 0 0 4px var(--signal-glow)}
+  .pill .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+  /* ---- tiles ---- */
+  .tiles{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+  .tile{
+    background:var(--deck);border:1px solid var(--edge);border-radius:12px;padding:18px 18px 16px;
+    position:relative;overflow:hidden;
+  }
+  .tile::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg, transparent, var(--edge-2), transparent)}
+  .tile .k{
+    font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);
+    display:block;margin-bottom:10px;
+  }
+  .tile .v{font-size:32px;font-weight:650;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .tile .u{font-size:13px;color:var(--text-2);margin-top:7px;display:block}
+  .tile.hot{border-color:var(--signal);box-shadow:0 0 0 1px var(--signal-dim), 0 12px 40px -20px var(--signal)}
+  .tile.hot .v{color:var(--signal)}
+  .tile.warm .v{color:var(--sand)}
+  .tile.ok .v{color:var(--good)}
+
+  /* ---- panels ---- */
+  .panel{
+    background:var(--deck);border:1px solid var(--edge);border-radius:14px;overflow:hidden;
+  }
+  .panel > header{
+    padding:15px 22px;border-bottom:1px solid var(--edge);background:var(--deck-2);
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+  }
+  .panel > header h2{
+    margin:0;font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:650;color:var(--text-2);
+  }
+  .panel .body{padding:22px}
+  .cols{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
+
+  /* ---- gauge ---- */
+  .gauge{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+  .ring{width:168px;height:168px;flex-shrink:0;position:relative}
+  .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ring .center{
+    position:absolute;inset:0;display:grid;place-content:center;text-align:center;
+  }
+  .ring .center b{display:block;font-size:38px;font-weight:650;line-height:1;color:var(--signal);
+    letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .ring .center span{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-3);margin-top:7px;display:block}
+  .legend{display:grid;gap:11px;flex:1;min-width:190px}
+  .leg{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;
+    padding-bottom:11px;border-bottom:1px solid var(--edge)}
+  .leg:last-child{border-bottom:0;padding-bottom:0}
+  .leg i{width:9px;height:9px;border-radius:2px}
+  .leg .n{font-size:14px}
+  .leg .p{font-weight:650;font-variant-numeric:tabular-nums;font-size:15px}
+
+  /* ---- rules engine ---- */
+  .rules{display:grid}
+  .rule{
+    display:grid;grid-template-columns:minmax(150px,.85fr) 24px 1.7fr;gap:14px;align-items:center;
+    padding:15px 22px;border-bottom:1px solid var(--edge);
+  }
+  .rule:last-child{border-bottom:0}
+  .rule .cond{font-weight:600;font-size:14px}
+  .rule .arrow{color:var(--text-3);text-align:center}
+  .rule .out{color:var(--text-2);font-size:14px}
+  .rule .out b{color:var(--text);font-weight:600}
+  .tag{
+    display:inline-flex;align-items:center;padding:3px 9px;border-radius:6px;
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:650;margin-right:8px;
+  }
+  .tag.deny{background:var(--signal-dim);color:var(--signal);border:1px solid var(--signal)}
+  .tag.allow{background:var(--good-dim);color:var(--good);border:1px solid var(--good)}
+  .tag.warn{background:var(--sand-dim);color:var(--sand);border:1px solid var(--sand)}
+
+  ul{margin:0;padding:0;list-style:none;display:grid;gap:12px}
+  li{display:grid;grid-template-columns:auto 1fr;gap:11px;align-items:start;font-size:14.5px;color:var(--text-2)}
+  li::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--edge-2);margin-top:.55em}
+  li b{color:var(--text);font-weight:600}
+  li.key::before{background:var(--signal);box-shadow:0 0 0 3px var(--signal-glow)}
+
+  h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin:0 0 12px;font-weight:650}
+  a{color:var(--signal);text-underline-offset:3px}
+  .foot{color:var(--text-3);font-size:13px;text-align:center;padding-top:6px}
+  *:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+  @media (max-width:600px){
+    .rule{grid-template-columns:1fr;gap:6px}
+    .rule .arrow{display:none}
+  }
+</style>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="id">
+      <h1>Introduction to Statistics</h1>
+      <p class="meta mono">
+        <span>STEVEN HUFF</span><span>&middot;</span>
+        <span>PVHS MATH</span><span>&middot;</span>
+        <span>PERIODS 3 / 4 / 7</span><span>&middot;</span>
+        <span>2026&ndash;2027</span>
+      </p>
+    </div>
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <span class="pill live"><span class="dot"></span>Dual enrollment</span>
+      <span class="pill">STAT C1000 &middot; 4 units</span>
+    </div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile hot">
+      <span class="k">Tests are worth</span>
+      <span class="v">75%</span>
+      <span class="u">of your grade. Everything else is 25.</span>
+    </div>
+    <div class="tile warm">
+      <span class="k">Late passes</span>
+      <span class="v">10</span>
+      <span class="u">per semester. One day each.</span>
+    </div>
+    <div class="tile ok">
+      <span class="k">Finish 24h early</span>
+      <span class="v">+2%</span>
+      <span class="u">automatic, on that assignment.</span>
+    </div>
+    <div class="tile">
+      <span class="k">Email reply within</span>
+      <span class="v">48<span style="font-size:17px;color:var(--text-2)">h</span></span>
+      <span class="u"><a href="mailto:shuff@chicousd.org">shuff@chicousd.org</a></span>
+    </div>
+  </div>
+
+  <section class="panel">
+    <header><h2>Grade composition</h2><span class="mono" style="font-size:11.5px;color:var(--text-3)">MyOpenMath is live &middot; Aeries is official</span></header>
+    <div class="body gauge">
+      <div class="ring">
+        <svg viewBox="0 0 100 100" aria-label="Individual assessments are 75 percent of the grade">
+          <circle cx="50" cy="50" r="41" fill="none" stroke="#20353C" stroke-width="13"/>
+          <circle cx="50" cy="50" r="41" fill="none" stroke="#E9CFA4" stroke-width="13"
+                  stroke-dasharray="38.64 218.97" stroke-dashoffset="0"/>
+          <circle cx="50" cy="50" r="41" fill="none" stroke="#5F787E" stroke-width="13"
+                  stroke-dasharray="25.76 231.85" stroke-dashoffset="-38.64"/>
+          <circle cx="50" cy="50" r="41" fill="none" stroke="#FF6B4A" stroke-width="13"
+                  stroke-dasharray="193.21 64.40" stroke-dashoffset="-64.40"/>
+        </svg>
+        <div class="center"><b>75%</b><span>Individual tests</span></div>
+      </div>
+      <div class="legend">
+        <div class="leg"><i style="background:#FF6B4A"></i><span class="n">Individual Assessments</span><span class="p">75%</span></div>
+        <div class="leg"><i style="background:#E9CFA4"></i><span class="n">Daily Homework &amp; Classwork</span><span class="p">15%</span></div>
+        <div class="leg"><i style="background:#5F787E"></i><span class="n">Group Assessments</span><span class="p">10%</span></div>
+        <div class="leg mono" style="grid-template-columns:1fr;color:var(--text-3);font-size:12.5px;letter-spacing:.04em">
+          A 90+ &nbsp; B 80+ &nbsp; C 70+ &nbsp; D 60+ &nbsp; F &lt;60 &nbsp;&mdash;&nbsp; Butte gets a flat letter, so 89.9% is a B, not a B+.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Late work rules</h2><span class="mono" style="font-size:11.5px;color:var(--text-3)">condition &rarr; outcome</span></header>
+    <div class="rules">
+      <div class="rule">
+        <span class="cond">Excused absence</span><span class="arrow">&rarr;</span>
+        <span class="out"><b>Same number of days you were out</b>, counted from the day you return.</span>
+      </div>
+      <div class="rule">
+        <span class="cond">Unexcused absence</span><span class="arrow">&rarr;</span>
+        <span class="out"><span class="tag deny">No extension</span>Still due on the original date.</span>
+      </div>
+      <div class="rule">
+        <span class="cond">Absence you knew about</span><span class="arrow">&rarr;</span>
+        <span class="out"><span class="tag warn">Arrange first</span>Tell me before you go. Say nothing until you are back and a missed test stays missed.</span>
+      </div>
+      <div class="rule">
+        <span class="cond">Late pass</span><span class="arrow">&rarr;</span>
+        <span class="out"><b>+1 day, one assignment.</b> Use it the day you miss the deadline. No stacking, daily work only.</span>
+      </div>
+      <div class="rule">
+        <span class="cond">Group or Individual Test</span><span class="arrow">&rarr;</span>
+        <span class="out"><span class="tag deny">No retakes</span>No corrections either. Passes do not apply.</span>
+      </div>
+      <div class="rule">
+        <span class="cond">Practice Test</span><span class="arrow">&rarr;</span>
+        <span class="out"><span class="tag allow">Unlimited redos</span>It is homework and a readiness check. Cannot do it without help? Not ready.</span>
+      </div>
+      <div class="rule">
+        <span class="cond">Grade older than 2 weeks</span><span class="arrow">&rarr;</span>
+        <span class="out"><span class="tag deny">Closed</span>Not eligible for discussion or a change. Check often.</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section class="panel">
+      <header><h2>Bring every day</h2></header>
+      <div class="body">
+        <ul>
+          <li>Chromebook, <b>charged</b>. Chrome is the only supported browser.</li>
+          <li>Notebook or binder, lined <b>and</b> graph paper.</li>
+          <li><b>bookSHelf</b> for readings, free, no account. <b>r&#257;SHio</b> to calculate. <b>MyOpenMath</b> for everything graded.</li>
+          <li>Download sections as PDF before you lose internet. No connection at home is not an excuse for missing work.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="panel">
+      <header><h2>Device policy</h2></header>
+      <div class="body">
+        <ul>
+          <li class="key">Phones are <b>collected at the start of every period</b> and returned at the end.</li>
+          <li>Earbuds, smart watches and smart glasses go with them or into a backpack.</li>
+          <li>No personal devices during assessments. Know how your Chromebook behaves before test day.</li>
+          <li class="key">Unauthorized AI use is <b>cheating</b>, whether or not you edit the output.</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel">
+    <header><h2>For parents</h2><span class="mono" style="font-size:11.5px;color:var(--text-3)">this grade is permanent</span></header>
+    <div class="body cols">
+      <div>
+        <h3>It follows them</h3>
+        <ul><li>The grade joins a Butte College transcript and transfers to any college your student attends. Four units, no cost.</li></ul>
+      </div>
+      <div>
+        <h3>Both semesters count equally</h3>
+        <ul><li>Butte receives one grade for the year: the average of the two semester percentages. A rough fall is recoverable, and a strong fall is not a reason to coast.</li></ul>
+      </div>
+      <div>
+        <h3>Where to check</h3>
+        <ul><li><b>MyOpenMath</b> for anything missing, late or open. It is more current than Aeries and the fastest picture of where they stand.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">The full syllabus carries the complete policies, college drop and withdrawal dates, and the integrity procedure. This is the short version.</p>
+
+</div>

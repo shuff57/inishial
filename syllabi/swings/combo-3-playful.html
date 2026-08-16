@@ -1,0 +1,234 @@
+<title>Statistics Wall Sheet</title>
+<style>
+  @page{ size: letter portrait; margin: 0.38in; }
+
+  :root{
+    --sheet:#FFFDF7; --ground:#D8D2C4; --card:#FFFFFF;
+    --ink:#2A2722; --ink-2:#565049; --ink-3:#8E877C;
+    --edge:#E6DFD0;
+    --blood:#7A2626;
+    --yellow:#FFE066; --yellow-deep:#FFD43B;
+    --pink:#FFC9C9;   --pink-deep:#FF9F9F;
+    --green:#B2F2BB;  --green-deep:#8CE99A;
+    --orange:#FFCC80; --orange-deep:#FFB74D;
+    --blue:#C3DDF7;
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --ground:#151109; } }
+  :root[data-theme="dark"]{ --ground:#151109; }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet{
+    width:8.5in; min-height:11in; margin:24px auto; padding:0.38in;
+    background:var(--sheet); box-shadow:0 18px 60px -24px #0006;
+    font-size:9.3pt; line-height:1.42;
+  }
+
+  /* ---- masthead: Didone title on a taped card ---- */
+  .head{
+    background:var(--card); border:1px solid var(--edge); border-radius:3pt;
+    padding:14pt 15pt 11pt; margin-bottom:11pt; position:relative;
+    box-shadow:0 1pt 0 #2a272210, 0 5pt 12pt -6pt #2a272245;
+  }
+  .head::after{
+    content:""; position:absolute; left:0; right:0; bottom:0; height:4pt;
+    background:linear-gradient(90deg,
+      var(--pink-deep) 0 25%, var(--yellow-deep) 25% 50%,
+      var(--green-deep) 50% 75%, var(--orange-deep) 75% 100%);
+    border-radius:0 0 3pt 3pt;
+  }
+  .tape{
+    position:absolute; top:-7pt; left:50%; transform:translateX(-50%) rotate(-1.4deg);
+    width:92pt; height:15pt; background:var(--yellow); opacity:.9; border-radius:1pt;
+    box-shadow:0 1pt 2pt -1pt #0003;
+  }
+  .kicker{
+    display:inline-block; background:var(--green); font-size:6.4pt; letter-spacing:.14em;
+    text-transform:uppercase; font-weight:800; padding:2.5pt 7pt; border-radius:99pt; margin-bottom:8pt;
+  }
+  h1{
+    font-family:"Playfair Display",Didot,"Bodoni MT","Iowan Old Style",Georgia,serif;
+    font-weight:400; font-size:33pt; line-height:.95; margin:0; letter-spacing:-.02em;
+  }
+  h1 em{font-style:italic; color:var(--blood)}
+  .who{margin:8pt 0 3pt; font-size:8.2pt; color:var(--ink-2)}
+  .who b{color:var(--ink); font-weight:800}
+
+  /* ---- columns: sticky cards ---- */
+  .cols{ column-count:2; column-gap:0.28in; }
+  section{
+    break-inside:avoid; page-break-inside:avoid; margin:0 0 9pt;
+    background:var(--card); border:1px solid var(--edge); border-radius:3pt;
+    padding:0 0 9pt; overflow:hidden;
+    box-shadow:0 1pt 0 #2a27220d, 0 4pt 9pt -5pt #2a272240;
+  }
+  .bar{
+    display:flex; align-items:center; gap:6pt; padding:5pt 10pt 5pt 9pt; margin-bottom:7pt;
+  }
+  section.y .bar{background:var(--yellow)}
+  section.p .bar{background:var(--pink)}
+  section.g .bar{background:var(--green)}
+  section.o .bar{background:var(--orange)}
+  section.b .bar{background:var(--blue)}
+  .n{
+    font-family:"Playfair Display",Didot,Georgia,serif; font-size:14pt; line-height:1;
+    font-variant-numeric:tabular-nums; opacity:.55; flex-shrink:0;
+  }
+  h2{font-size:11pt; font-weight:800; margin:0; letter-spacing:-.015em}
+  .body{padding:0 10pt}
+
+  ul{margin:0; padding:0; list-style:none; display:grid; gap:3.6pt}
+  li{padding-left:10pt; position:relative; color:var(--ink-2)}
+  li::before{content:""; position:absolute; left:0; top:.5em; width:4pt; height:4pt;
+             border-radius:50%; background:var(--ink-3)}
+  li b{color:var(--ink); font-weight:800}
+
+  /* ---- big number tiles ---- */
+  .tiles{display:flex; gap:5pt; margin-bottom:6pt}
+  .tile{flex:1; text-align:center; padding:7pt 3pt 6pt; border-radius:3pt; min-width:0}
+  .tile.k{background:var(--pink-deep); flex:1.5}
+  .tile.m{background:var(--yellow)}
+  .tile.s{background:var(--green)}
+  .tile b{display:block; font-size:19pt; line-height:1; font-weight:800;
+          font-variant-numeric:tabular-nums; letter-spacing:-.035em}
+  .tile.k b{font-size:24pt}
+  .tile span{display:block; font-size:6.2pt; letter-spacing:.06em; text-transform:uppercase;
+             margin-top:3.5pt; font-weight:700; color:var(--ink)}
+  .grade{
+    display:flex; border-radius:3pt; overflow:hidden; font-size:7.6pt;
+    font-variant-numeric:tabular-nums; border:1px solid var(--edge);
+  }
+  .grade div{flex:1; text-align:center; padding:3.5pt 0; border-right:1px solid var(--edge); background:var(--sheet)}
+  .grade div:last-child{border-right:0}
+  .grade b{font-weight:800}
+
+  .tag{
+    display:inline-block; font-size:6.2pt; letter-spacing:.09em; text-transform:uppercase;
+    font-weight:800; padding:1.2pt 4.5pt; border-radius:99pt; margin-right:3.5pt; color:var(--ink);
+  }
+  .tag.no{background:var(--pink-deep)}
+  .tag.yes{background:var(--green-deep)}
+
+  .shout{
+    margin:6pt 10pt 0; padding:6pt 9pt; background:var(--yellow); border-radius:3pt;
+    font-size:8.4pt; font-weight:700; color:var(--ink);
+  }
+
+  .foot{
+    column-span:all; margin-top:2pt; padding:7pt 11pt; background:var(--card);
+    border:1px solid var(--edge); border-radius:3pt; font-size:7.3pt; color:var(--ink-3);
+    display:flex; justify-content:space-between; gap:12pt;
+  }
+
+  @media print{
+    body{background:#fff}
+    .sheet{width:auto; min-height:0; margin:0; padding:0; box-shadow:none}
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="head">
+    <span class="tape"></span>
+    <span class="kicker">Butte College STAT C1000 &middot; 4 units &middot; college credit</span>
+    <h1>Introduction to <em>Statistics</em></h1>
+    <p class="who"><b>Steven Huff</b> &nbsp;&middot;&nbsp; Pleasant Valley High School &nbsp;&middot;&nbsp; Periods 3, 4, 7 &nbsp;&middot;&nbsp; 2026&ndash;2027</p>
+  </header>
+
+  <div class="cols">
+
+    <section class="g">
+      <div class="bar"><span class="n">01</span><h2>Contact</h2></div>
+      <div class="body">
+        <ul>
+          <li><b>shuff@chicousd.org</b> &mdash; I reply within 48 hours.</li>
+          <li>No reply by then? Send a follow-up.</li>
+          <li><b>MyOpenMath</b> holds your current grade, ahead of Aeries.</li>
+          <li><b>Aeries</b> is the official report, by semester.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="p">
+      <div class="bar"><span class="n">02</span><h2>Your grade</h2></div>
+      <div class="body">
+        <div class="tiles">
+          <div class="tile k"><b>75%</b><span>Individual tests</span></div>
+          <div class="tile m"><b>15%</b><span>Daily</span></div>
+          <div class="tile s"><b>10%</b><span>Group</span></div>
+        </div>
+        <div class="grade">
+          <div><b>A</b> 90+</div><div><b>B</b> 80+</div><div><b>C</b> 70+</div><div><b>D</b> 60+</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="y">
+      <div class="bar"><span class="n">03</span><h2>Turning work in late</h2></div>
+      <div class="body">
+        <ul>
+          <li><b>Late passes:</b> ten per semester, one extra day each.</li>
+          <li>Use a pass the day you miss the due date. They do not stack.</li>
+          <li>Daily classwork and homework only, never on tests.</li>
+        </ul>
+      </div>
+      <p class="shout">Finish more than twenty-four hours early &rarr; MyOpenMath adds 2% automatically.</p>
+    </section>
+
+    <section class="b">
+      <div class="bar"><span class="n">04</span><h2>When you are absent</h2></div>
+      <div class="body">
+        <ul>
+          <li><b>Excused:</b> the same number of days you were out, counted from the day you return.</li>
+          <li><b>Unexcused:</b> no extension. Still due on its original date.</li>
+          <li><b>Planned ahead:</b> arrange it before you leave, or a missed test stays missed.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="p">
+      <div class="bar"><span class="n">05</span><h2>Tests</h2></div>
+      <div class="body">
+        <ul>
+          <li><span class="tag no">No retakes</span>None on Group or Individual Tests, and no corrections.</li>
+          <li><span class="tag yes">Redo freely</span><b>Practice Tests</b> are homework, redo them as much as you want.</li>
+          <li>Cannot do the Practice Test without help? You are not ready.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="o">
+      <div class="bar"><span class="n">06</span><h2>In the room</h2></div>
+      <div class="body">
+        <ul>
+          <li><b>Phones</b> are collected at the start of every period, returned at the end.</li>
+          <li>Earbuds, smart watches and smart glasses go with them.</li>
+          <li><b>Bring:</b> charged Chromebook, notebook with lined and graph paper.</li>
+          <li><b>AI:</b> unauthorized use is cheating, edited or not.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="g">
+      <div class="bar"><span class="n">07</span><h2>For parents</h2></div>
+      <div class="body">
+        <ul>
+          <li>Four units on a permanent Butte College transcript.</li>
+          <li>Butte receives one grade for the year, the average of both semester percentages.</li>
+          <li>Butte uses flat letters, so 89.9% is a B there, not a B+.</li>
+          <li><b>Check MyOpenMath</b> for anything missing, late or open.</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="foot">
+      <span>The full syllabus has the complete policies. This page is the short version.</span>
+      <span>2026&ndash;2027</span>
+    </div>
+
+  </div>
+</div>

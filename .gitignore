@@ -26,3 +26,6 @@ public/vendor/jquery.min.js
 /Syllabus*.md
 /syllabus-gap-analysis.md
 graphify-out/
+
+# cross-CLI message center scratch, not project content
+.msgbox/
