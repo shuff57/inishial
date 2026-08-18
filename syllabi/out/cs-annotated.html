@@ -1,6 +1,12 @@
 <!doctype html><html><head><meta charset="utf-8"><title>Introduction to Programming: Quick Reference</title><style>/* annotated — crisp compartments in academic serif, with the hand used only as
    annotation over the grid: the sticky note, and a highlighter on what matters.
-   Tokens listed in spec.css apply here too; diagrams.py paints from them. */
+   Tokens listed in spec.css apply here too; diagrams.py paints from them.
+
+   It shares a skeleton with `spec`: the same boxed compartments, header bars
+   and ID chips. That is deliberate. What separates them is the face and the
+   hand — Charter with a sticky note and cursive asides here, monospace with
+   neither there — so if you change one, put the two side by side afterwards
+   and check they still read as two themes. */
 @page { size: letter; margin: 0; }
 :root {
   --wedgwood:#7A2626; --wedgwood-deep:#5C1C1C;
@@ -25,12 +31,19 @@ body {
         border-bottom:2.5pt solid var(--ink); padding-bottom:8pt; margin-bottom:11pt; }
 .headline { flex:1; min-width:0; }
 h1 { font:400 32pt/.96 var(--serif); margin:0; letter-spacing:-.02em; }
-.sub { display:grid; grid-template-columns:repeat(auto-fit,minmax(96pt,1fr));
-       border:.75pt solid var(--line); background:var(--white); margin:9pt 0 0; }
-.sub > span { padding:7pt 10pt 8pt; border-right:.75pt solid var(--line);
+/* Cells size to their contents rather than to equal fractions. An address is
+   three times the width of a room number, so equal columns either overran the
+   next cell or split the email across two lines, and a split address stops
+   looking like an address. nowrap keeps the byline on one row; only the longest
+   value may wrap, which render.py marks .wide. */
+.sub { display:flex; flex-wrap:nowrap; border:.75pt solid var(--line);
+       background:var(--white); margin:9pt 0 0; }
+.sub > span { flex:0 0 auto; white-space:nowrap; padding:7pt 10pt 8pt;
+            border-right:.75pt solid var(--line);
             font:700 11pt/1.25 var(--serif); color:var(--ink); }
+.sub > span.wide { flex:0 1 auto; min-width:0; white-space:normal; }
 .sub > span:last-child { border-right:0; }
-/* "Instructor: Steven Huff" -> label stacked above the value */
+/* "Instructor: R. Calderon" -> label stacked above the value */
 /* render.py marks tokens that must not be split (a time range, an address).
    The rule lives here because the shared base CSS keeps getting rewritten. */
 .sub .nb { white-space:nowrap; padding:0; border:0; }
