@@ -29,3 +29,10 @@ graphify-out/
 
 # cross-CLI message center scratch, not project content
 .msgbox/
+
+# The syllabi themselves are the teachers' own documents, and Devin's is not
+# mine to publish. Only the quick refs, the themes and the renders belong here.
+syllabi/*.odt
+syllabi/*.docx
+syllabi/*.source.txt
+syllabi/Syllabus - *.md

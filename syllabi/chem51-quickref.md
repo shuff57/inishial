@@ -1,5 +1,5 @@
 # Chemistry 51: Quick Reference
-Instructor: Devin McBain · Contact: mcbainde@butte.edu · Class: Mon & Weds 8am-12:20pm, SCI 212 · Reply within: 24 hours
+Instructor: Devin McBain · Contact: mcbainde@butte.edu · Class: Mon & Weds 8am-12:20pm, SCI 212
 
 ## Contact
 - **Email:** mcbainde@butte.edu or the Canvas inbox, not the campus phone

@@ -1,12 +1,6 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Chemistry 51: Quick Reference</title><style>/* annotated — a marked-up ledger in academic serif: open ruled masthead, each
-   section a card ruled down its left edge, headings on a hairline rather than in
-   a filled bar, and the hand used only as annotation over that grid.
-
-   It must not converge on `spec` again. Both were once the same layout with the
-   fonts swapped, which is two themes doing one theme's work: the compartment
-   BOX and the filled header BAR belong to spec, the left RULE and the open
-   heading belong here. Tokens listed in spec.css apply; diagrams.py paints from
-   them. */
+<!doctype html><html><head><meta charset="utf-8"><title>Chemistry 51: Quick Reference</title><style>/* annotated — crisp compartments in academic serif, with the hand used only as
+   annotation over the grid: the sticky note, and a highlighter on what matters.
+   Tokens listed in spec.css apply here too; diagrams.py paints from them. */
 @page { size: letter; margin: 0; }
 :root {
   --wedgwood:#7A2626; --wedgwood-deep:#5C1C1C;
@@ -31,18 +25,15 @@ body {
         border-bottom:2.5pt solid var(--ink); padding-bottom:8pt; margin-bottom:11pt; }
 .headline { flex:1; min-width:0; }
 h1 { font:400 32pt/.96 var(--serif); margin:0; letter-spacing:-.02em; }
-/* Cells size to their contents, not to equal fractions: see the note in
-   spec.css. An address is three times the width of a room number, and equal
-   columns either overran the neighbouring value or broke the address in half. */
-.sub { display:flex; flex-wrap:wrap; gap:0 22pt;
-       border-top:.75pt solid var(--line);
-       border-bottom:.75pt solid var(--line); margin:9pt 0 0; }
-/* An address never breaks: the cell keeps it whole and the ones after it move
-   over. If the whole byline outgrows the sheet a cell wraps to a second row,
-   which still reads, where half an email on each line does not. */
-.sub span { flex:0 0 auto; white-space:nowrap; padding:6pt 0 7pt;
+.sub { display:grid; grid-template-columns:repeat(auto-fit,minmax(96pt,1fr));
+       border:.75pt solid var(--line); background:var(--white); margin:9pt 0 0; }
+.sub > span { padding:7pt 10pt 8pt; border-right:.75pt solid var(--line);
             font:700 11pt/1.25 var(--serif); color:var(--ink); }
-/* "Instructor: R. Calderon" -> label stacked above the value */
+.sub > span:last-child { border-right:0; }
+/* "Instructor: Steven Huff" -> label stacked above the value */
+/* render.py marks tokens that must not be split (a time range, an address).
+   The rule lives here because the shared base CSS keeps getting rewritten. */
+.sub .nb { white-space:nowrap; padding:0; border:0; }
 .sub em { display:block; font:400 6.6pt/1.5 var(--mono); font-style:normal;
           letter-spacing:.15em; text-transform:uppercase; color:var(--stone);
           margin-bottom:2pt; }
@@ -54,17 +45,17 @@ h1 { font:400 32pt/.96 var(--serif); margin:0; letter-spacing:-.02em; }
 .sticky b { display:block; font-size:13.5pt; color:var(--wedgwood); margin-bottom:1pt; }
 
 .cols { column-count:2; column-gap:0.28in; counter-reset:sec; }
-section { break-inside:avoid; margin:0 0 11pt; counter-increment:sec;
-          border-left:2.5pt solid var(--wedgwood); background:none;
-          padding:0 0 2pt; }
-h2 { font:400 13.5pt/1.1 var(--serif); margin:0 0 6pt; padding:0 9pt 4pt;
-     border-bottom:.75pt solid var(--line); letter-spacing:-.01em;
-     break-after:avoid; display:flex; align-items:baseline; gap:7pt; }
+section { break-inside:avoid; margin:0 0 9pt; counter-increment:sec;
+          border:.75pt solid var(--line); background:var(--white); }
+h2 { font:400 13pt/1.1 var(--serif); margin:0 0 7pt; padding:4pt 9pt;
+     background:var(--block); border-bottom:.75pt solid var(--line);
+     letter-spacing:-.01em; break-after:avoid;
+     display:flex; align-items:center; gap:6pt; }
 h2::before { content:counter(sec,decimal-leading-zero);
-             font:400 7.4pt/1 var(--mono); color:var(--gold);
-             letter-spacing:.12em; flex-shrink:0; }
+             font:700 6.2pt/1 var(--mono); color:var(--white); background:var(--ink);
+             padding:1.5pt 4pt; flex-shrink:0; }
 section > :not(h2) { padding-left:9pt; padding-right:9pt; }
-section > :last-child { padding-bottom:4pt; }
+section > :last-child { padding-bottom:8pt; }
 
 ul { margin:0; padding:0; list-style:none; }
 li { position:relative; padding-left:10pt; margin-bottom:3.4pt; color:var(--charcoal);
@@ -80,9 +71,9 @@ svg.fig { display:block; width:100%; height:auto; margin:2pt 0 5pt; break-inside
    This theme is the rigid grid with a hand laid over it, so these are the
    whole point of it. Used sparingly: a page where everything is highlighted
    has highlighted nothing. */
-/* box-decoration-break:clone, so a swipe that runs past the end of a line is
-   painted on both fragments. The absolutely-positioned band this replaced drew
-   one rectangle across the whole run and left the second line unmarked. */
+/* box-decoration-break, so a swipe that wraps is painted once per line. The
+   absolutely-positioned band this replaced covered the union of both lines,
+   which reads as a filled block rather than a marker stroke. */
 .hi { padding:0 .16em; color:var(--ink); font-weight:700;
       background:var(--hi); border-radius:2px 6px 3px 7px;
       -webkit-box-decoration-break:clone; box-decoration-break:clone; }
@@ -104,8 +95,8 @@ td { padding:3pt 6pt; border-bottom:.75pt solid var(--hair); color:var(--charcoa
 tr:last-child td { border-bottom:0; }
 
 .note { column-span:all; margin-top:2pt; padding-top:6pt;
-        border-top:.75pt solid var(--line); font:italic 9pt/1.5 var(--text);
-        color:var(--olive); }
+        border-top:2.5pt solid var(--ink); font:6.2pt/1.5 var(--mono);
+        letter-spacing:.07em; text-transform:uppercase; color:var(--stone); }
 @media print { .note { page-break-inside:avoid; } }
 
 /* The button rides on the closing note's own line, so it needs no rule or
@@ -125,7 +116,7 @@ tr:last-child td { border-bottom:0; }
                             outline-offset: 2px; }
 /* The button is not part of the handout. */
 @media print { .export-btn { display: none !important; } }
-</style></head><body><header class="head"><div class="headline"><h1>Chemistry 51: Quick Reference</h1><p class="sub"><span><em>Instructor</em>Devin McBain</span><span><em>Contact</em>mcbainde@butte.edu</span><span><em>Class</em>Mon &amp; Weds <span class="nb">8am-12:20pm</span>, SCI 212</span><span><em>Reply within</em>24 hours</span></p></div></header><div class="cols"><section><h2>Contact</h2><ul><li><strong>Email:</strong> mcbainde@butte.edu or the Canvas inbox, not the campus phone</li><li>Replies in 24 hours weekdays, 48 hours weekends</li><li><strong>Office hours:</strong> Tuesdays 12:30-3:50pm, Wednesdays 12:30-1:15pm, SCI 228</li><li><strong>Free tutoring:</strong> butte.edu/cas, drop in, no appointment</li></ul></section><section><h2>Bring every day</h2><ul><li>Scientific calculator, white lab coat, indirectly vented goggles</li><li>Mastering Chemistry access code, textbook (McMurry, 8th edition)</li><li>No food, drink, or gum in SCI 212, ever</li></ul></section><section><h2>Your grade</h2><svg class="fig" viewBox="0 0 300 88.50" preserveAspectRatio="xMinYMin meet" role="img" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, sans-serif"><rect class="seg" x="0.00" y="0" width="90.00" height="22" fill="var(--wedgwood)"/><text x="45.00" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--parchment)">30%</text><rect class="seg" x="90.00" y="0" width="90.00" height="22" fill="var(--warm-sand)"/><text x="135.00" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">30%</text><rect class="seg" x="180.00" y="0" width="45.00" height="22" fill="var(--border-cream)"/><text x="202.50" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">15%</text><rect class="seg" x="225.00" y="0" width="45.00" height="22" fill="var(--border-cream)"/><text x="247.50" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">15%</text><rect class="seg" x="270.00" y="0" width="30.00" height="22" fill="var(--border-cream)"/><text x="285.00" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">10%</text><rect class="frame" x="0" y="0" width="300" height="22" fill="none" stroke="var(--ring-warm)"/><rect class="key" x="0" y="28.5" width="7" height="7" fill="var(--wedgwood)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="35" font-size="8.5" fill="var(--charcoal)">Labs and recitation activities</text><text x="300" y="35" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">30%</text><rect class="key" x="0" y="40" width="7" height="7" fill="var(--warm-sand)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="46.5" font-size="8.5" fill="var(--charcoal)">Major quizzes</text><text x="300" y="46.5" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">30%</text><rect class="key" x="0" y="51.5" width="7" height="7" fill="var(--border-cream)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="58" font-size="8.5" fill="var(--charcoal)">Homework</text><text x="300" y="58" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">15%</text><rect class="key" x="0" y="63" width="7" height="7" fill="var(--border-cream)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="69.5" font-size="8.5" fill="var(--charcoal)">Final exam</text><text x="300" y="69.5" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">15%</text><rect class="key" x="0" y="74.5" width="7" height="7" fill="var(--border-cream)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="81" font-size="8.5" fill="var(--charcoal)">Participation</text><text x="300" y="81" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">10%</text></svg><p>Scale: A 90.0+ · B 80.0+ · C 70.0+ · D 60.0+</p><p><span class="circ">Lab and lecture graded separately: 70.0% needed in each.</span></p></section><section><h2>Turning work in late</h2><ul><li><strong>Homework:</strong> 5% off per calendar day, up to 50% off</li><li><strong>Labs and activities:</strong> never late, due before you leave</li><li><strong>Quizzes:</strong> anything handed in after time is called earns a zero</li><li>Dropped: <span class="hi">2 labs or activities, 4 participation or pop quizzes, 1 homework, 1 quiz</span></li></ul></section><section><h2>When you are absent</h2><ul><li>No make-up labs exist. Email early, one may be possible</li><li><strong>Missed a major quiz:</strong> email within 24 hours to make it up at office hours</li><li>Pop quizzes cannot be made up</li><li>Over 5 minutes late to lab means no experiment that day</li></ul></section><section><h2>Hard rules</h2><ul><li>Any of these fails the course: <span class="circ">missing 4 labs or activities, skipping the final, two weeks of little to no participation</span></li><li><strong>No AI</strong> on work worth points. That is academic dishonesty</li></ul></section><section><h2>Quizzes and the final</h2><ul><li>A closed-note quiz starts lecture weekly</li><li>Pre-lab quiz in the first 5-10 minutes, one 3x5 card of notes allowed</li><li>Homework due on Mastering Chemistry, Sundays at 11:59:00pm</li><li>The final is cumulative and closed note. No phones, earphones, or watches</li></ul></section><section><h2>For families</h2><ul><li><strong>Grades:</strong> Canvas shows raw points. Weights and drops land by finals week</li><li><strong>DSPS:</strong> email accommodations one week before the first quiz</li><li>Expect about 9 hours a week of work outside class</li></ul></section></div><p class="note"><span>The full syllabus has the complete policies. This page is the short version.</span><button type="button" id="export-pdf" class="export-btn">Save as PDF</button></p>
+</style></head><body><header class="head"><div class="headline"><h1>Chemistry 51: Quick Reference</h1><p class="sub"><span><em>Instructor</em>Devin McBain</span><span><em>Contact</em><span class="nb">mcbainde@butte.edu</span></span><span class="wide"><em>Class</em>Mon &amp; Weds <span class="nb">8am-12:20pm</span>, SCI 212</span></p></div><div class="sticky"><b>Read this first</b>the syllabus has the rest. this is the part you act on.</div></header><div class="cols"><section><h2>Contact</h2><ul><li><strong>Email:</strong> mcbainde@butte.edu or the Canvas inbox, not the campus phone</li><li>Replies in 24 hours weekdays, 48 hours weekends</li><li><strong>Office hours:</strong> Tuesdays 12:30-3:50pm, Wednesdays 12:30-1:15pm, SCI 228</li><li><strong>Free tutoring:</strong> butte.edu/cas, drop in, no appointment</li></ul></section><section><h2>Bring every day</h2><ul><li>Scientific calculator, white lab coat, indirectly vented goggles</li><li>Mastering Chemistry access code, textbook (McMurry, 8th edition)</li><li>No food, drink, or gum in SCI 212, ever</li></ul></section><section><h2>Your grade</h2><svg class="fig" viewBox="0 0 300 88.50" preserveAspectRatio="xMinYMin meet" role="img" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, sans-serif"><rect class="seg" x="0.00" y="0" width="90.00" height="22" fill="var(--wedgwood)"/><text x="45.00" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--parchment)">30%</text><rect class="seg" x="90.00" y="0" width="90.00" height="22" fill="var(--warm-sand)"/><text x="135.00" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">30%</text><rect class="seg" x="180.00" y="0" width="45.00" height="22" fill="var(--border-cream)"/><text x="202.50" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">15%</text><rect class="seg" x="225.00" y="0" width="45.00" height="22" fill="var(--border-cream)"/><text x="247.50" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">15%</text><rect class="seg" x="270.00" y="0" width="30.00" height="22" fill="var(--border-cream)"/><text x="285.00" y="14.2" text-anchor="middle" font-size="9" font-weight="600" fill="var(--ink)">10%</text><rect class="frame" x="0" y="0" width="300" height="22" fill="none" stroke="var(--ring-warm)"/><rect class="key" x="0" y="28.5" width="7" height="7" fill="var(--wedgwood)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="35" font-size="8.5" fill="var(--charcoal)">Labs and recitation activities</text><text x="300" y="35" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">30%</text><rect class="key" x="0" y="40" width="7" height="7" fill="var(--warm-sand)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="46.5" font-size="8.5" fill="var(--charcoal)">Major quizzes</text><text x="300" y="46.5" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">30%</text><rect class="key" x="0" y="51.5" width="7" height="7" fill="var(--border-cream)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="58" font-size="8.5" fill="var(--charcoal)">Homework</text><text x="300" y="58" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">15%</text><rect class="key" x="0" y="63" width="7" height="7" fill="var(--border-cream)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="69.5" font-size="8.5" fill="var(--charcoal)">Final exam</text><text x="300" y="69.5" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">15%</text><rect class="key" x="0" y="74.5" width="7" height="7" fill="var(--border-cream)" stroke="var(--ring-warm)" stroke-width="0.5"/><text x="12" y="81" font-size="8.5" fill="var(--charcoal)">Participation</text><text x="300" y="81" font-size="8.5" font-weight="600" text-anchor="end" fill="var(--ink)">10%</text></svg><p>Scale: A 90.0+ · B 80.0+ · C 70.0+ · D 60.0+</p><p><span class="circ">Lab and lecture graded separately: 70.0% needed in each.</span></p></section><section><h2>Turning work in late</h2><ul><li><strong>Homework:</strong> 5% off per calendar day, up to 50% off</li><li><strong>Labs and activities:</strong> never late, due before you leave</li><li><strong>Quizzes:</strong> anything handed in after time is called earns a zero</li><li>Dropped: <span class="hi">2 labs or activities, 4 participation or pop quizzes, 1 homework, 1 quiz</span></li></ul></section><section><h2>When you are absent</h2><ul><li>No make-up labs exist. Email early, one may be possible</li><li><strong>Missed a major quiz:</strong> email within 24 hours to make it up at office hours</li><li>Pop quizzes cannot be made up</li><li>Over 5 minutes late to lab means no experiment that day</li></ul></section><section><h2>Hard rules</h2><ul><li>Any of these fails the course: <span class="circ">missing 4 labs or activities, skipping the final, two weeks of little to no participation</span></li><li><strong>No AI</strong> on work worth points. That is academic dishonesty</li></ul></section><section><h2>Quizzes and the final</h2><ul><li>A closed-note quiz starts lecture weekly</li><li>Pre-lab quiz in the first 5-10 minutes, one 3x5 card of notes allowed</li><li>Homework due on Mastering Chemistry, Sundays at 11:59:00pm</li><li>The final is cumulative and closed note. No phones, earphones, or watches</li></ul></section><section><h2>For families</h2><ul><li><strong>Grades:</strong> Canvas shows raw points. Weights and drops land by finals week</li><li><strong>DSPS:</strong> email accommodations one week before the first quiz</li><li>Expect about 9 hours a week of work outside class</li></ul></section></div><p class="note"><span>The full syllabus has the complete policies. This page is the short version.</span><button type="button" id="export-pdf" class="export-btn">Save as PDF</button></p>
 <script>
 document.getElementById("export-pdf").addEventListener("click", function () {
   window.print();

@@ -1,6 +1,6 @@
 # Introduction to Statistics: Quick Reference
 
-Instructor: Steven Huff · Contact: shuff@chicousd.org · Periods: 3, 4, 7 · Reply within: 48 hours
+Instructor: Steven Huff · Contact: shuff@chicousd.org · Periods: 3, 4, 7
 
 ## Contact
 

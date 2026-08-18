@@ -1,6 +1,6 @@
 # Introduction to Programming: Quick Reference
 
-Instructor: Steven Huff · Contact: shuff@chicousd.org · Period: 5 · Reply within: 48 hours
+Instructor: Steven Huff · Contact: shuff@chicousd.org · Period: 5
 
 ## Contact
 

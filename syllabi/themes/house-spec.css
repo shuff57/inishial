@@ -1,0 +1,99 @@
+/* spec — the technical one. Monospace labels, coded section IDs, hard-ruled
+   compartments, Bodoni masthead over a four-cell spec bar.
+
+   Every theme must define the seven tokens diagrams.py paints with:
+   --wedgwood (dominant segment) --warm-sand (second) --border-cream (remainder)
+   --parchment (knockout text on the dominant fill) --ivory --ink --charcoal
+   --ring-warm. Redefine those and the weight bar recolours itself. */
+@page { size: letter; margin: 0; }
+:root {
+  --wedgwood:#7A2626; --wedgwood-deep:#5C1C1C;
+  --parchment:#FCFCFA; --ivory:#F4F5F2; --warm-sand:#BDC3BE;
+  --ink:#14181E; --charcoal:#454E5B; --olive:#5A6472; --stone:#828A96;
+  --border-cream:#F4F5F2; --border-warm:#BDC3BE; --ring-warm:#BDC3BE;
+  --sheet:#FCFCFA; --line:#BDC3BE; --hair:#D5D9D4; --block:#F4F5F2;
+  --serif:"Bodoni Moda","Bodoni MT","Didot","Playfair Display",Georgia,serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+  --hand:"Caveat","Segoe Script","Bradley Hand",cursive;
+}
+* { box-sizing:border-box; }
+body {
+  font:8.6pt/1.4 var(--mono); color:var(--ink); background:var(--sheet);
+  margin:0 auto; padding:0.4in; max-width:8.5in;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+
+/* ---- masthead ---- */
+.head { display:flex; align-items:flex-start; justify-content:space-between; gap:16pt;
+        border-bottom:3pt solid var(--ink); padding-bottom:7pt; margin-bottom:10pt; }
+.headline { flex:1; min-width:0; }
+h1 { font:400 30pt/.94 var(--serif); margin:0; letter-spacing:-.02em; }
+/* the sub line's · segments become spec cells */
+.sub { display:grid; grid-template-columns:repeat(auto-fit,minmax(96pt,1fr));
+       border:.75pt solid var(--line); background:var(--block); margin:9pt 0 0; }
+.sub > span { padding:7pt 9pt 8pt; border-right:.75pt solid var(--line);
+            font-size:10.5pt; font-weight:700; color:var(--ink); line-height:1.25; }
+.sub > span:last-child { border-right:0; }
+/* render.py marks tokens that must not be split (a time range, an address).
+   The rule lives here because the shared base CSS keeps getting rewritten. */
+.sub .nb { white-space:nowrap; padding:0; border:0; }
+.sub em { display:block; font:400 6.4pt/1.5 var(--mono); font-style:normal;
+          letter-spacing:.15em; text-transform:uppercase; color:var(--stone);
+          margin-bottom:2pt; }
+.sticky { flex:0 0 auto; width:104pt; padding:7pt 9pt 8pt; margin-top:2pt;
+          background:#FFE580; transform:rotate(2.2deg); box-shadow:2pt 3pt 6pt -2pt #00000030;
+          font:11pt/1.14 var(--hand); color:var(--ink); }
+.sticky b { display:block; font-size:13.5pt; color:var(--wedgwood); margin-bottom:1pt; }
+
+/* ---- compartments ---- */
+.cols { column-count:__COLS__; column-gap:0.3in; counter-reset:sec; }
+section { break-inside:avoid; margin:0 0 9pt; counter-increment:sec;
+          border:.75pt solid var(--line); background:var(--sheet); }
+h2 { font:700 8.4pt/1.3 var(--mono); text-transform:uppercase; letter-spacing:.02em;
+     margin:0 0 7pt; padding:3.5pt 8pt; background:var(--block);
+     border-bottom:.75pt solid var(--line); break-after:avoid;
+     display:flex; align-items:center; gap:5pt; }
+h2::before { content:counter(sec,decimal-leading-zero);
+             font:700 6.2pt/1 var(--mono); color:var(--sheet); background:var(--ink);
+             padding:1.5pt 4pt; letter-spacing:.06em; flex-shrink:0; }
+/* content is padded, the header bar is not — it spans the compartment */
+section > :not(h2) { padding-left:8pt; padding-right:8pt; }
+section > :last-child { padding-bottom:8pt; }
+
+ul { margin:0; padding:0; list-style:none; }
+li { position:relative; padding-left:9pt; margin-bottom:3pt; color:var(--charcoal);
+     break-inside:avoid; }
+li::before { content:"\2013"; position:absolute; left:0; color:var(--line); }
+p { margin:0 0 4pt; color:var(--charcoal); }
+strong { font-weight:700; color:var(--ink); }
+a { color:var(--wedgwood-deep); text-decoration:none; }
+svg.fig { display:block; width:100%; height:auto; margin:2pt 0 5pt; break-inside:avoid; }
+
+table { border-collapse:collapse; width:100%; margin:2pt 0 4pt;
+        font-variant-numeric:tabular-nums; }
+th { text-align:left; font:400 6.2pt/1.4 var(--mono); text-transform:uppercase;
+     letter-spacing:.12em; color:var(--stone); border-bottom:.75pt solid var(--line);
+     padding:3pt 5pt; }
+td { padding:3pt 5pt; border-bottom:.75pt solid var(--hair); color:var(--charcoal); }
+tr:last-child td { border-bottom:0; }
+
+.note { column-span:all; margin-top:2pt; padding-top:6pt;
+        border-top:3pt solid var(--ink); font:6.4pt/1.5 var(--mono);
+        letter-spacing:.07em; text-transform:uppercase; color:var(--stone); }
+@media print { .note { page-break-inside:avoid; } }
+
+/* ---- hand marks: ==swiped==  ((circled))  ~in hand~ ----
+   Restrained here on purpose: this is the technical theme, so the marks read
+   as a correction pass over a spec, not as decoration. */
+/* box-decoration-break, so a swipe that wraps is painted once per line. The
+   absolutely-positioned band this replaced covered the union of both lines,
+   which reads as a filled block rather than a marker stroke. */
+.hi { padding:0 .16em; color:var(--ink); font-weight:700;
+      background:#FFE580; border-radius:2px 6px 3px 7px;
+      -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+.circ { font:700 11.5pt/1 var(--hand); color:var(--wedgwood); position:relative;
+        padding:0 5pt; display:inline-block; margin-right:2pt; }
+.circ::before { content:""; position:absolute; inset:-3pt -2pt; border:1.2pt solid var(--wedgwood);
+                border-radius:50% 46% 52% 48% / 48% 52% 46% 54%; transform:rotate(-2deg); }
+.hand { font:11.5pt/1 var(--hand); color:var(--wedgwood-deep);
+        display:inline-block; transform:rotate(-1.6deg); }
