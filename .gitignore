@@ -36,3 +36,7 @@ syllabi/*.odt
 syllabi/*.docx
 syllabi/*.source.txt
 syllabi/Syllabus - *.md
+
+# The plain-text extracts are working copies of the syllabi above, one folder
+# down, where the root-level rules do not reach.
+syllabi/**/*.source.txt

@@ -1,0 +1,138 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Introduction to Programming Concepts and Methodologies: Course Schedule</title><style>/* annotated — crisp compartments in academic serif, with the hand used only as
+   annotation over the grid: the sticky note, and a highlighter on what matters.
+   Tokens listed in spec.css apply here too; diagrams.py paints from them.
+
+   It shares a skeleton with `spec`: the same boxed compartments, header bars
+   and ID chips. That is deliberate. What separates them is the face and the
+   hand — Charter with a sticky note and cursive asides here, monospace with
+   neither there — so if you change one, put the two side by side afterwards
+   and check they still read as two themes. */
+@page { size: letter; margin: 0; }
+:root {
+  --wedgwood:#7A2626; --wedgwood-deep:#5C1C1C;
+  --parchment:#FFFFFF; --ivory:#F3F1EA; --warm-sand:#CFCBBE;
+  --ink:#191C21; --charcoal:#464C55; --olive:#5A616B; --stone:#868C96;
+  --border-cream:#F3F1EA; --border-warm:#CFCBBE; --ring-warm:#CFCBBE;
+  --sheet:#FBFAF6; --white:#FFFFFF; --line:#CFCBBE; --hair:#E3E0D5; --block:#F3F1EA;
+  --gold:#7A5C1F; --hi:#FFE580;
+  --serif:"Bodoni Moda","Bodoni MT","Didot","Playfair Display",Georgia,serif;
+  --text:Charter,"Bitstream Charter","Iowan Old Style",Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+  --hand:"Caveat","Segoe Script","Bradley Hand",cursive;
+}
+* { box-sizing:border-box; }
+body {
+  font:9.2pt/1.44 var(--text); color:var(--ink); background:var(--sheet);
+  margin:0 auto; padding:0.38in; max-width:8.5in;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+
+.head { display:flex; align-items:flex-start; justify-content:space-between; gap:16pt;
+        border-bottom:2.5pt solid var(--ink); padding-bottom:8pt; margin-bottom:11pt; }
+.headline { flex:1; min-width:0; }
+h1 { font:400 32pt/.96 var(--serif); margin:0; letter-spacing:-.02em; }
+/* Cells size to their contents rather than to equal fractions. An address is
+   three times the width of a room number, so equal columns either overran the
+   next cell or split the email across two lines, and a split address stops
+   looking like an address. nowrap keeps the byline on one row; only the longest
+   value may wrap, which render.py marks .wide. */
+.sub { display:flex; flex-wrap:nowrap; border:.75pt solid var(--line);
+       background:var(--white); margin:9pt 0 0; }
+.sub > span { flex:0 0 auto; white-space:nowrap; padding:7pt 10pt 8pt;
+            border-right:.75pt solid var(--line);
+            font:700 11pt/1.25 var(--serif); color:var(--ink); }
+.sub > span.wide { flex:0 1 auto; min-width:0; white-space:normal; }
+.sub > span:last-child { border-right:0; }
+/* "Instructor: R. Calderon" -> label stacked above the value */
+/* render.py marks tokens that must not be split (a time range, an address).
+   The rule lives here because the shared base CSS keeps getting rewritten. */
+.sub .nb { white-space:nowrap; padding:0; border:0; }
+.sub em { display:block; font:400 6.6pt/1.5 var(--mono); font-style:normal;
+          letter-spacing:.15em; text-transform:uppercase; color:var(--stone);
+          margin-bottom:2pt; }
+/* flex child, never position:absolute — absolute reserves no space, so the note
+   overflows itself and lands on whatever section sits underneath it */
+.sticky { flex:0 0 auto; width:104pt; padding:7pt 9pt 8pt; margin-top:3pt;
+          background:var(--hi); transform:rotate(2.2deg); box-shadow:2pt 3pt 6pt -2pt #00000030;
+          font:11pt/1.14 var(--hand); color:var(--ink); }
+.sticky b { display:block; font-size:13.5pt; color:var(--wedgwood); margin-bottom:1pt; }
+
+.cols { column-count:1; column-gap:0.28in; counter-reset:sec; }
+section { break-inside:avoid; margin:0 0 9pt; counter-increment:sec;
+          border:.75pt solid var(--line); background:var(--white); }
+h2 { font:400 13pt/1.1 var(--serif); margin:0 0 7pt; padding:4pt 9pt;
+     background:var(--block); border-bottom:.75pt solid var(--line);
+     letter-spacing:-.01em; break-after:avoid;
+     display:flex; align-items:center; gap:6pt; }
+h2::before { content:counter(sec,decimal-leading-zero);
+             font:700 6.2pt/1 var(--mono); color:var(--white); background:var(--ink);
+             padding:1.5pt 4pt; flex-shrink:0; }
+section > :not(h2) { padding-left:9pt; padding-right:9pt; }
+section > :last-child { padding-bottom:8pt; }
+
+ul { margin:0; padding:0; list-style:none; }
+li { position:relative; padding-left:10pt; margin-bottom:3.4pt; color:var(--charcoal);
+     break-inside:avoid; }
+li::before { content:""; position:absolute; left:0; top:.62em;
+             width:5pt; height:.9pt; background:var(--gold); }
+p { margin:0 0 4pt; color:var(--charcoal); }
+strong { font-weight:700; color:var(--ink); }
+a { color:var(--wedgwood-deep); text-decoration:none; }
+svg.fig { display:block; width:100%; height:auto; margin:2pt 0 5pt; break-inside:avoid; }
+
+/* ---- the three hand marks: ==swiped==  ((circled))  ~in hand~ ----
+   This theme is the rigid grid with a hand laid over it, so these are the
+   whole point of it. Used sparingly: a page where everything is highlighted
+   has highlighted nothing. */
+/* box-decoration-break, so a swipe that wraps is painted once per line. The
+   absolutely-positioned band this replaced covered the union of both lines,
+   which reads as a filled block rather than a marker stroke. */
+.hi { padding:0 .16em; color:var(--ink); font-weight:700;
+      background:var(--hi); border-radius:2px 6px 3px 7px;
+      -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+.circ { font:700 12pt/1 var(--hand); color:var(--wedgwood);
+        position:relative; padding:0 5pt; display:inline-block; margin-right:2pt; }
+.circ::before { content:""; position:absolute; inset:-3pt -2pt;
+                border:1.2pt solid var(--wedgwood);
+                border-radius:50% 46% 52% 48% / 48% 52% 46% 54%;
+                transform:rotate(-2deg); }
+.hand { font:12pt/1 var(--hand); color:var(--gold);
+        display:inline-block; transform:rotate(-1.6deg); }
+
+table { border-collapse:collapse; width:100%; margin:2pt 0 4pt;
+        font-variant-numeric:tabular-nums; }
+th { text-align:left; font:400 6.2pt/1.4 var(--mono); text-transform:uppercase;
+     letter-spacing:.13em; color:var(--stone); border-bottom:.75pt solid var(--line);
+     padding:3pt 6pt; }
+td { padding:3pt 6pt; border-bottom:.75pt solid var(--hair); color:var(--charcoal); }
+tr:last-child td { border-bottom:0; }
+
+.note { column-span:all; margin-top:2pt; padding-top:6pt;
+        border-top:2.5pt solid var(--ink); font:6.2pt/1.5 var(--mono);
+        letter-spacing:.07em; text-transform:uppercase; color:var(--stone); }
+@media print { .note { page-break-inside:avoid; } }
+
+/* The button rides on the closing note's own line, so it needs no rule or
+   spacing of its own and cannot add height to the sheet. Each theme already
+   styles .note; only the layout is added here. */
+.note { display: flex; align-items: center; justify-content: space-between;
+        gap: 12pt; }
+.export-btn {
+  font: 600 8pt/1 var(--sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+  letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+  color: var(--ink, #1a1a1a); background: var(--white, #fff);
+  border: 1px solid var(--ink, #1a1a1a); border-radius: 3px;
+  padding: 6pt 11pt; cursor: pointer; flex: 0 0 auto;
+}
+.export-btn:hover { background: var(--ink, #1a1a1a); color: var(--white, #fff); }
+.export-btn:focus-visible { outline: 2px solid var(--wedgwood, #4e6e8e);
+                            outline-offset: 2px; }
+/* The button is not part of the handout. */
+@media print { .export-btn { display: none !important; } }
+</style><style>section{break-inside:auto}tbody tr:has(td:first-child:empty){background:var(--block);color:var(--olive);font-style:italic}</style></head><body><header class="head"><div class="headline"><h1>Introduction to Programming Concepts and Methodologies: Course Schedule</h1><p class="sub"><span>Steven Huff</span><span>Introduction to Programming Concepts and Methodologies, Period 5</span><span class="wide">Pleasant Valley High School, Career Technical Education, <span class="nb">2026-2027</span></span></p></div></header><div class="cols"><section><h2>Semester 1 — through Dec 18, 2026 (41 meetings) · Chapter 1: Foundations</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>1</td><td>Orientation and Syllabus + 1.1 Software Lifecycle</td><td>1</td><td>Fri Aug 14, 2026</td></tr><tr><td>2</td><td>§1.2 Variables and Data Types + §1.3 Documentation and Coding Conventions (day 1/2)</td><td>2</td><td>Tue Aug 18, 2026</td></tr><tr><td>3</td><td>§1.2 Variables and Data Types + §1.3 Documentation and Coding Conventions (day 2/2)</td><td>2</td><td>Thu Aug 20, 2026</td></tr><tr><td>4</td><td>§1.4 Programming Paradigms and Languages</td><td>3</td><td>Mon Aug 24, 2026</td></tr><tr><td>5</td><td>§1.5 Program Design Tools and Environments (day 1/2)</td><td>3</td><td>Wed Aug 26, 2026</td></tr><tr><td>6</td><td>§1.5 Program Design Tools and Environments (day 2/2)</td><td>3</td><td>Fri Aug 28, 2026</td></tr><tr><td>7</td><td>Ch 1 Group PA</td><td>4</td><td>Tue Sep 01, 2026</td></tr><tr><td>8</td><td>Ch 1 Test</td><td>4</td><td>Thu Sep 03, 2026</td></tr></table></section><section><h2>Chapter 2: Control Flow</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td></td><td>Labor Day — no school</td><td></td><td></td></tr><tr><td>9</td><td>§2.1 Conditionals (day 1/2)</td><td>5</td><td>Tue Sep 08, 2026</td></tr><tr><td>10</td><td>§2.1 Conditionals (day 2/2)</td><td>5</td><td>Thu Sep 10, 2026</td></tr><tr><td>11</td><td>§2.2 Algorithms and Loops</td><td>6</td><td>Mon Sep 14, 2026</td></tr><tr><td>12</td><td>§2.3 The switch Statement</td><td>6</td><td>Wed Sep 16, 2026</td></tr><tr><td>13</td><td>§2.4 Loop Control and Nested Loops (day 1/2)</td><td>6</td><td>Fri Sep 18, 2026</td></tr><tr><td>14</td><td>§2.4 Loop Control and Nested Loops (day 2/2)</td><td>7</td><td>Tue Sep 22, 2026</td></tr><tr><td>15</td><td>§2.5 Handling Errors with try/catch</td><td>7</td><td>Thu Sep 24, 2026</td></tr><tr><td>16</td><td>Ch 2 Group PA</td><td>8</td><td>Mon Sep 28, 2026</td></tr><tr><td>17</td><td>Ch 2 Test</td><td>8</td><td>Wed Sep 30, 2026</td></tr></table></section><section><h2>Chapter 3: Functions and Data</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>18</td><td>§3.1 Functions: Definition and Calls</td><td>8</td><td>Fri Oct 02, 2026</td></tr><tr><td></td><td>No School for Students — no school</td><td></td><td></td></tr><tr><td>19</td><td>§3.2 Parameters and Return Values (day 1/2)</td><td>9</td><td>Wed Oct 07, 2026</td></tr><tr><td>20</td><td>§3.2 Parameters and Return Values (day 2/2)</td><td>9</td><td>Fri Oct 09, 2026</td></tr><tr><td>21</td><td>§3.3 Arrays (day 1/2)</td><td>10</td><td>Tue Oct 13, 2026</td></tr><tr><td>22</td><td>§3.3 Arrays (day 2/2)</td><td>10</td><td>Thu Oct 15, 2026</td></tr><tr><td>23</td><td>§3.4 Function Expressions and Arrow Functions</td><td>11</td><td>Mon Oct 19, 2026</td></tr><tr><td>24</td><td>§3.5 Objects and Properties</td><td>11</td><td>Wed Oct 21, 2026</td></tr><tr><td>25</td><td>§3.6 Functions: Pass by Value/Reference</td><td>11</td><td>Fri Oct 23, 2026</td></tr><tr><td>26</td><td>§3.7 Array Methods</td><td>12</td><td>Tue Oct 27, 2026 — ⚠ minimum day, shortened period</td></tr><tr><td>27</td><td>§3.8 Saving and Loading Data</td><td>12</td><td>Thu Oct 29, 2026</td></tr><tr><td>28</td><td>Ch 3 Group PA</td><td>13</td><td>Mon Nov 02, 2026</td></tr><tr><td>29</td><td>Ch 3 Test</td><td>13</td><td>Wed Nov 04, 2026</td></tr></table></section><section><h2>Chapter 4: Synthesis — Print Shop</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>30</td><td>§4.1 Print Shop – Q1 Synthesis (day 1/3)</td><td>13</td><td>Fri Nov 06, 2026</td></tr><tr><td>31</td><td>§4.1 Print Shop – Q1 Synthesis (day 2/3)</td><td>14</td><td>Tue Nov 10, 2026</td></tr><tr><td></td><td>Veterans Day — no school</td><td></td><td></td></tr><tr><td>32</td><td>§4.1 Print Shop – Q1 Synthesis (day 3/3)</td><td>14</td><td>Fri Nov 13, 2026</td></tr></table></section><section><h2>Chapter 5: shPlay Foundations</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>33</td><td>§5.1 Hello Sprite and Movement</td><td>15</td><td>Tue Nov 17, 2026</td></tr><tr><td>34</td><td>§5.2 Physics Feel</td><td>15</td><td>Thu Nov 19, 2026</td></tr><tr><td></td><td>Thanksgiving Recess — no school</td><td></td><td></td></tr><tr><td>35</td><td>§5.3 Classes and Instances + §5.4 Writing Your Own Classes (day 1/2)</td><td>16</td><td>Mon Nov 30, 2026</td></tr><tr><td>36</td><td>§5.3 Classes and Instances + §5.4 Writing Your Own Classes (day 2/2)</td><td>16</td><td>Wed Dec 02, 2026</td></tr><tr><td>37</td><td>Ch 5 Group PA</td><td>16</td><td>Fri Dec 04, 2026</td></tr><tr><td>38</td><td>Ch 5 Test</td><td>17</td><td>Tue Dec 08, 2026</td></tr></table></section><section><h2>Chapter S1: Semester 1 Close</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>39</td><td>Semester 1 Review Project (covers Ch 1-5) (day 1/2)</td><td>17</td><td>Thu Dec 10, 2026</td></tr><tr><td>40</td><td>Semester 1 Review Project (covers Ch 1-5) (day 2/2)</td><td>18</td><td>Mon Dec 14, 2026</td></tr><tr><td>41</td><td>SEMESTER 1 FINAL EXAM (Ch 1-5 cumulative)</td><td>18</td><td>Wed Dec 16, 2026</td></tr></table></section><section><h2>Semester 2 — from Jan 04, 2027 (48 meetings) · Chapter 6: Game Mechanics</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td></td><td>Secondary Pupil Free Day — no school</td><td></td><td></td></tr><tr><td></td><td>Winter Recess — no school</td><td></td><td></td></tr><tr><td>42</td><td>§6.1 Groups + §6.2 Overlaps and Collisions (day 1/2)</td><td>19</td><td>Mon Jan 04, 2027</td></tr><tr><td>43</td><td>§6.1 Groups + §6.2 Overlaps and Collisions (day 2/2)</td><td>19</td><td>Wed Jan 06, 2027</td></tr><tr><td>44</td><td>§6.3 Physics Applications</td><td>19</td><td>Fri Jan 08, 2027</td></tr><tr><td>45</td><td>§6.4 Animated Sprites and Camera</td><td>20</td><td>Tue Jan 12, 2027</td></tr><tr><td>46</td><td>§6.5 Save and Load</td><td>20</td><td>Thu Jan 14, 2027</td></tr><tr><td></td><td>Martin Luther King, Jr. Day — no school</td><td></td><td></td></tr><tr><td>47</td><td>§6.6 Game State Machines</td><td>21</td><td>Tue Jan 19, 2027</td></tr><tr><td>48</td><td>§6.7 Advanced Input + §6.8 Joints (day 1/2)</td><td>21</td><td>Thu Jan 21, 2027</td></tr><tr><td>49</td><td>§6.7 Advanced Input + §6.8 Joints (day 2/2)</td><td>22</td><td>Mon Jan 25, 2027</td></tr><tr><td>50</td><td>§6.9 Timing and Async</td><td>22</td><td>Wed Jan 27, 2027</td></tr><tr><td>51</td><td>Ch 6 Group PA</td><td>22</td><td>Fri Jan 29, 2027</td></tr><tr><td>52</td><td>Ch 6 Test</td><td>23</td><td>Tue Feb 02, 2027</td></tr></table></section><section><h2>Chapter 7: Synthesis — Arcade Cabinet</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>53</td><td>§7.1 Arcade Cabinet – Q2 Synthesis (day 1/3)</td><td>23</td><td>Thu Feb 04, 2027</td></tr><tr><td>54</td><td>§7.1 Arcade Cabinet – Q2 Synthesis (day 2/3)</td><td>24</td><td>Mon Feb 08, 2027</td></tr><tr><td>55</td><td>§7.1 Arcade Cabinet – Q2 Synthesis (day 3/3)</td><td>24</td><td>Wed Feb 10, 2027</td></tr></table></section><section><h2>Chapter 8: JSCAD Foundations</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td></td><td>Lincoln’s Birthday — no school</td><td></td><td></td></tr><tr><td></td><td>Presidents’ Day — no school</td><td></td><td></td></tr><tr><td>56</td><td>§8.1 Libraries and JSCAD Introduction</td><td>25</td><td>Tue Feb 16, 2027</td></tr><tr><td>57</td><td>§8.2 2D Shapes and Transforms</td><td>25</td><td>Thu Feb 18, 2027</td></tr><tr><td>58</td><td>§8.3 Boolean Operations in 2D</td><td>26</td><td>Mon Feb 22, 2027</td></tr><tr><td>59</td><td>§8.4 Parameters and getParameterDefinitions</td><td>26</td><td>Wed Feb 24, 2027</td></tr><tr><td>60</td><td>§8.5 Arrays in JSCAD / Loops</td><td>26</td><td>Fri Feb 26, 2027</td></tr><tr><td>61</td><td>Ch 8 Group PA (day 1/2)</td><td>27</td><td>Tue Mar 02, 2027 — ⚠ minimum day, shortened period</td></tr><tr><td>62</td><td>Ch 8 Group PA (day 2/2)</td><td>27</td><td>Thu Mar 04, 2027</td></tr><tr><td>63</td><td>Ch 8 Test</td><td>28</td><td>Mon Mar 08, 2027</td></tr></table></section><section><h2>Chapter 9: 3D Modeling</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>64</td><td>§9.1 First Extrusion: 2D to 3D</td><td>28</td><td>Wed Mar 10, 2027</td></tr><tr><td>65</td><td>§9.2 3D Primitives and Transforms</td><td>28</td><td>Fri Mar 12, 2027</td></tr><tr><td></td><td>Spring Recess — no school</td><td></td><td></td></tr><tr><td>66</td><td>§9.3 Error Handling and Debugging</td><td>29</td><td>Tue Mar 23, 2027</td></tr><tr><td>67</td><td>§9.4 Testing Principles</td><td>29</td><td>Thu Mar 25, 2027</td></tr><tr><td></td><td>Spring Travel Day — no school</td><td></td><td></td></tr><tr><td></td><td>In Lieu Admission Day — no school</td><td></td><td></td></tr><tr><td>68</td><td>Ch 9 Group PA</td><td>30</td><td>Wed Mar 31, 2027</td></tr><tr><td>69</td><td>Ch 9 Test</td><td>30</td><td>Fri Apr 02, 2027</td></tr></table></section><section><h2>Chapter 10: Synthesis — Fits-My-Stuff</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>70</td><td>§10.1 Fits-My-Stuff – Q3 Synthesis (day 1/3)</td><td>31</td><td>Tue Apr 06, 2027</td></tr><tr><td>71</td><td>§10.1 Fits-My-Stuff – Q3 Synthesis (day 2/3)</td><td>31</td><td>Thu Apr 08, 2027</td></tr><tr><td>72</td><td>§10.1 Fits-My-Stuff – Q3 Synthesis (day 3/3)</td><td>32</td><td>Mon Apr 12, 2027</td></tr></table></section><section><h2>Chapter 11-12: Advanced Modeling and Production</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>73</td><td>§11.1 Hulls and Advanced Extrusions</td><td>32</td><td>Wed Apr 14, 2027</td></tr><tr><td>74</td><td>§11.2 Measurements and Printability</td><td>32</td><td>Fri Apr 16, 2027</td></tr><tr><td>75</td><td>§11.3 Sorting and Searching on Geometry</td><td>33</td><td>Tue Apr 20, 2027</td></tr><tr><td>76</td><td>§12.1 Multi-File Projects and File I/O</td><td>33</td><td>Thu Apr 22, 2027</td></tr><tr><td></td><td>Nonwork day for employees under 12 months — no school</td><td></td><td></td></tr><tr><td>77</td><td>§12.2 Colors, Text, and Export Formats</td><td>34</td><td>Tue Apr 27, 2027</td></tr><tr><td>78</td><td>Ch 11-12 Group PA</td><td>34</td><td>Thu Apr 29, 2027</td></tr><tr><td>79</td><td>Ch 11-12 Test</td><td>35</td><td>Mon May 03, 2027</td></tr></table></section><section><h2>Chapter 13: Synthesis — Mechanism</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>80</td><td>§13.1 Capstone Design Phase (day 1/2)</td><td>35</td><td>Wed May 05, 2027</td></tr><tr><td>81</td><td>§13.1 Capstone Design Phase (day 2/2)</td><td>35</td><td>Fri May 07, 2027</td></tr><tr><td>82</td><td>§13.2 Capstone Build and Iterate (day 1/4)</td><td>36</td><td>Tue May 11, 2027</td></tr><tr><td>83</td><td>§13.2 Capstone Build and Iterate (day 2/4)</td><td>36</td><td>Thu May 13, 2027</td></tr><tr><td>84</td><td>§13.2 Capstone Build and Iterate (day 3/4)</td><td>37</td><td>Mon May 17, 2027</td></tr><tr><td>85</td><td>§13.2 Capstone Build and Iterate (day 4/4)</td><td>37</td><td>Wed May 19, 2027</td></tr><tr><td>86</td><td>§13.3 Presentations and Reflection (day 1/2)</td><td>37</td><td>Fri May 21, 2027</td></tr><tr><td>87</td><td>§13.3 Presentations and Reflection (day 2/2)</td><td>38</td><td>Tue May 25, 2027</td></tr></table></section><section><h2>Chapter –: Buffer</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td>88</td><td>— buffer / catch-up —</td><td>38</td><td>Thu May 27, 2027</td></tr></table></section><section><h2>Chapter S2: Semester 2 Close</h2><table><tr><th>#</th><th>Meeting</th><th>Wk</th><th>Date</th></tr><tr><td></td><td>Memorial Day — no school</td><td></td><td></td></tr><tr><td>89</td><td>SEMESTER 2 FINAL EXAM (Ch 6-13 cumulative)</td><td>39</td><td>Tue Jun 01, 2027</td></tr></table></section></div><p class="note"><span>Semester finals are not rows below — S1 falls in the Dec 14–17 window (which collides with meetings 41–42); S2 goes in the spare meetings after the capstone.</span><button type="button" id="export-pdf" class="export-btn">Save as PDF</button></p>
+<script>
+document.getElementById("export-pdf").addEventListener("click", function () {
+  window.print();
+});
+</script>
+</body></html>

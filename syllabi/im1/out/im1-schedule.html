@@ -1,0 +1,138 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Integrated Math 1: Course Schedule</title><style>/* annotated — crisp compartments in academic serif, with the hand used only as
+   annotation over the grid: the sticky note, and a highlighter on what matters.
+   Tokens listed in spec.css apply here too; diagrams.py paints from them.
+
+   It shares a skeleton with `spec`: the same boxed compartments, header bars
+   and ID chips. That is deliberate. What separates them is the face and the
+   hand — Charter with a sticky note and cursive asides here, monospace with
+   neither there — so if you change one, put the two side by side afterwards
+   and check they still read as two themes. */
+@page { size: letter; margin: 0; }
+:root {
+  --wedgwood:#7A2626; --wedgwood-deep:#5C1C1C;
+  --parchment:#FFFFFF; --ivory:#F3F1EA; --warm-sand:#CFCBBE;
+  --ink:#191C21; --charcoal:#464C55; --olive:#5A616B; --stone:#868C96;
+  --border-cream:#F3F1EA; --border-warm:#CFCBBE; --ring-warm:#CFCBBE;
+  --sheet:#FBFAF6; --white:#FFFFFF; --line:#CFCBBE; --hair:#E3E0D5; --block:#F3F1EA;
+  --gold:#7A5C1F; --hi:#FFE580;
+  --serif:"Bodoni Moda","Bodoni MT","Didot","Playfair Display",Georgia,serif;
+  --text:Charter,"Bitstream Charter","Iowan Old Style",Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;
+  --hand:"Caveat","Segoe Script","Bradley Hand",cursive;
+}
+* { box-sizing:border-box; }
+body {
+  font:9.2pt/1.44 var(--text); color:var(--ink); background:var(--sheet);
+  margin:0 auto; padding:0.38in; max-width:8.5in;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+
+.head { display:flex; align-items:flex-start; justify-content:space-between; gap:16pt;
+        border-bottom:2.5pt solid var(--ink); padding-bottom:8pt; margin-bottom:11pt; }
+.headline { flex:1; min-width:0; }
+h1 { font:400 32pt/.96 var(--serif); margin:0; letter-spacing:-.02em; }
+/* Cells size to their contents rather than to equal fractions. An address is
+   three times the width of a room number, so equal columns either overran the
+   next cell or split the email across two lines, and a split address stops
+   looking like an address. nowrap keeps the byline on one row; only the longest
+   value may wrap, which render.py marks .wide. */
+.sub { display:flex; flex-wrap:nowrap; border:.75pt solid var(--line);
+       background:var(--white); margin:9pt 0 0; }
+.sub > span { flex:0 0 auto; white-space:nowrap; padding:7pt 10pt 8pt;
+            border-right:.75pt solid var(--line);
+            font:700 11pt/1.25 var(--serif); color:var(--ink); }
+.sub > span.wide { flex:0 1 auto; min-width:0; white-space:normal; }
+.sub > span:last-child { border-right:0; }
+/* "Instructor: R. Calderon" -> label stacked above the value */
+/* render.py marks tokens that must not be split (a time range, an address).
+   The rule lives here because the shared base CSS keeps getting rewritten. */
+.sub .nb { white-space:nowrap; padding:0; border:0; }
+.sub em { display:block; font:400 6.6pt/1.5 var(--mono); font-style:normal;
+          letter-spacing:.15em; text-transform:uppercase; color:var(--stone);
+          margin-bottom:2pt; }
+/* flex child, never position:absolute — absolute reserves no space, so the note
+   overflows itself and lands on whatever section sits underneath it */
+.sticky { flex:0 0 auto; width:104pt; padding:7pt 9pt 8pt; margin-top:3pt;
+          background:var(--hi); transform:rotate(2.2deg); box-shadow:2pt 3pt 6pt -2pt #00000030;
+          font:11pt/1.14 var(--hand); color:var(--ink); }
+.sticky b { display:block; font-size:13.5pt; color:var(--wedgwood); margin-bottom:1pt; }
+
+.cols { column-count:1; column-gap:0.28in; counter-reset:sec; }
+section { break-inside:avoid; margin:0 0 9pt; counter-increment:sec;
+          border:.75pt solid var(--line); background:var(--white); }
+h2 { font:400 13pt/1.1 var(--serif); margin:0 0 7pt; padding:4pt 9pt;
+     background:var(--block); border-bottom:.75pt solid var(--line);
+     letter-spacing:-.01em; break-after:avoid;
+     display:flex; align-items:center; gap:6pt; }
+h2::before { content:counter(sec,decimal-leading-zero);
+             font:700 6.2pt/1 var(--mono); color:var(--white); background:var(--ink);
+             padding:1.5pt 4pt; flex-shrink:0; }
+section > :not(h2) { padding-left:9pt; padding-right:9pt; }
+section > :last-child { padding-bottom:8pt; }
+
+ul { margin:0; padding:0; list-style:none; }
+li { position:relative; padding-left:10pt; margin-bottom:3.4pt; color:var(--charcoal);
+     break-inside:avoid; }
+li::before { content:""; position:absolute; left:0; top:.62em;
+             width:5pt; height:.9pt; background:var(--gold); }
+p { margin:0 0 4pt; color:var(--charcoal); }
+strong { font-weight:700; color:var(--ink); }
+a { color:var(--wedgwood-deep); text-decoration:none; }
+svg.fig { display:block; width:100%; height:auto; margin:2pt 0 5pt; break-inside:avoid; }
+
+/* ---- the three hand marks: ==swiped==  ((circled))  ~in hand~ ----
+   This theme is the rigid grid with a hand laid over it, so these are the
+   whole point of it. Used sparingly: a page where everything is highlighted
+   has highlighted nothing. */
+/* box-decoration-break, so a swipe that wraps is painted once per line. The
+   absolutely-positioned band this replaced covered the union of both lines,
+   which reads as a filled block rather than a marker stroke. */
+.hi { padding:0 .16em; color:var(--ink); font-weight:700;
+      background:var(--hi); border-radius:2px 6px 3px 7px;
+      -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+.circ { font:700 12pt/1 var(--hand); color:var(--wedgwood);
+        position:relative; padding:0 5pt; display:inline-block; margin-right:2pt; }
+.circ::before { content:""; position:absolute; inset:-3pt -2pt;
+                border:1.2pt solid var(--wedgwood);
+                border-radius:50% 46% 52% 48% / 48% 52% 46% 54%;
+                transform:rotate(-2deg); }
+.hand { font:12pt/1 var(--hand); color:var(--gold);
+        display:inline-block; transform:rotate(-1.6deg); }
+
+table { border-collapse:collapse; width:100%; margin:2pt 0 4pt;
+        font-variant-numeric:tabular-nums; }
+th { text-align:left; font:400 6.2pt/1.4 var(--mono); text-transform:uppercase;
+     letter-spacing:.13em; color:var(--stone); border-bottom:.75pt solid var(--line);
+     padding:3pt 6pt; }
+td { padding:3pt 6pt; border-bottom:.75pt solid var(--hair); color:var(--charcoal); }
+tr:last-child td { border-bottom:0; }
+
+.note { column-span:all; margin-top:2pt; padding-top:6pt;
+        border-top:2.5pt solid var(--ink); font:6.2pt/1.5 var(--mono);
+        letter-spacing:.07em; text-transform:uppercase; color:var(--stone); }
+@media print { .note { page-break-inside:avoid; } }
+
+/* The button rides on the closing note's own line, so it needs no rule or
+   spacing of its own and cannot add height to the sheet. Each theme already
+   styles .note; only the layout is added here. */
+.note { display: flex; align-items: center; justify-content: space-between;
+        gap: 12pt; }
+.export-btn {
+  font: 600 8pt/1 var(--sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+  letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
+  color: var(--ink, #1a1a1a); background: var(--white, #fff);
+  border: 1px solid var(--ink, #1a1a1a); border-radius: 3px;
+  padding: 6pt 11pt; cursor: pointer; flex: 0 0 auto;
+}
+.export-btn:hover { background: var(--ink, #1a1a1a); color: var(--white, #fff); }
+.export-btn:focus-visible { outline: 2px solid var(--wedgwood, #4e6e8e);
+                            outline-offset: 2px; }
+/* The button is not part of the handout. */
+@media print { .export-btn { display: none !important; } }
+</style><style>section{break-inside:auto}tbody tr:has(td:first-child:empty){background:var(--block);color:var(--olive);font-style:italic}</style></head><body><header class="head"><div class="headline"><h1>Integrated Math 1: Course Schedule</h1><p class="sub"><span>Steven Huff</span><span>Integrated Math 1, Period 6 (even rotation days)</span><span class="wide">Pleasant Valley High School, Math Department, <span class="nb">2026-2027</span></span></p></div></header><div class="cols"><section><h2>Year at a glance</h2><table><tr><th>Unit</th><th>Title</th><th>Lessons</th><th>First day</th><th>Last day</th></tr><tr><td>Chapter 0</td><td>Foundations</td><td>5</td><td>Aug 17, 2026</td><td>Sep 04, 2026</td></tr><tr><td>Chapter 1</td><td>Functions</td><td>5</td><td>Sep 09, 2026</td><td>Sep 29, 2026</td></tr><tr><td>Chapter 2</td><td>Linear Functions</td><td>7</td><td>Oct 01, 2026</td><td>Oct 27, 2026</td></tr><tr><td>Chapter 3</td><td>Transformations and Solving</td><td>7</td><td>Oct 29, 2026</td><td>Dec 02, 2026</td></tr><tr><td>Chapter 4</td><td>Sequences</td><td>5</td><td>Jan 04, 2027</td><td>Jan 25, 2027</td></tr><tr><td>Chapter 5</td><td>Systems of Equations</td><td>7</td><td>Jan 27, 2027</td><td>Feb 24, 2027</td></tr><tr><td>Chapter 6</td><td>Congruence and Coordinate Geometry</td><td>6</td><td>Feb 26, 2027</td><td>Mar 31, 2027</td></tr><tr><td>Chapter 7</td><td>Exponential Functions</td><td>5</td><td>Apr 02, 2027</td><td>Apr 22, 2027</td></tr><tr><td>Chapter 8</td><td>Inequalities</td><td>5</td><td>Apr 27, 2027</td><td>May 17, 2027</td></tr></table></section><section><h2>Semester 1 - Foundations through Transformations</h2><ul><li>18 teaching weeks, 83 school days, 41 of them ours, 36 meetings, 0 open buffer days.</li></ul><table><tr><th>#</th><th>Ch</th><th>Assignment</th><th>Assign Date</th></tr><tr><td>1</td><td>0</td><td>0.1 Use the Language of Algebra</td><td>Wk 2 · Mon Aug 17</td></tr><tr><td>2</td><td>0</td><td>0.2 Integers</td><td>Wk 2 · Wed Aug 19</td></tr><tr><td>3</td><td>0</td><td>0.3 Fractions</td><td>Wk 2 · Fri Aug 21</td></tr><tr><td>4</td><td>0</td><td>0.4 Decimals</td><td>Wk 3 · Tue Aug 25</td></tr><tr><td>5</td><td>0</td><td>0.5 Properties of Real Numbers</td><td>Wk 3 · Thu Aug 27</td></tr><tr><td>6</td><td>0</td><td>Chapter 0 Practice Test</td><td>Wk 4 · Mon Aug 31</td></tr><tr><td>7</td><td>0</td><td>Chapter 0 Group Test</td><td>Wk 4 · Wed Sep 02</td></tr><tr><td>8</td><td>0</td><td>Chapter 0 Individual Test · Chapter 0 Practice Test due</td><td>Wk 4 · Fri Sep 04</td></tr><tr><td></td><td></td><td>Labor Day - no school</td><td>Wk 5 · Mon Sep 07</td></tr><tr><td>9</td><td>1</td><td>1.1 Working Problems as a Team</td><td>Wk 5 · Wed Sep 09</td></tr><tr><td>10</td><td>1</td><td>1.2 Representing a Growing Pattern</td><td>Wk 5 · Fri Sep 11</td></tr><tr><td>11</td><td>1</td><td>1.3 Inputs, Outputs, and What Makes a Function</td><td>Wk 6 · Tue Sep 15</td></tr><tr><td>12</td><td>1</td><td>1.4 Domain and Range</td><td>Wk 6 · Thu Sep 17</td></tr><tr><td>13</td><td>1</td><td>1.5 Working with Exponents</td><td>Wk 7 · Mon Sep 21</td></tr><tr><td>14</td><td>1</td><td>Chapter 1 Practice Test</td><td>Wk 7 · Wed Sep 23</td></tr><tr><td>15</td><td>1</td><td>Chapter 1 Group Test</td><td>Wk 7 · Fri Sep 25</td></tr><tr><td>16</td><td>1</td><td>Chapter 1 Individual Test · Chapter 1 Practice Test due</td><td>Wk 8 · Tue Sep 29</td></tr><tr><td>17</td><td>2</td><td>2.1 Recognizing Growth in Linear Functions</td><td>Wk 8 · Thu Oct 01</td></tr><tr><td>18</td><td>2</td><td>2.2 Comparing Change to Find Slope</td><td>Wk 9 · Mon Oct 05</td></tr><tr><td>19</td><td>2</td><td>2.3 Slope-Intercept Form</td><td>Wk 9 · Wed Oct 07</td></tr><tr><td>20</td><td>2</td><td>2.4 Linear Models and Rate of Change</td><td>Wk 9 · Fri Oct 09</td></tr><tr><td>21</td><td>2</td><td>2.5 Writing Equations and Working with Units</td><td>Wk 10 · Tue Oct 13</td></tr><tr><td>22</td><td>2</td><td>2.6 Writing the Equation of a Line</td><td>Wk 10 · Thu Oct 15</td></tr><tr><td>23</td><td>2</td><td>2.7 From Graphs and Tables</td><td>Wk 11 · Mon Oct 19</td></tr><tr><td>24</td><td>2</td><td>Chapter 2 Practice Test</td><td>Wk 11 · Wed Oct 21</td></tr><tr><td>25</td><td>2</td><td>Chapter 2 Group Test</td><td>Wk 11 · Fri Oct 23</td></tr><tr><td>26</td><td>2</td><td>Chapter 2 Individual Test · Chapter 2 Practice Test due</td><td>Wk 12 · Tue Oct 27</td></tr><tr><td>27</td><td>3</td><td>3.1 Moving Figures in the Plane</td><td>Wk 12 · Thu Oct 29</td></tr><tr><td>28</td><td>3</td><td>3.2 Slopes of Parallel and Perpendicular Lines</td><td>Wk 13 · Mon Nov 02</td></tr><tr><td>29</td><td>3</td><td>3.3 Defining and Applying Rigid Transformations</td><td>Wk 13 · Wed Nov 04</td></tr><tr><td>30</td><td>3</td><td>3.4 Symmetry</td><td>Wk 13 · Fri Nov 06</td></tr><tr><td>31</td><td>3</td><td>3.5 From Algebra Tiles to the Generic Area Model</td><td>Wk 14 · Tue Nov 10</td></tr><tr><td></td><td></td><td>Veterans Day - no school</td><td>Wk 14 · Wed Nov 11</td></tr><tr><td>32</td><td>3</td><td>3.6 Multiplying Polynomials and the Distributive Property</td><td>Wk 14 · Fri Nov 13</td></tr><tr><td>33</td><td>3</td><td>3.7 Strategies for Solving Equations</td><td>Wk 15 · Tue Nov 17</td></tr><tr><td>34</td><td>3</td><td>Chapter 3 Practice Test</td><td>Wk 15 · Thu Nov 19</td></tr><tr><td></td><td></td><td>Thanksgiving Recess - no school</td><td>Mon Nov 23 - Fri Nov 27</td></tr><tr><td>35</td><td>3</td><td>Chapter 3 Group Test</td><td>Wk 16 · Mon Nov 30</td></tr><tr><td>36</td><td>3</td><td>Chapter 3 Individual Test · Chapter 3 Practice Test due</td><td>Wk 16 · Wed Dec 02</td></tr><tr><td></td><td></td><td>Full Review 1 of 3</td><td>Wk 16 · Fri Dec 04</td></tr><tr><td></td><td></td><td>Full Review 2 of 3</td><td>Wk 17 · Tue Dec 08</td></tr><tr><td></td><td></td><td>Full Review 3 of 3</td><td>Wk 17 · Thu Dec 10</td></tr><tr><td></td><td></td><td>Semester Final</td><td>Wk 18 · Mon Dec 14</td></tr><tr><td></td><td></td><td>Finals week - no new content (exam times set by PVHS)</td><td>Wk 18 · Wed Dec 16</td></tr><tr><td></td><td></td><td>Secondary Pupil Free Day - no school</td><td>Wk 18 · Fri Dec 18</td></tr></table></section><section><h2>Semester 2 - Sequences through Inequalities</h2><ul><li>21 teaching weeks, 97 school days, 49 of them ours, 43 meetings, 0 open buffer days.</li></ul><table><tr><th>#</th><th>Ch</th><th>Assignment</th><th>Assign Date</th></tr><tr><td></td><td></td><td>Winter Recess - no school</td><td>Mon Dec 21 - Fri Jan 01</td></tr><tr><td>1</td><td>4</td><td>4.1 Recognizing Exponential Growth</td><td>Wk 1 · Mon Jan 04</td></tr><tr><td>2</td><td>4</td><td>4.2 Modeling Exponential Decay</td><td>Wk 1 · Wed Jan 06</td></tr><tr><td>3</td><td>4</td><td>4.3 Generating and Generalizing Sequences</td><td>Wk 1 · Fri Jan 08</td></tr><tr><td>4</td><td>4</td><td>4.4 Comparing Growth and Using Multipliers</td><td>Wk 2 · Tue Jan 12</td></tr><tr><td>5</td><td>4</td><td>4.5 Sequences as Functions</td><td>Wk 2 · Thu Jan 14</td></tr><tr><td></td><td></td><td>Martin Luther King, Jr. Day - no school</td><td>Wk 3 · Mon Jan 18</td></tr><tr><td>6</td><td>4</td><td>Chapter 4 Practice Test</td><td>Wk 3 · Tue Jan 19</td></tr><tr><td>7</td><td>4</td><td>Chapter 4 Group Test</td><td>Wk 3 · Thu Jan 21</td></tr><tr><td>8</td><td>4</td><td>Chapter 4 Individual Test · Chapter 4 Practice Test due</td><td>Wk 4 · Mon Jan 25</td></tr><tr><td>9</td><td>5</td><td>5.1 Rewriting and Solving Multi-Variable Equations</td><td>Wk 4 · Wed Jan 27</td></tr><tr><td>10</td><td>5</td><td>5.2 From Word Problems to Equations</td><td>Wk 4 · Fri Jan 29</td></tr><tr><td>11</td><td>5</td><td>5.3 Equal Values and Substitution</td><td>Wk 5 · Tue Feb 02</td></tr><tr><td>12</td><td>5</td><td>5.4 Systems and Multiple Representations</td><td>Wk 5 · Thu Feb 04</td></tr><tr><td>13</td><td>5</td><td>5.5 Solving Systems by Elimination</td><td>Wk 6 · Mon Feb 08</td></tr><tr><td>14</td><td>5</td><td>5.6 Systems, Solutions, and Graphs</td><td>Wk 6 · Wed Feb 10</td></tr><tr><td></td><td></td><td>Lincoln’s Birthday - no school</td><td>Wk 6 · Fri Feb 12</td></tr><tr><td></td><td></td><td>Presidents’ Day - no school</td><td>Wk 7 · Mon Feb 15</td></tr><tr><td>15</td><td>5</td><td>5.7 Choosing a Method for a System</td><td>Wk 7 · Tue Feb 16</td></tr><tr><td>16</td><td>5</td><td>Chapter 5 Practice Test</td><td>Wk 7 · Thu Feb 18</td></tr><tr><td>17</td><td>5</td><td>Chapter 5 Group Test</td><td>Wk 8 · Mon Feb 22</td></tr><tr><td>18</td><td>5</td><td>Chapter 5 Individual Test · Chapter 5 Practice Test due</td><td>Wk 8 · Wed Feb 24</td></tr><tr><td>19</td><td>6</td><td>6.1 Congruence and the Triangle Conditions</td><td>Wk 8 · Fri Feb 26</td></tr><tr><td>20</td><td>6</td><td>6.2 Flowchart Proof</td><td>Wk 9 · Tue Mar 02</td></tr><tr><td>21</td><td>6</td><td>6.3 Further Congruence Conditions</td><td>Wk 9 · Thu Mar 04</td></tr><tr><td>22</td><td>6</td><td>6.4 Congruence Through Rigid Transformations</td><td>Wk 10 · Mon Mar 08</td></tr><tr><td>23</td><td>6</td><td>6.5 Studying Quadrilaterals on a Grid</td><td>Wk 10 · Wed Mar 10</td></tr><tr><td>24</td><td>6</td><td>6.6 Distance, Midpoint, and Shapes on a Grid</td><td>Wk 10 · Fri Mar 12</td></tr><tr><td></td><td></td><td>Spring Recess - no school</td><td>Mon Mar 15 - Fri Mar 19</td></tr><tr><td>25</td><td>6</td><td>Chapter 6 Practice Test</td><td>Wk 11 · Tue Mar 23</td></tr><tr><td>26</td><td>6</td><td>Chapter 6 Group Test</td><td>Wk 11 · Thu Mar 25</td></tr><tr><td></td><td></td><td>Spring Travel Day - no school</td><td>Wk 11 · Fri Mar 26</td></tr><tr><td></td><td></td><td>In Lieu Admission Day - no school</td><td>Wk 12 · Mon Mar 29</td></tr><tr><td>27</td><td>6</td><td>Chapter 6 Individual Test · Chapter 6 Practice Test due</td><td>Wk 12 · Wed Mar 31</td></tr><tr><td>28</td><td>7</td><td>7.1 Representing Exponential Functions</td><td>Wk 12 · Fri Apr 02</td></tr><tr><td>29</td><td>7</td><td>7.2 Exponential Growth and Decay</td><td>Wk 13 · Tue Apr 06</td></tr><tr><td>30</td><td>7</td><td>7.3 Connecting the Representations</td><td>Wk 13 · Thu Apr 08</td></tr><tr><td>31</td><td>7</td><td>7.4 Fitting Curves to Data</td><td>Wk 14 · Mon Apr 12</td></tr><tr><td>32</td><td>7</td><td>7.5 Solving Exponential Systems Graphically</td><td>Wk 14 · Wed Apr 14</td></tr><tr><td>33</td><td>7</td><td>Chapter 7 Practice Test</td><td>Wk 14 · Fri Apr 16</td></tr><tr><td>34</td><td>7</td><td>Chapter 7 Group Test</td><td>Wk 15 · Tue Apr 20</td></tr><tr><td>35</td><td>7</td><td>Chapter 7 Individual Test · Chapter 7 Practice Test due</td><td>Wk 15 · Thu Apr 22</td></tr><tr><td></td><td></td><td>Nonwork day for employees under 12 months - no school</td><td>Wk 16 · Mon Apr 26</td></tr><tr><td>36</td><td>8</td><td>8.1 Solving Inequalities in One Variable</td><td>Wk 16 · Tue Apr 27</td></tr><tr><td>37</td><td>8</td><td>8.2 Absolute Value Equations and Inequalities</td><td>Wk 16 · Thu Apr 29</td></tr><tr><td>38</td><td>8</td><td>8.3 Graphing Inequalities in Two Variables</td><td>Wk 17 · Mon May 03</td></tr><tr><td>39</td><td>8</td><td>8.4 Systems of Inequalities</td><td>Wk 17 · Wed May 05</td></tr><tr><td>40</td><td>8</td><td>8.5 Solving Problems with Inequalities</td><td>Wk 17 · Fri May 07</td></tr><tr><td>41</td><td>8</td><td>Chapter 8 Practice Test</td><td>Wk 18 · Tue May 11</td></tr><tr><td>42</td><td>8</td><td>Chapter 8 Group Test</td><td>Wk 18 · Thu May 13</td></tr><tr><td>43</td><td>8</td><td>Chapter 8 Individual Test · Chapter 8 Practice Test due</td><td>Wk 19 · Mon May 17</td></tr><tr><td></td><td></td><td>Full Review 1 of 3</td><td>Wk 19 · Wed May 19</td></tr><tr><td></td><td></td><td>Full Review 2 of 3</td><td>Wk 19 · Fri May 21</td></tr><tr><td></td><td></td><td>Full Review 3 of 3</td><td>Wk 20 · Tue May 25</td></tr><tr><td></td><td></td><td>Semester Final</td><td>Wk 20 · Thu May 27</td></tr><tr><td></td><td></td><td>Memorial Day - no school</td><td>Wk 21 · Mon May 31</td></tr><tr><td></td><td></td><td>Finals week - no new content (exam times set by PVHS)</td><td>Wk 21 · Tue Jun 01</td></tr><tr><td></td><td></td><td>Make-up / course close-out</td><td>Wk 21 · Thu Jun 03</td></tr></table></section><section><h2>Non-school days</h2><ul><li>30 weekdays lost inside the school year.</li></ul><table><tr><th>Date</th><th>Weekday</th><th>Reason</th><th>Part of</th></tr><tr><td>Sep 07, 2026</td><td>Monday</td><td>Labor Day</td><td>-</td></tr><tr><td>Nov 11, 2026</td><td>Wednesday</td><td>Veterans Day</td><td>-</td></tr><tr><td>Nov 23, 2026</td><td>Monday</td><td>Thanksgiving Recess</td><td>-</td></tr><tr><td>Nov 24, 2026</td><td>Tuesday</td><td>Thanksgiving Recess</td><td>-</td></tr><tr><td>Nov 25, 2026</td><td>Wednesday</td><td>Thanksgiving Recess</td><td>-</td></tr><tr><td>Nov 26, 2026</td><td>Thursday</td><td>Thanksgiving Day</td><td>Thanksgiving Recess</td></tr><tr><td>Nov 27, 2026</td><td>Friday</td><td>Day after Thanksgiving</td><td>Thanksgiving Recess</td></tr><tr><td>Dec 18, 2026</td><td>Friday</td><td>Secondary Pupil Free Day</td><td>-</td></tr><tr><td>Dec 21, 2026</td><td>Monday</td><td>Winter Recess</td><td>-</td></tr><tr><td>Dec 22, 2026</td><td>Tuesday</td><td>Winter Recess</td><td>-</td></tr><tr><td>Dec 23, 2026</td><td>Wednesday</td><td>Winter Recess</td><td>-</td></tr><tr><td>Dec 24, 2026</td><td>Thursday</td><td>Christmas Eve (observed)</td><td>Winter Recess</td></tr><tr><td>Dec 25, 2026</td><td>Friday</td><td>Christmas Day</td><td>Winter Recess</td></tr><tr><td>Dec 28, 2026</td><td>Monday</td><td>Winter Recess</td><td>-</td></tr><tr><td>Dec 29, 2026</td><td>Tuesday</td><td>Winter Recess</td><td>-</td></tr><tr><td>Dec 30, 2026</td><td>Wednesday</td><td>Winter Recess</td><td>-</td></tr><tr><td>Dec 31, 2026</td><td>Thursday</td><td>New Year’s Eve (observed)</td><td>Winter Recess</td></tr><tr><td>Jan 01, 2027</td><td>Friday</td><td>New Year’s Day</td><td>Winter Recess</td></tr><tr><td>Jan 18, 2027</td><td>Monday</td><td>Martin Luther King, Jr. Day</td><td>-</td></tr><tr><td>Feb 12, 2027</td><td>Friday</td><td>Lincoln’s Birthday</td><td>-</td></tr><tr><td>Feb 15, 2027</td><td>Monday</td><td>Presidents’ Day</td><td>-</td></tr><tr><td>Mar 15, 2027</td><td>Monday</td><td>Spring Recess</td><td>-</td></tr><tr><td>Mar 16, 2027</td><td>Tuesday</td><td>Spring Recess</td><td>-</td></tr><tr><td>Mar 17, 2027</td><td>Wednesday</td><td>Spring Recess</td><td>-</td></tr><tr><td>Mar 18, 2027</td><td>Thursday</td><td>Spring Recess</td><td>-</td></tr><tr><td>Mar 19, 2027</td><td>Friday</td><td>Spring Recess</td><td>-</td></tr><tr><td>Mar 26, 2027</td><td>Friday</td><td>Spring Travel Day</td><td>-</td></tr><tr><td>Mar 29, 2027</td><td>Monday</td><td>In Lieu Admission Day</td><td>-</td></tr><tr><td>Apr 26, 2027</td><td>Monday</td><td>Nonwork day for employees under 12 months</td><td>-</td></tr><tr><td>May 31, 2027</td><td>Monday</td><td>Memorial Day</td><td>-</td></tr></table></section><section><h2>In session, but shortened</h2><ul><li>Class meets. Plan for a compressed period.</li></ul><table><tr><th>Date</th><th>Weekday</th><th>Note</th></tr><tr><td>Oct 27, 2026</td><td>Tuesday</td><td>Staff development (minimum day)</td></tr><tr><td>Dec 14, 2026</td><td>Monday</td><td>Finals week (minimum day)</td></tr><tr><td>Dec 15, 2026</td><td>Tuesday</td><td>Finals week (minimum day)</td></tr><tr><td>Dec 16, 2026</td><td>Wednesday</td><td>Finals week (minimum day)</td></tr><tr><td>Dec 17, 2026</td><td>Thursday</td><td>Finals week (minimum day)</td></tr><tr><td>Jan 26, 2027</td><td>Tuesday</td><td>Staff development (minimum day)</td></tr><tr><td>Mar 02, 2027</td><td>Tuesday</td><td>Staff development (minimum day)</td></tr><tr><td>May 27, 2027</td><td>Thursday</td><td>Finals week (minimum day)</td></tr><tr><td>May 28, 2027</td><td>Friday</td><td>Finals week (minimum day)</td></tr><tr><td>Jun 01, 2027</td><td>Tuesday</td><td>Finals week (minimum day)</td></tr><tr><td>Jun 02, 2027</td><td>Wednesday</td><td>Finals week (minimum day)</td></tr><tr><td>Jun 03, 2027</td><td>Thursday</td><td>Last day (minimum day)</td></tr></table></section></div><p class="note"><span>The calendar below lists every lesson for both semesters with its class-meeting date. Dates are approximate and may shift as we go. Where a date here and a due date in MyOpenMath disagree, the MyOpenMath date governs.</span><button type="button" id="export-pdf" class="export-btn">Save as PDF</button></p>
+<script>
+document.getElementById("export-pdf").addEventListener("click", function () {
+  window.print();
+});
+</script>
+</body></html>
