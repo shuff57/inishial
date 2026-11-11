@@ -154,8 +154,8 @@ async function getSession(env) {
 }
 
 /** Where the parent actually goes. `/sign` is a client-side route, so the
- *  path is the same on any host. Configurable because the app will move off
- *  pages.dev to a huffpalmer.fyi hostname, and a mail whose link points at a
+ *  path is the same on any host. Configurable because the app can move between
+ *  hostnames, and a mail whose link points at a
  *  different registrable domain than its From address is both worse for the
  *  parent and a signal spam filters score against. */
 function signUrl(env) {
@@ -342,11 +342,11 @@ export async function sendAccessCode(env, toEmail, studentName, creds) {
  * endpoint that has to report honestly whether the mail went.
  */
 async function send(env, { to, subject, text, html, dryRunLog }) {
-  // The mail subdomain, not the apex: huffpalmer.fyi's MX belongs to Cloudflare
-  // Email Routing, and a transactional sender on its own subdomain keeps a spam
-  // complaint here from dragging down the apex domain's reputation.
-  const from = env.MAIL_FROM || 'no-reply@mail.huffpalmer.fyi';
-  const replyTo = env.MAIL_REPLY_TO || 'support@mail.huffpalmer.fyi';
+  // Dedicated inishial-* mailboxes on lefthanddev.com (Stalwart serves its MX,
+  // SPF, DMARC and DKIM). Production sets these in wrangler.toml; these are
+  // only the fallbacks.
+  const from = env.MAIL_FROM || 'inishial-no-reply@lefthanddev.com';
+  const replyTo = env.MAIL_REPLY_TO || 'inishial-support@lefthanddev.com';
 
   // No credentials and no dry-run: tell the truth. A 502 "could not send" is
   // better than a silent success that leaves someone waiting at a screen that

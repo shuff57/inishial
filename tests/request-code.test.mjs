@@ -255,7 +255,7 @@ test('the mail carries a link to the sign page, on the configured host', async (
 });
 
 test('honest failure when no mail server creds are configured and not in dry-run', async () => {
-  const env = freshEnv({ MAIL_FROM: 'no-reply@mail.huffpalmer.fyi', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
+  const env = freshEnv({ MAIL_FROM: 'inishial-no-reply@lefthanddev.com', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
   await seedStudent(env, { parentEmail: 'family@example.com' });
   await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
@@ -266,7 +266,7 @@ test('honest failure when no mail server creds are configured and not in dry-run
 });
 
 test('dry-run logs instead of sending and still reports success', async () => {
-  const env = freshEnv({ MAIL_FROM: 'no-reply@mail.huffpalmer.fyi', MAIL_DRY_RUN: '1', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
+  const env = freshEnv({ MAIL_FROM: 'inishial-no-reply@lefthanddev.com', MAIL_DRY_RUN: '1', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
   await seedStudent(env, { parentEmail: 'family@example.com' });
   await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 

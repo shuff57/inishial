@@ -227,8 +227,8 @@ export const jsonRequest = (url, body, headers = {}) =>
 // EmailSubmission/set to the API URL; this mock answers both and records what
 // the send actually contained.
 export const MAIL_HOST = 'https://smtp.test:8443';
-export const MAIL_FROM = 'no-reply@mail.huffpalmer.fyi';
-export const MAIL_REPLY_TO = 'support@mail.huffpalmer.fyi';
+export const MAIL_FROM = 'inishial-no-reply@lefthanddev.com';
+export const MAIL_REPLY_TO = 'inishial-support@lefthanddev.com';
 
 function mailJson(body) {
   return new Response(JSON.stringify(body), {

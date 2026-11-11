@@ -47,20 +47,21 @@ TEACHER_DOMAINS = ""
 #   npx wrangler pages secret put OLLAMA_API_KEY --project-name inishial
 OLLAMA_HOST = "https://ollama.com"
 # Where the parent access-code email points. `/sign` is appended. Kept as a
-# var so moving off pages.dev to a huffpalmer.fyi hostname is one edit here --
+# var so moving between hostnames is one edit here --
 # a mail whose link points at a different registrable domain than its From
 # address is worse for the parent and a signal spam filters score against.
-APP_URL = "https://inishial.huffpalmer.fyi"
+# The site and the mail now share lefthanddev.com. (inishial.huffpalmer.fyi is
+# still attached to the Pages project so links in mail sent before the move
+# keep working.)
+APP_URL = "https://inishial.lefthanddev.com"
 # The From address for the parent access-code email, and the address replies
 # go to. Both are mailboxes on the self-hosted Stalwart server; a parent who
 # hits reply reaches a mailbox a human reads, not a black hole.
 #
-# The mail subdomain, not the apex. huffpalmer.fyi's MX belongs to Cloudflare
-# Email Routing and stays that way; Stalwart is authoritative for
-# mail.huffpalmer.fyi only. That also isolates reputation -- a spam complaint
-# about the syllabus mail cannot drag the apex domain down with it.
-MAIL_FROM = "no-reply@mail.huffpalmer.fyi"
-MAIL_REPLY_TO = "support@mail.huffpalmer.fyi"
+# Dedicated inishial-* mailboxes on lefthanddev.com, whose MX, SPF, DMARC and
+# DKIM already point at Stalwart. The old sender was no-reply@mail.huffpalmer.fyi.
+MAIL_FROM = "inishial-no-reply@lefthanddev.com"
+MAIL_REPLY_TO = "inishial-support@lefthanddev.com"
 # The Stalwart mail server's base URL. functions/_lib/mail.js discovers the
 # JMAP API URL from <STALWART_URL>/.well-known/jmap.
 #
@@ -98,9 +99,9 @@ TEACHER_DOMAINS = ""
 OLLAMA_HOST = "https://ollama.com"
 OLLAMA_MODEL = "minimax-m3"
 OLLAMA_HIDE = "kimi-k3"
-APP_URL = "https://inishial.huffpalmer.fyi"
-MAIL_FROM = "no-reply@mail.huffpalmer.fyi"
-MAIL_REPLY_TO = "support@mail.huffpalmer.fyi"
+APP_URL = "https://inishial.lefthanddev.com"
+MAIL_FROM = "inishial-no-reply@lefthanddev.com"
+MAIL_REPLY_TO = "inishial-support@lefthanddev.com"
 STALWART_URL = "https://smtp.huffpalmer.fyi"
 # MAIL_DRY_RUN is deliberately absent here: real email goes out via Stalwart.
 # STALWART_API_KEY is set out of band as a secret.
