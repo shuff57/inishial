@@ -56,12 +56,13 @@ OLLAMA_HOST = "https://ollama.com"
 APP_URL = "https://inishial.lefthanddev.com"
 # Outbound mail goes through Gmail over SMTP, the same way raSHio sends
 # (functions/_lib/smtp.js). Gmail sends as the account that signs in, so
-# SMTP_USERNAME is also the From address. Use a Gmail account of its own, apart
-# from raSHio's: this app mails student codes and parent addresses.
+# SMTP_USERNAME is also the From address. Note: Gmail files every message sent
+# over SMTP in that account's Sent folder, so parent codes and addresses end up
+# in the mailbox of whichever account this is.
 SMTP_HOSTNAME = "smtp.gmail.com"
 SMTP_PORT = "587"
 SMTP_FROM_NAME = "iniSHial"
-SMTP_USERNAME = ""   # TODO: the Gmail address that sends. Empty means "not configured" and mail fails honestly.
+SMTP_USERNAME = "shuff57@gmail.com"
 # Where a parent's reply lands. Not the From address: Gmail cannot send as a
 # lefthanddev.com address without failing that domain's DMARC reject policy, but
 # a Reply-To is just a header, so replies reach a mailbox a human reads.
@@ -99,7 +100,7 @@ APP_URL = "https://inishial.lefthanddev.com"
 SMTP_HOSTNAME = "smtp.gmail.com"
 SMTP_PORT = "587"
 SMTP_FROM_NAME = "iniSHial"
-SMTP_USERNAME = ""   # TODO: the Gmail address that sends (same as above). Empty = mail fails honestly.
+SMTP_USERNAME = "shuff57@gmail.com"
 MAIL_REPLY_TO = "inishial-support@lefthanddev.com"
 # MAIL_DRY_RUN is deliberately absent here: real email goes out via Gmail.
 # SMTP_PASSWORD (the Gmail App Password) is set out of band as a secret.
