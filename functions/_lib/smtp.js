@@ -1,10 +1,18 @@
-// Outbound email over SMTP (STARTTLS, AUTH LOGIN), for Gmail.
+// Outbound email over SMTP submission (AUTH LOGIN) with a mailbox login.
 //
-// Ported from raSHio's functions/utils/smtp.js so the two apps send the same
-// way: Cloudflare's TCP sockets (`cloudflare:sockets`) to smtp.gmail.com:587,
-// authenticating with a Google App Password. Gmail rewrites the sender to the
-// account that logs in, so the From address is always SMTP_USERNAME; any other
-// address the app wants replies to goes in Reply-To.
+// Ported from raSHio's functions/utils/smtp.js, and shaped like verSHion's
+// worker/src/mail_smtp.ts: Cloudflare's TCP sockets (`cloudflare:sockets`) to
+// the owner's Stalwart server, smtp.huffpalmer.fyi. Port 465 is implicit TLS
+// (the TLS handshake comes first); any other port starts in the clear and
+// upgrades with STARTTLS. It authenticates as the app's own mailbox with a
+// Stalwart app password. Workers may not open port 25, which is why this is
+// submission with a login, not a relay.
+//
+// Stalwart DKIM-signs for lefthanddev.com and the sending IP is the domain's MX,
+// so SPF and DKIM both align and the domain's DMARC reject policy passes. The
+// same code also works against Gmail (smtp.gmail.com:587 and an app password) if
+// SMTP_HOSTNAME and SMTP_PORT are changed; Gmail would then send as the account
+// that signs in, whatever MAIL_FROM says.
 //
 // Differences from the raSHio original, all for a mail that carries a parent's
 // credentials:
@@ -123,9 +131,34 @@ function localHost(env) {
   try { return new URL(env.APP_URL).hostname; } catch { return 'inishial.pages.dev'; }
 }
 
+/** Port 465 is implicit TLS; SMTP_SECURE can force either mode (like verSHion's). */
+function smtpPort(env) {
+  const n = Number(env.SMTP_PORT ?? '465');
+  return Number.isInteger(n) && n > 0 && n < 65536 ? n : 465;
+}
+function smtpImplicitTls(env) {
+  const v = String(env.SMTP_SECURE ?? '').trim().toLowerCase();
+  if (['on', '1', 'true', 'implicit'].includes(v)) return true;
+  if (['off', '0', 'false', 'starttls'].includes(v)) return false;
+  return smtpPort(env) === 465;
+}
+
+/**
+ * The address on the envelope and in From: MAIL_FROM when set (an address this
+ * mailbox may send as, such as one of its aliases), else the mailbox that signs
+ * in. A bare address only, because Stalwart answers 501 to the "Name <addr>" form.
+ */
+function fromAddress(env, user) {
+  const f = noCRLF(env.MAIL_FROM || '');
+  if (!f) return user;
+  if (!BARE_ADDRESS.test(f)) throw smtpError('E_SMTP_BAD_FROM', 'MAIL_FROM must be a plain email address.');
+  return f;
+}
+
 /**
  * Sends one message. Resolves { messageId } or throws an Error with `.code`.
- *   from address  = env.SMTP_USERNAME (Gmail forces this)
+ *   login         = env.SMTP_USERNAME + env.SMTP_PASSWORD (a Stalwart app password)
+ *   from address  = env.MAIL_FROM, else SMTP_USERNAME
  *   from name     = env.SMTP_FROM_NAME || 'iniSHial'
  *   reply-to      = replyTo, optional
  */
@@ -139,15 +172,20 @@ export async function sendViaSmtp(env, { to, subject, text, html, replyTo }) {
   const reply = replyTo ? noCRLF(replyTo) : '';
   if (reply && !BARE_ADDRESS.test(reply)) throw smtpError('E_SMTP_BAD_REPLY_TO', 'The reply-to is not a plain email address.');
 
-  const hostname = env.SMTP_HOSTNAME || 'smtp.gmail.com';
-  const port = parseInt(env.SMTP_PORT || '587', 10);
+  // No default host: a missing setting must fail, not quietly send somewhere.
+  const hostname = String(env.SMTP_HOSTNAME || '').trim();
+  if (!hostname) throw smtpError('E_NO_CREDS', 'SMTP_HOSTNAME is not configured.');
+  const port = smtpPort(env);
+  const implicit = smtpImplicitTls(env);
+  const from = fromAddress(env, user);
   const me = localHost(env);
 
   const connect = env.SMTP_CONNECT || (await import('cloudflare:sockets')).connect;
   let socket;
   try {
-    // 'starttls' lets us upgrade the same connection after the greeting.
-    socket = connect({ hostname, port }, { secureTransport: 'starttls' });
+    // 'on' = TLS from the first byte (port 465). 'starttls' keeps the socket
+    // upgradable after the greeting.
+    socket = connect({ hostname, port }, { secureTransport: implicit ? 'on' : 'starttls' });
   } catch (err) {
     throw smtpError('E_SMTP_CONNECT', `Could not reach the mail server: ${String(err?.message || err).slice(0, 120)}`);
   }
@@ -160,17 +198,19 @@ export async function sendViaSmtp(env, { to, subject, text, html, replyTo }) {
     await w.send(`EHLO ${me}`);
     expect(await r.read(), 250, 'E_SMTP_EHLO', 'EHLO refused');
 
-    await w.send('STARTTLS');
-    expect(await r.read(), 220, 'E_SMTP_STARTTLS', 'STARTTLS refused');
+    if (!implicit) {
+      await w.send('STARTTLS');
+      expect(await r.read(), 220, 'E_SMTP_STARTTLS', 'STARTTLS refused');
 
-    // Nothing may be buffered across the upgrade; hand the socket to TLS.
-    w.release(); r.release();
-    const secure = socket.startTls();
-    w = makeWriter(secure.writable);
-    r = makeReader(secure.readable);
+      // Nothing may be buffered across the upgrade; hand the socket to TLS.
+      w.release(); r.release();
+      const secure = socket.startTls();
+      w = makeWriter(secure.writable);
+      r = makeReader(secure.readable);
 
-    await w.send(`EHLO ${me}`);
-    expect(await r.read(), 250, 'E_SMTP_EHLO', 'EHLO refused after TLS');
+      await w.send(`EHLO ${me}`);
+      expect(await r.read(), 250, 'E_SMTP_EHLO', 'EHLO refused after TLS');
+    }
 
     await w.send('AUTH LOGIN');
     expect(await r.read(), 334, 'E_SMTP_AUTH', 'AUTH LOGIN refused');
@@ -179,7 +219,7 @@ export async function sendViaSmtp(env, { to, subject, text, html, replyTo }) {
     await w.send(btoa(pass));
     expect(await r.read(), 235, 'E_SMTP_AUTH', 'Sign-in to the mail server failed');
 
-    await w.send(`MAIL FROM:<${user}>`);
+    await w.send(`MAIL FROM:<${from}>`);
     expect(await r.read(), 250, 'E_SMTP_MAIL_FROM', 'Sender refused');
     await w.send(`RCPT TO:<${to}>`);
     expect(await r.read(), [250, 251], 'E_SMTP_RCPT', 'Recipient refused');
@@ -190,7 +230,7 @@ export async function sendViaSmtp(env, { to, subject, text, html, replyTo }) {
     const messageId = `<${crypto.randomUUID()}@${me}>`;
     const name = displayName(env.SMTP_FROM_NAME || 'iniSHial');
     const parts = [
-      `From: ${name ? name + ' ' : ''}<${user}>`,
+      `From: ${name ? name + ' ' : ''}<${from}>`,
       `To: ${to}`,
       ...(reply ? [`Reply-To: ${reply}`] : []),
       `Subject: ${encodeHeader(subject)}`,

@@ -223,26 +223,29 @@ export const jsonRequest = (url, body, headers = {}) =>
 // second copy of this fake would be a second thing to keep in step with the
 // SMTP conversation.
 //
-// mail.js sends over SMTP to Gmail using Cloudflare's sockets, which do not
-// exist under Node. smtp.js therefore opens its socket through env.SMTP_CONNECT
+// mail.js sends over SMTP submission to Stalwart using Cloudflare's sockets,
+// which do not exist under Node. smtp.js therefore opens its socket through env.SMTP_CONNECT
 // when it is set, and this file supplies a fake server behind it: it speaks
 // enough SMTP (greeting, EHLO, STARTTLS, AUTH LOGIN, MAIL, RCPT, DATA, QUIT) to
 // refuse out-of-order commands the way a real server would, decodes the message
 // it is handed, and records what the send actually contained.
-export const MAIL_FROM = 'inishial.test@gmail.com';        // the Gmail account that signs in: the From address
+export const MAIL_FROM = 'inishial-no-reply@lefthanddev.com'; // the mailbox that signs in, and the From address
 export const MAIL_REPLY_TO = 'inishial-support@lefthanddev.com';
-export const SMTP_PASSWORD = 'abcd efgh ijkl mnop';         // Google shows app passwords in spaced groups
+export const SMTP_PASSWORD = 'abcd efgh ijkl mnop';           // app passwords may be shown in spaced groups
 
 const decodeWord = (s) => s.replace(/=\?UTF-8\?B\?([^?]+)\?=/gi,
   (_, b) => Buffer.from(b, 'base64').toString('utf8'));
 
 /**
- * A fake Gmail SMTP server. Returns a `connect` to hand to env.SMTP_CONNECT.
+ * A fake Stalwart submission server. Returns a `connect` to hand to env.SMTP_CONNECT.
+ * Each entry pushed to `calls` records the address, the options (so a test can see
+ * secureTransport) and `verbs`, the SMTP commands the client sent, in order.
  * `reject` makes it refuse a step: { auth, mailFrom, rcpt, data }.
  */
 export function fakeSmtpConnect(sent, { reject = {}, calls = [] } = {}) {
   return (addr, opts) => {
-    calls.push({ ...addr, ...opts });
+    const call = { ...addr, ...opts, verbs: [] };
+    calls.push(call);
     const enc = new TextEncoder();
     const dec = new TextDecoder();
     let controller;
@@ -250,7 +253,8 @@ export function fakeSmtpConnect(sent, { reject = {}, calls = [] } = {}) {
     const readable = new ReadableStream({ start(c) { controller = c; } });
     const say = (s) => { if (!closed) controller.enqueue(enc.encode(s + '\r\n')); };
 
-    let tls = false, authed = false, authStep = 0, inData = false, buf = '';
+    // 'on' means the connection is encrypted from the first byte (port 465).
+    let tls = opts?.secureTransport === 'on', authed = false, authStep = 0, inData = false, buf = '';
     let mailFrom = '', rcpt = [];
 
     const finishMessage = (raw) => {
@@ -290,14 +294,18 @@ export function fakeSmtpConnect(sent, { reject = {}, calls = [] } = {}) {
         authStep = 0;
         const ok = authed && !reject.auth && Buffer.from(line, 'base64').toString() === SMTP_PASSWORD.replace(/\s/g, '');
         authed = ok;
-        // Gmail's refusal is a two-line reply; sending both exercises the
+        // A real server's refusal can be a multi-line reply; sending both exercises the
         // client's multi-line handling ("535-" continues until "535 ").
         return say(ok ? '235 2.7.0 Accepted'
           : '535-5.7.8 Username and Password not accepted. For more information, go to\r\n535 5.7.8 https://support.google.com/mail/?p=BadCredentials - gsmtp');
       }
       const verb = line.split(/[ :]/)[0].toUpperCase();
+      call.verbs.push(verb);
       if (verb === 'EHLO') return say('250-smtp.test at your service\r\n250-STARTTLS\r\n250 AUTH LOGIN');
-      if (verb === 'STARTTLS') return say('220 2.0.0 Ready to start TLS');
+      if (verb === 'STARTTLS') {
+        if (tls) return say('503 5.5.1 TLS already active');
+        return say('220 2.0.0 Ready to start TLS');
+      }
       if (verb === 'AUTH') {
         if (!tls) return say('530 5.7.0 Must issue a STARTTLS command first.');
         authStep = 1;
@@ -358,6 +366,8 @@ export function mailEnv(extra = {}, smtp = {}) {
   const sent = [];
   const calls = [];
   const env = freshEnv({
+    SMTP_HOSTNAME: 'smtp.huffpalmer.fyi',
+    SMTP_PORT: '465',
     SMTP_USERNAME: MAIL_FROM,
     SMTP_PASSWORD,
     SMTP_FROM_NAME: 'iniSHial',

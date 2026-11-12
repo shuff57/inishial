@@ -1,15 +1,19 @@
-// Outbound transactional email, over SMTP to Gmail (see _lib/smtp.js).
+// Outbound transactional email, over SMTP submission to the owner's Stalwart
+// server (see _lib/smtp.js).
 //
 // The mail this app sends: a parent's access code, on demand, from the parent
 // self-signup page, and a teacher's password-reset link. Nothing else emails
 // anyone -- the teacher's export is still a CSV the teacher mails themselves --
 // so this is the entire surface.
 //
-// It sends the same way raSHio does: Cloudflare TCP sockets to smtp.gmail.com
-// with a Google App Password (SMTP_USERNAME var, SMTP_PASSWORD secret). Gmail
-// rewrites the sender to that account, so the From address is SMTP_USERNAME and
-// MAIL_REPLY_TO carries the mailbox a human reads. This app uses its own Gmail
-// account, apart from raSHio's, because it holds student and parent data.
+// It sends the way verSHion does (and raSHio's socket code, which both come
+// from): Cloudflare TCP sockets to smtp.huffpalmer.fyi:465, logging in as this
+// app's own mailbox, inishial-no-reply@lefthanddev.com, with a Stalwart app
+// password (SMTP_USERNAME var, SMTP_PASSWORD secret). Stalwart DKIM-signs for
+// lefthanddev.com, so the mail passes DMARC with that address in From.
+// MAIL_REPLY_TO carries the mailbox a human reads. The mail never leaves
+// infrastructure the owner runs, which suits a message carrying a parent's
+// address and a student's access code.
 //
 // In dev and tests there are no secrets. MAIL_DRY_RUN makes that a log line
 // instead of an error, so the flow can be exercised end-to-end without
@@ -243,14 +247,13 @@ export async function sendAccessCode(env, toEmail, studentName, creds) {
  * endpoint that has to report honestly whether the mail went.
  */
 async function send(env, { to, subject, text, html, dryRunLog }) {
-  // Replies go to a mailbox a human reads. The From address is not chosen here:
-  // Gmail sends as the account that signs in (SMTP_USERNAME).
+  // Replies go to a mailbox a human reads, not to the no-reply sender.
   const replyTo = env.MAIL_REPLY_TO || 'inishial-support@lefthanddev.com';
 
   // No credentials and no dry-run: tell the truth. A 502 "could not send" is
   // better than a silent success that leaves someone waiting at a screen that
   // says "check your inbox".
-  if (!env.SMTP_USERNAME || !env.SMTP_PASSWORD) {
+  if (!env.SMTP_HOSTNAME || !env.SMTP_USERNAME || !env.SMTP_PASSWORD) {
     if (env.MAIL_DRY_RUN) {
       dryRunLog?.();
       return { ok: true, dryRun: true, messageId: 'dry-run' };

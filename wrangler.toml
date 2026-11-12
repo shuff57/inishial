@@ -54,25 +54,23 @@ OLLAMA_HOST = "https://ollama.com"
 # still attached to the Pages project so links in mail sent before the move
 # keep working.)
 APP_URL = "https://inishial.lefthanddev.com"
-# Outbound mail goes through Gmail over SMTP, the same way raSHio sends
-# (functions/_lib/smtp.js). Gmail sends as the account that signs in, so
-# SMTP_USERNAME is also the From address. Note: Gmail files every message sent
-# over SMTP in that account's Sent folder, so parent codes and addresses end up
-# in the mailbox of whichever account this is.
-SMTP_HOSTNAME = "smtp.gmail.com"
-SMTP_PORT = "587"
+# Outbound mail goes over SMTP submission to the owner's Stalwart server, set up
+# the same way as verSHion (functions/_lib/smtp.js): port 465 is implicit TLS,
+# and the app logs in as its own mailbox with a Stalwart app password. The From
+# address is that mailbox; Stalwart DKIM-signs for lefthanddev.com, so DMARC passes.
+SMTP_HOSTNAME = "smtp.huffpalmer.fyi"
+SMTP_PORT = "465"
 SMTP_FROM_NAME = "iniSHial"
-SMTP_USERNAME = "shuff57@gmail.com"
-# Where a parent's reply lands. Not the From address: Gmail cannot send as a
-# lefthanddev.com address without failing that domain's DMARC reject policy, but
-# a Reply-To is just a header, so replies reach a mailbox a human reads.
+SMTP_USERNAME = "inishial-no-reply@lefthanddev.com"
+# Where a parent's reply lands: a mailbox a human reads, not the no-reply sender.
 MAIL_REPLY_TO = "inishial-support@lefthanddev.com"
 # When set, functions/_lib/mail.js logs the rendered email to the console
 # instead of sending it. Dev without secrets configured.
 # Leave unset in production.
 MAIL_DRY_RUN = "1"
-# The Gmail App Password for SMTP_USERNAME (needs 2-step verification on the
-# account). Set out of band via:
+# The Stalwart app password for SMTP_USERNAME. Create it signed in as that mailbox
+# at https://smtp.huffpalmer.fyi/account under Credentials > App Passwords, then
+# set it out of band via:
 #   npx wrangler pages secret put SMTP_PASSWORD --project-name inishial
 # Which model answers Fix headings and Suggest initials when a teacher has not
 # picked one. Measured on the real prompt, five runs each: minimax-m3 averaged
@@ -97,10 +95,10 @@ OLLAMA_HOST = "https://ollama.com"
 OLLAMA_MODEL = "minimax-m3"
 OLLAMA_HIDE = "kimi-k3"
 APP_URL = "https://inishial.lefthanddev.com"
-SMTP_HOSTNAME = "smtp.gmail.com"
-SMTP_PORT = "587"
+SMTP_HOSTNAME = "smtp.huffpalmer.fyi"
+SMTP_PORT = "465"
 SMTP_FROM_NAME = "iniSHial"
-SMTP_USERNAME = "shuff57@gmail.com"
+SMTP_USERNAME = "inishial-no-reply@lefthanddev.com"
 MAIL_REPLY_TO = "inishial-support@lefthanddev.com"
-# MAIL_DRY_RUN is deliberately absent here: real email goes out via Gmail.
-# SMTP_PASSWORD (the Gmail App Password) is set out of band as a secret.
+# MAIL_DRY_RUN is deliberately absent here: real email goes out via Stalwart.
+# SMTP_PASSWORD (the Stalwart app password) is set out of band as a secret.

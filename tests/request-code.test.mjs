@@ -82,9 +82,9 @@ test('a valid request emails the parent code and returns a masked preview', asyn
       'replies go to a mailbox a human reads, not to the no-reply sender');
     assert.match(sent[0].body, /\b[2-9A-HJ-NP-Z]{8}\b/);
 
-    // Gmail sends as the account that signed in, so the envelope sender must be
-    // that same address as the From header: a mismatch is how a message gets
-    // rewritten or refused. The recipient is exactly the address the parent gave.
+    // The envelope sender must be the same mailbox as the From header: a mismatch
+    // is how a submission gets refused or rewritten. The recipient is exactly the
+    // address the parent gave.
     assert.equal(sent[0].mailFrom, MAIL_FROM);
     assert.equal(sent[0].rcptTo, 'family@example.com');
     assert.equal(sent[0].fromName, 'iniSHial');

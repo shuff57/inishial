@@ -1,5 +1,5 @@
 // The SMTP transport behind every outbound mail (functions/_lib/smtp.js), run
-// against the fake Gmail server in helpers.mjs. The endpoint tests cover that a
+// against the fake Stalwart server in helpers.mjs. The endpoint tests cover that a
 // mail goes out; these cover what is on the wire and every way it can be refused.
 
 import { test } from 'node:test';
@@ -9,15 +9,18 @@ import { mailEnv, MAIL_FROM, MAIL_REPLY_TO, SMTP_PASSWORD } from './helpers.mjs'
 
 const MSG = { to: 'family@example.com', subject: 'Your access code', text: 'Code: ABCD2345', html: '<p>Code: ABCD2345</p>', replyTo: MAIL_REPLY_TO };
 
-test('opens a STARTTLS connection to Gmail on 587 and sends as the account that signs in', async () => {
+test('connects to Stalwart on 465 with TLS from the first byte and sends as the mailbox that signs in', async () => {
   const { env, sent, calls } = mailEnv();
   const out = await sendViaSmtp(env, MSG);
   assert.match(out.messageId, /^<[0-9a-f-]+@inishial\.pages\.dev>$/);
-  assert.equal(calls[0].hostname, 'smtp.gmail.com');
-  assert.equal(calls[0].port, 587);
-  assert.equal(calls[0].secureTransport, 'starttls');
+  assert.equal(calls[0].hostname, 'smtp.huffpalmer.fyi');
+  assert.equal(calls[0].port, 465);
+  assert.equal(calls[0].secureTransport, 'on', 'implicit TLS: the handshake comes before the greeting');
+  assert.ok(!calls[0].verbs.includes('STARTTLS'), 'so there is nothing to upgrade');
+  assert.deepEqual(calls[0].verbs.filter((v) => ['EHLO', 'AUTH', 'MAIL', 'RCPT', 'DATA', 'QUIT'].includes(v)),
+    ['EHLO', 'AUTH', 'MAIL', 'RCPT', 'DATA', 'QUIT'], 'and the conversation runs in the standard order');
   assert.equal(sent.length, 1);
-  assert.equal(sent[0].from, MAIL_FROM, 'the From address is the Gmail account, as Gmail would rewrite it anyway');
+  assert.equal(sent[0].from, MAIL_FROM, 'the From address is the mailbox, so it carries the domain DKIM');
   assert.equal(sent[0].mailFrom, MAIL_FROM, 'and so is the envelope sender');
   assert.equal(sent[0].replyTo, MAIL_REPLY_TO);
   assert.equal(sent[0].rcptTo, 'family@example.com');
@@ -25,7 +28,47 @@ test('opens a STARTTLS connection to Gmail on 587 and sends as the account that 
   assert.match(sent[0].body, /Code: ABCD2345/);
 });
 
-test('the app password works with or without the spaces Google displays', async () => {
+test('any other port starts in the clear and upgrades with STARTTLS before signing in', async () => {
+  const { env, sent, calls } = mailEnv({ SMTP_PORT: '587' });
+  await sendViaSmtp(env, MSG);
+  assert.equal(calls[0].secureTransport, 'starttls');
+  const v = calls[0].verbs;
+  assert.ok(v.indexOf('STARTTLS') > -1 && v.indexOf('STARTTLS') < v.indexOf('AUTH'), 'STARTTLS comes before AUTH');
+  assert.equal(v.filter((x) => x === 'EHLO').length, 2, 'and EHLO is repeated after the upgrade');
+  assert.equal(sent.length, 1);
+});
+
+test('SMTP_SECURE overrides the port rule in either direction', async () => {
+  const on = mailEnv({ SMTP_PORT: '2525', SMTP_SECURE: 'on' });
+  await sendViaSmtp(on.env, MSG);
+  assert.equal(on.calls[0].secureTransport, 'on');
+  const off = mailEnv({ SMTP_PORT: '465', SMTP_SECURE: 'starttls' });
+  await sendViaSmtp(off.env, MSG);
+  assert.equal(off.calls[0].secureTransport, 'starttls', 'and "starttls" wins over the 465 default');
+  assert.ok(off.calls[0].verbs.includes('STARTTLS'));
+});
+
+test('MAIL_FROM sets From and the envelope sender while the login stays the mailbox', async () => {
+  const { env, sent } = mailEnv({ MAIL_FROM: 'alias@lefthanddev.com' });
+  await sendViaSmtp(env, MSG);
+  assert.equal(sent[0].from, 'alias@lefthanddev.com');
+  assert.equal(sent[0].mailFrom, 'alias@lefthanddev.com');
+});
+
+test('a MAIL_FROM that is not a bare address is refused (Stalwart answers 501 to the Name <addr> form)', async () => {
+  const { env, sent, calls } = mailEnv({ MAIL_FROM: 'iniSHial <inishial-no-reply@lefthanddev.com>' });
+  await assert.rejects(sendViaSmtp(env, MSG), (e) => e.code === 'E_SMTP_BAD_FROM');
+  assert.equal(sent.length, 0);
+  assert.equal(calls.length, 0);
+});
+
+test('no SMTP_HOSTNAME fails honestly and never falls back to a default server', async () => {
+  const { env, calls } = mailEnv({ SMTP_HOSTNAME: '' });
+  await assert.rejects(sendViaSmtp(env, MSG), (e) => e.code === 'E_NO_CREDS');
+  assert.equal(calls.length, 0, 'no connection to anywhere');
+});
+
+test('the app password works with or without the spaces it may be displayed with', async () => {
   const { env, sent } = mailEnv({ SMTP_PASSWORD: SMTP_PASSWORD.replace(/\s/g, '') });
   await sendViaSmtp(env, MSG);
   assert.equal(sent.length, 1);
