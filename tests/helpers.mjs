@@ -220,90 +220,153 @@ export const jsonRequest = (url, body, headers = {}) =>
 //
 // Shared by every test that exercises an outbound email: the parent access
 // code and the teacher password reset both go through _lib/mail.js, and a
-// second copy of this mock would be a second thing to keep in step with the
-// JMAP call shape.
-// In-memory mail capture: stand in for Stalwart by intercepting fetch. mail.js
-// bootstraps against the JMAP session document, then posts Email/set +
-// EmailSubmission/set to the API URL; this mock answers both and records what
-// the send actually contained.
-export const MAIL_HOST = 'https://smtp.test:8443';
-export const MAIL_FROM = 'inishial-no-reply@lefthanddev.com';
+// second copy of this fake would be a second thing to keep in step with the
+// SMTP conversation.
+//
+// mail.js sends over SMTP to Gmail using Cloudflare's sockets, which do not
+// exist under Node. smtp.js therefore opens its socket through env.SMTP_CONNECT
+// when it is set, and this file supplies a fake server behind it: it speaks
+// enough SMTP (greeting, EHLO, STARTTLS, AUTH LOGIN, MAIL, RCPT, DATA, QUIT) to
+// refuse out-of-order commands the way a real server would, decodes the message
+// it is handed, and records what the send actually contained.
+export const MAIL_FROM = 'inishial.test@gmail.com';        // the Gmail account that signs in: the From address
 export const MAIL_REPLY_TO = 'inishial-support@lefthanddev.com';
+export const SMTP_PASSWORD = 'abcd efgh ijkl mnop';         // Google shows app passwords in spaced groups
 
-function mailJson(body) {
-  return new Response(JSON.stringify(body), {
-    status: 200, headers: { 'Content-Type': 'application/json' },
-  });
+const decodeWord = (s) => s.replace(/=\?UTF-8\?B\?([^?]+)\?=/gi,
+  (_, b) => Buffer.from(b, 'base64').toString('utf8'));
+
+/**
+ * A fake Gmail SMTP server. Returns a `connect` to hand to env.SMTP_CONNECT.
+ * `reject` makes it refuse a step: { auth, mailFrom, rcpt, data }.
+ */
+export function fakeSmtpConnect(sent, { reject = {}, calls = [] } = {}) {
+  return (addr, opts) => {
+    calls.push({ ...addr, ...opts });
+    const enc = new TextEncoder();
+    const dec = new TextDecoder();
+    let controller;
+    let closed = false;
+    const readable = new ReadableStream({ start(c) { controller = c; } });
+    const say = (s) => { if (!closed) controller.enqueue(enc.encode(s + '\r\n')); };
+
+    let tls = false, authed = false, authStep = 0, inData = false, buf = '';
+    let mailFrom = '', rcpt = [];
+
+    const finishMessage = (raw) => {
+      const [head, ...rest] = raw.split('\r\n\r\n');
+      const h = {};
+      for (const l of head.split('\r\n')) {
+        const m = l.match(/^([A-Za-z-]+):\s*(.*)$/);
+        if (m) h[m[1].toLowerCase()] = m[2];
+      }
+      const boundary = (h['content-type'] || '').match(/boundary="([^"]+)"/)?.[1];
+      const body = rest.join('\r\n\r\n');
+      const bodies = (boundary ? body.split('--' + boundary) : [body])
+        .filter((p) => /Content-Transfer-Encoding: base64/i.test(p))
+        .map((p) => Buffer.from(p.split('\r\n\r\n').slice(1).join('').replace(/\s+/g, ''), 'base64').toString('utf8'));
+      sent.push({
+        to: h.to,
+        from: (h.from || '').match(/<([^>]+)>/)?.[1],
+        fromName: decodeWord((h.from || '').replace(/\s*<[^>]+>/, '').replace(/^"|"$/g, '')),
+        replyTo: h['reply-to'],
+        subject: decodeWord(h.subject || ''),
+        body: bodies.join('\n'),
+        mailFrom,
+        rcptTo: rcpt.join(', '),
+        messageId: h['message-id'],
+        headers: h,
+        raw,
+      });
+    };
+
+    const command = (line) => {
+      if (authStep === 1) {
+        authStep = 2;
+        authed = Buffer.from(line, 'base64').toString() === MAIL_FROM;
+        return say('334 UGFzc3dvcmQ6');
+      }
+      if (authStep === 2) {
+        authStep = 0;
+        const ok = authed && !reject.auth && Buffer.from(line, 'base64').toString() === SMTP_PASSWORD.replace(/\s/g, '');
+        authed = ok;
+        // Gmail's refusal is a two-line reply; sending both exercises the
+        // client's multi-line handling ("535-" continues until "535 ").
+        return say(ok ? '235 2.7.0 Accepted'
+          : '535-5.7.8 Username and Password not accepted. For more information, go to\r\n535 5.7.8 https://support.google.com/mail/?p=BadCredentials - gsmtp');
+      }
+      const verb = line.split(/[ :]/)[0].toUpperCase();
+      if (verb === 'EHLO') return say('250-smtp.test at your service\r\n250-STARTTLS\r\n250 AUTH LOGIN');
+      if (verb === 'STARTTLS') return say('220 2.0.0 Ready to start TLS');
+      if (verb === 'AUTH') {
+        if (!tls) return say('530 5.7.0 Must issue a STARTTLS command first.');
+        authStep = 1;
+        return say('334 VXNlcm5hbWU6');
+      }
+      if (verb === 'MAIL') {
+        if (!authed) return say('530 5.7.0 Authentication Required.');
+        if (reject.mailFrom) return say('553 5.7.1 Sender not allowed.');
+        mailFrom = line.match(/<([^>]*)>/)?.[1] || '';
+        rcpt = [];
+        return say('250 2.1.0 OK');
+      }
+      if (verb === 'RCPT') {
+        if (reject.rcpt) return say('550 5.1.1 No such user here.');
+        rcpt.push(line.match(/<([^>]*)>/)?.[1] || '');
+        return say('250 2.1.5 OK');
+      }
+      if (verb === 'DATA') { inData = true; return say('354 Go ahead'); }
+      if (verb === 'QUIT') return say('221 2.0.0 Bye');
+      return say('500 5.5.1 Unrecognized command');
+    };
+
+    const drain = () => {
+      for (;;) {
+        if (inData) {
+          const end = buf.indexOf('\r\n.\r\n');
+          if (end < 0) return;
+          const raw = buf.slice(0, end);
+          buf = buf.slice(end + 5);
+          inData = false;
+          if (reject.data) say('554 5.7.1 Message refused');
+          else { finishMessage(raw); say('250 2.0.0 OK queued'); }
+        } else {
+          const nl = buf.indexOf('\r\n');
+          if (nl < 0) return;
+          const line = buf.slice(0, nl);
+          buf = buf.slice(nl + 2);
+          command(line);
+        }
+      }
+    };
+
+    const writable = new WritableStream({
+      write(chunk) { buf += dec.decode(chunk, { stream: true }); drain(); },
+    });
+    const socket = {
+      readable,
+      writable,
+      startTls() { tls = true; return socket; },
+      close() { if (!closed) { closed = true; try { controller.close(); } catch { /* already closed */ } } },
+    };
+    say('220 smtp.test ESMTP ready');
+    return socket;
+  };
 }
 
-export function mailEnv(extra = {}) {
+export function mailEnv(extra = {}, smtp = {}) {
   const sent = [];
+  const calls = [];
   const env = freshEnv({
-    MAIL_FROM,
+    SMTP_USERNAME: MAIL_FROM,
+    SMTP_PASSWORD,
+    SMTP_FROM_NAME: 'iniSHial',
     MAIL_REPLY_TO,
-    STALWART_URL: MAIL_HOST,
-    STALWART_API_KEY: 'test-api-key',
+    SMTP_CONNECT: fakeSmtpConnect(sent, { ...smtp, calls }),
     CODE_SECRET: 'test-code-secret-at-least-16-chars',
     ...extra,
   });
-
-  // Stash the real fetch so the test can restore it. The mock covers the mail
-  // host only; everything else falls through to the real one.
-  const realFetch = globalThis.fetch;
-  globalThis.fetch = async (url, opts = {}) => {
-    const u = String(url);
-    if (u === `${MAIL_HOST}/.well-known/jmap`) {
-      // Advertise an apiUrl WITHOUT the port, exactly as a Stalwart that does
-      // not know it is published on :8443 does. The client must ignore this
-      // origin and keep using STALWART_URL.
-      return mailJson({
-        apiUrl: 'https://smtp.test/jmap/',
-        primaryAccounts: { 'urn:ietf:params:jmap:mail': 'a1' },
-      });
-    }
-    if (u === 'https://smtp.test/jmap/') {
-      throw new Error('client followed the advertised origin instead of STALWART_URL');
-    }
-    if (u.startsWith(`${MAIL_HOST}/jmap`)) {
-      const calls = JSON.parse(opts.body).methodCalls;
-      const answer = (name, args, id) => {
-        if (name === 'Identity/get') {
-          // Two identities, so the "pick the one that owns MAIL_FROM" branch is
-          // exercised rather than passing by luck of ordering.
-          return ['Identity/get', { list: [
-            { id: 'id-other', email: 'someone-else@mail.huffpalmer.fyi' },
-            { id: 'id-noreply', email: MAIL_FROM },
-          ] }, id];
-        }
-        if (name === 'Mailbox/get') {
-          return ['Mailbox/get', { list: [{ id: 'mb-drafts', role: 'drafts' }] }, id];
-        }
-        if (name === 'Email/set') {
-          const e = args.create.e1;
-          sent.push({
-            to: e.to.map((a) => a.email).join(', '),
-            from: e.from.map((a) => a.email).join(', '),
-            replyTo: e.replyTo.map((a) => a.email).join(', '),
-            subject: e.subject,
-            body: Object.values(e.bodyValues).map((v) => v.value).join('\n'),
-          });
-          return ['Email/set', { created: { e1: { id: 'em-' + sent.length } } }, id];
-        }
-        if (name === 'EmailSubmission/set') {
-          const s = args.create.s1;
-          if (sent.length) Object.assign(sent[sent.length - 1], {
-            identityId: s.identityId,
-            mailFrom: s.envelope.mailFrom.email,
-            rcptTo: s.envelope.rcptTo.map((a) => a.email).join(', '),
-          });
-          return ['EmailSubmission/set', { created: { s1: { id: 'sub-' + sent.length } } }, id];
-        }
-        return ['error', { type: 'unknownMethod' }, id];
-      };
-      return mailJson({ methodResponses: calls.map(([n, a, id]) => answer(n, a, id)) });
-    }
-    return realFetch(url, opts);
-  };
-
-  return { env, sent, restore: () => { globalThis.fetch = realFetch; } };
+  // `restore` is kept so existing tests can still call it; nothing global is
+  // patched any more, so there is nothing to undo.
+  return { env, sent, calls, restore: () => {} };
 }

@@ -82,12 +82,12 @@ test('a valid request emails the parent code and returns a masked preview', asyn
       'replies go to a mailbox a human reads, not to the no-reply sender');
     assert.match(sent[0].body, /\b[2-9A-HJ-NP-Z]{8}\b/);
 
-    // The submission must use the identity that owns MAIL_FROM, and an envelope
-    // sender on the mail subdomain -- SPF and DKIM are published there, so an
-    // apex MailFrom would fail alignment and land in spam.
-    assert.equal(sent[0].identityId, 'id-noreply');
+    // Gmail sends as the account that signed in, so the envelope sender must be
+    // that same address as the From header: a mismatch is how a message gets
+    // rewritten or refused. The recipient is exactly the address the parent gave.
     assert.equal(sent[0].mailFrom, MAIL_FROM);
     assert.equal(sent[0].rcptTo, 'family@example.com');
+    assert.equal(sent[0].fromName, 'iniSHial');
   } finally { restore(); }
 });
 
@@ -255,7 +255,7 @@ test('the mail carries a link to the sign page, on the configured host', async (
 });
 
 test('honest failure when no mail server creds are configured and not in dry-run', async () => {
-  const env = freshEnv({ MAIL_FROM: 'inishial-no-reply@lefthanddev.com', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
+  const env = freshEnv({ CODE_SECRET: 'test-code-secret-at-least-16-chars' });
   await seedStudent(env, { parentEmail: 'family@example.com' });
   await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
@@ -266,7 +266,7 @@ test('honest failure when no mail server creds are configured and not in dry-run
 });
 
 test('dry-run logs instead of sending and still reports success', async () => {
-  const env = freshEnv({ MAIL_FROM: 'inishial-no-reply@lefthanddev.com', MAIL_DRY_RUN: '1', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
+  const env = freshEnv({ MAIL_DRY_RUN: '1', CODE_SECRET: 'test-code-secret-at-least-16-chars' });
   await seedStudent(env, { parentEmail: 'family@example.com' });
   await seedAccount(env._raw, (await env.DB.prepare('SELECT id FROM roster').first()).id, { code: 'ABCD2345', parentEmail: null });
 
