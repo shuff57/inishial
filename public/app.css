@@ -1983,6 +1983,10 @@ main .flags button::before, main .flags button::after { content: none; }
   main::after { left: 1.75rem; }
   h1 { font-size: 1.55rem; }
   .brand { font-size: 1.15rem; }
+  /* Half the gap between brand, links and controls. With six public links the
+     row came to 363px, so a 360px phone put Teacher sign-in on a line of its
+     own; this buys back 12px without shrinking any tap target. */
+  header.site nav { column-gap: .35rem; }
 }
 
 /* ---- motion off ----

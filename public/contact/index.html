@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contact · iniSHial</title>
+<meta name="description" content="Send a question, a problem report, or a note from a school that wants to use iniSHial.">
+<link rel="stylesheet" href="/app.css">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<!-- The stored theme, applied before the first paint. Inline and tiny on
+     purpose: a blocking <script src> here costs first paint for no reason. -->
+<script>try{var t=localStorage.getItem("inishial:theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+<script src="/ui.js" defer></script>
+<!--
+  The one way to reach whoever runs the site. The form is the shared Left Hand
+  Dev contact service (contact.lefthanddev.com): it draws itself into the
+  placeholder below and mails the message to the support inbox, with the
+  sender as Reply-To. Nothing here touches this app's own database.
+
+  data-unstyled, so the form takes the same ruled-paper blanks and marker
+  button as every other form on the site instead of the service's defaults.
+  That leaves the few rules below to this page -- and the first one is not
+  optional: the service's honeypot field has to be hidden by whoever styles it.
+
+  No Buy Me a Coffee chip on this page: it floats in the bottom corner, which
+  at phone width is where the Send button ends up.
+-->
+<style>
+  main { max-width: 42rem; }
+  .lhd-cf { position: relative; }
+  /* The spam trap. Off-screen rather than display:none, so a bot that skips
+     hidden inputs still fills it in. */
+  .lhd-cf-hp { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+  /* A message wants the full measure, not the width of a one-word blank. */
+  .lhd-cf input[type=text], .lhd-cf input[type=email] { --blank: 100%; }
+  .lhd-cf textarea { min-height: calc(var(--rule) * 6); resize: vertical; }
+  .lhd-cf [aria-invalid=true] { border-color: var(--danger); }
+  /* A blank line between the last answer and the button, the way the other
+     forms on the site do it; a whole rule, so the page stays on the grid. */
+  .lhd-cf > button { margin-top: var(--rule); }
+  .lhd-cf-status { margin: 0; min-height: var(--rule); line-height: var(--rule); }
+  .lhd-cf-status[data-kind=error] { color: var(--danger); font-weight: 600; }
+  .lhd-cf-done:focus { outline: none; }
+  .lhd-cf-done p { margin: 0 0 var(--rule); }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="site"><nav aria-label="Main">
+  <a class="brand" href="/">ini<span class="sh">SH</span>ial</a>
+  <ul class="nav-main">
+    <li><a class="to-icon" href="/" title="Start"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-home"/></svg><span class="label">Start</span></a></li>
+    <li><a class="to-icon" href="/why/" title="Why iniSHial"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-why"/></svg><span class="label">Why iniSHial</span></a></li>
+    <li><a class="to-icon" href="/how/" title="How to use"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-guide"/></svg><span class="label">How to use</span></a></li>
+    <li><a class="to-icon" href="/register/" title="Set up my account"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-person"/></svg><span class="label">Set up my account</span></a></li>
+    <li><a class="to-icon" href="/sign/" title="Read & initial"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-initial"/></svg><span class="label">Read &amp; initial</span></a></li>
+    <li><a class="to-icon" href="/contact/" title="Contact"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-mail"/></svg><span class="label">Contact</span></a></li>
+  </ul>
+  <div class="nav-end">
+    <a class="to-icon" href="/admin/login/" title="Teacher sign-in"><svg class="icon only" aria-hidden="true"><use href="/icons.svg#i-signin"/></svg><span class="label">Teacher sign-in</span></a>
+  </div>
+</nav></header>
+
+<main id="main" tabindex="-1">
+  <h1>Contact</h1>
+
+  <p>This goes to the person who builds and runs iniSHial. Write here with a
+    question about how it works, something that looks broken, or a school
+    that wants to use it.</p>
+
+  <p class="muted">A question about a class, such as a grade, a policy, or
+    which syllabus to sign, is one for the teacher who sent you the link.
+    Please leave student IDs and access codes out of the message.</p>
+
+  <div data-lhd-contact data-site="inishial" data-unstyled></div>
+  <noscript><p>The contact form needs JavaScript turned on.</p></noscript>
+</main>
+
+<!-- Light/dark toggle. Body-level rather than in the nav: header.site carries
+     a backdrop-filter, which makes it a containing block, so a position:fixed
+     child would anchor to the header. Placement lives in app.css. -->
+<button type="button" class="theme-toggle"><svg class="sun icon" aria-hidden="true"><use href="/icons.svg#i-sun"/></svg><svg class="moon icon" aria-hidden="true"><use href="/icons.svg#i-moon"/></svg></button>
+
+<script src="https://contact.lefthanddev.com/embed.js" defer></script>
+</body>
+</html>
